@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { collection, query, where, onSnapshot } from 'firebase/firestore'
-import { db } from '@/config/firebase'
 import { Tournament } from '@/types/tournament'
+import { tournamentService } from '@/services/TournamentService'
 import { Calendar, Users, Trophy, Plus, Shield, Zap, Target, Swords } from 'lucide-react'
 import ProfessionalLoading from '@/components/ProfessionalLoading'
 
@@ -49,41 +48,19 @@ const TournamentList = () => {
         setLoading(true)
         setError(null)
 
-        try {
-            const q = query(
-                collection(db, 'tournaments'),
-                where('gameId', '==', gameId)
-            )
-
-            const unsubscribe = onSnapshot(q,
-                (snapshot) => {
-                    let tournamentData = snapshot.docs.map(doc => ({
-                        id: doc.id,
-                        ...doc.data()
-                    })) as Tournament[]
-
-                    tournamentData = tournamentData.filter(t => t.status === filter)
-                    tournamentData.sort((a, b) => {
-                        const dateA = a.startDate?.toDate?.() || new Date(a.startDate as any)
-                        const dateB = b.startDate?.toDate?.() || new Date(b.startDate as any)
-                        return dateA.getTime() - dateB.getTime()
-                    })
-
-                    setTournaments(tournamentData)
-                    setLoading(false)
-                },
-                (err) => {
-                    console.error("Error fetching tournaments:", err)
-                    setError("Failed to load tournaments. Please check your connection.")
-                    setLoading(false)
-                }
-            )
-
-            return () => unsubscribe()
-        } catch (err) {
-            setError("Failed to initialize. Please refresh.")
-            setLoading(false)
+        const fetchTournaments = async () => {
+            try {
+                const data = await tournamentService.getTournaments(gameId, filter)
+                setTournaments(data)
+            } catch (err) {
+                console.error("Error fetching tournaments:", err)
+                setError("Failed to load tournaments. Please check your connection.")
+            } finally {
+                setLoading(false)
+            }
         }
+
+        fetchTournaments()
     }, [gameId, filter])
 
     const formatDate = (timestamp: any) => {

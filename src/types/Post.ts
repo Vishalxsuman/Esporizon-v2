@@ -1,12 +1,10 @@
-import { Timestamp } from 'firebase/firestore'
-
 export interface Comment {
     id: string
     userId: string
     userName: string
     userAvatar?: string
     content: string
-    createdAt: Timestamp
+    createdAt: any
 }
 
 export interface Post {
@@ -19,8 +17,8 @@ export interface Post {
     likes: string[] // Array of user IDs who liked
     shares: string[] // Array of user IDs who shared
     comments: Comment[]
-    createdAt: Timestamp
-    updatedAt?: Timestamp
+    createdAt: any
+    updatedAt?: any
 }
 
 export interface CreatePostDto {

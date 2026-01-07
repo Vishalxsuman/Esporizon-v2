@@ -1,42 +1,38 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Link } from 'react-router-dom'
-import { useAuth } from '@/contexts/AuthContext'
+import { useUser, UserButton } from '@clerk/clerk-react'
 import { walletService } from '@/services/WalletService'
 import { Wallet } from '@/types'
 import WalletModal from '@/components/WalletModal'
 import SocialFeed from '@/components/SocialFeed'
 import ParticlesBackground from '@/components/ParticlesBackground'
 import toast, { Toaster } from 'react-hot-toast'
-import { doc, onSnapshot } from 'firebase/firestore'
-import { db } from '@/config/firebase'
 
 const Dashboard = () => {
-  const { user, signOut } = useAuth()
+  const { user } = useUser()
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [loading, setLoading] = useState(true)
   const [modalType, setModalType] = useState<'add' | 'withdraw' | null>(null)
 
-  // Real-time wallet listener
+  // Sync wallet from localStorage
   useEffect(() => {
     if (!user) return
 
-    const unsubscribe = onSnapshot(
-      doc(db, 'wallets', user.uid),
-      (snapshot) => {
-        if (snapshot.exists()) {
-          setWallet(snapshot.data() as Wallet)
-        }
-        setLoading(false)
-      },
-      (error) => {
-        console.error('Wallet listener error:', error)
-        toast.error('Failed to sync wallet')
-        setLoading(false)
-      }
-    )
+    const loadWallet = async () => {
+      const w = await walletService.getWallet(user.id)
+      setWallet(w)
+      setLoading(false)
+    }
 
-    return () => unsubscribe()
+    loadWallet()
+
+    const handleWalletUpdate = (e: any) => {
+      setWallet(e.detail)
+    }
+
+    window.addEventListener('walletUpdate', handleWalletUpdate)
+    return () => window.removeEventListener('walletUpdate', handleWalletUpdate)
   }, [user])
 
   const handleWalletAction = async (amount: number) => {
@@ -44,7 +40,7 @@ const Dashboard = () => {
 
     try {
       if (modalType === 'add') {
-        await walletService.addFunds(amount, user.uid)
+        await walletService.addFunds(amount, user.id)
         toast.success(`₹${amount.toLocaleString('en-IN')} added successfully!`, {
           icon: '💰',
           style: {
@@ -57,7 +53,7 @@ const Dashboard = () => {
       } else if (modalType === 'withdraw') {
         // For now, use placeholder account details
         const accountDetails = { method: 'bank', accountNumber: 'XXXX' }
-        await walletService.withdrawFunds(amount, user.uid, accountDetails)
+        await walletService.withdrawFunds(amount, user.id, accountDetails)
         toast.success(`₹${amount.toLocaleString('en-IN')} withdrawn successfully!`, {
           icon: '✅',
           style: {
@@ -122,16 +118,14 @@ const Dashboard = () => {
           <h1 className="text-xl font-bold bg-gradient-to-r from-[var(--accent)] to-[#7c3aed] bg-clip-text text-transparent italic">
             ESPO V2
           </h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-0.5">Welcome {user?.displayName?.split(' ')[0] || 'Gamer'}</p>
+          <p className="text-sm text-[var(--text-secondary)] mt-0.5">Welcome {user?.firstName || 'Gamer'}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="flex flex-col items-end mr-2">
             <span className="text-[10px] text-[var(--text-secondary)] uppercase">Balance</span>
             <span className="text-sm font-bold text-[var(--accent)]">₹{wallet?.balance.toLocaleString()}</span>
           </div>
-          <Link to="/profile" className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[#7c3aed] flex items-center justify-center font-bold text-[var(--bg-primary)] text-xs hover:scale-110 active:scale-95 transition-all">
-            {user?.displayName?.[0] || 'U'}
-          </Link>
+          <UserButton afterSignOutUrl="/" />
         </div>
       </div>
 
@@ -160,12 +154,10 @@ const Dashboard = () => {
 
         <div className="mt-auto pt-6 border-t border-[var(--border)]">
           <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[var(--glass)] border border-[var(--border)]">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[var(--accent)] to-[#7c3aed] flex items-center justify-center font-bold text-[var(--bg-primary)]">
-              {user?.displayName?.[0] || 'U'}
-            </div>
+            <UserButton afterSignOutUrl="/" />
             <div className="flex-1 overflow-hidden">
-              <p className="text-sm font-bold truncate">{user?.displayName || 'Gamer'}</p>
-              <div onClick={signOut} className="text-xs text-red-500 cursor-pointer hover:underline">Sign Out</div>
+              <p className="text-sm font-bold truncate">{user?.fullName || 'Gamer'}</p>
+              <p className="text-[10px] text-[var(--text-secondary)] truncate">{user?.primaryEmailAddress?.emailAddress}</p>
             </div>
           </div>
         </div>
@@ -176,7 +168,7 @@ const Dashboard = () => {
         {/* Desktop Header */}
         <header className="hidden lg:flex h-16 px-8 items-center justify-between border-b border-[var(--border)] bg-[var(--bg-primary)]/50 backdrop-blur-sm z-10">
           <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold">Welcome back, {user?.displayName?.split(' ')[0] || 'Gamer'}!</h2>
+            <h2 className="text-xl font-bold">Welcome back, {user?.firstName || 'Gamer'}!</h2>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/create-post" className="px-5 py-2 rounded-lg bg-[var(--accent)] text-[var(--bg-primary)] text-sm font-bold hover:bg-[var(--accent)]/90 transition-all hover:scale-105 shadow-[0_0_20px_rgba(0,255,194,0.3)]">
@@ -233,7 +225,7 @@ const Dashboard = () => {
                     }}
                   >
                     <img
-                      src={`/Images/${game.id}.png`}
+                      src={`https://cdn.jsdelivr.net/gh/Vishalxsuman/Esporizon-v2@main/Images/${game.id}.png`}
                       alt={game.name}
                       className="absolute inset-0 w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity"
                       onError={(e) => {

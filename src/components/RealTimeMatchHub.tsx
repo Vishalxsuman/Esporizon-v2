@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore'
-import { db } from '@/config/firebase'
 import { Match } from '@/types'
 
 interface RealTimeMatchHubProps {
@@ -14,42 +12,13 @@ const RealTimeMatchHub: React.FC<RealTimeMatchHubProps> = ({ tournamentId, maxMa
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    let q = query(
-      collection(db, 'matches'),
-      where('status', 'in', ['scheduled', 'live']),
-      orderBy('startTime', 'asc'),
-      limit(maxMatches)
-    )
+    // Simulated Match Loading
+    const timer = setTimeout(() => {
+      setMatches([]) // Empty for now
+      setLoading(false)
+    }, 1000)
 
-    if (tournamentId) {
-      q = query(
-        collection(db, 'matches'),
-        where('tournamentId', '==', tournamentId),
-        where('status', 'in', ['scheduled', 'live']),
-        orderBy('startTime', 'asc'),
-        limit(maxMatches)
-      )
-    }
-
-    const unsubscribe = onSnapshot(
-      q,
-      (snapshot) => {
-        const matchesData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-          startTime: doc.data().startTime?.toDate() || new Date(),
-        })) as Match[]
-
-        setMatches(matchesData)
-        setLoading(false)
-      },
-      (error) => {
-        console.error('Error listening to matches:', error)
-        setLoading(false)
-      }
-    )
-
-    return () => unsubscribe()
+    return () => clearTimeout(timer)
   }, [tournamentId, maxMatches])
 
   if (loading) {
@@ -96,11 +65,10 @@ const RealTimeMatchHub: React.FC<RealTimeMatchHubProps> = ({ tournamentId, maxMa
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className={`p-4 rounded-lg border ${
-                  match.status === 'live'
+                className={`p-4 rounded-lg border ${match.status === 'live'
                     ? 'bg-neon-green/10 border-neon-green/50'
                     : 'bg-white/5 border-white/10'
-                }`}
+                  }`}
               >
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">

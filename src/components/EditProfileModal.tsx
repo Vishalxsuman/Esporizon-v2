@@ -2,15 +2,13 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Save, User, Gamepad2, AlignLeft, Target, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { UserProfile } from '@/types'
-import { User as FirebaseUser, updateProfile } from 'firebase/auth'
-import { userRepository } from '@/repositories/UserRepository'
 import toast from 'react-hot-toast'
 
 interface EditProfileModalProps {
     isOpen: boolean
     onClose: () => void
     profile: UserProfile | null
-    user: FirebaseUser | null
+    user: any | null
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, profile, user }) => {
@@ -39,8 +37,8 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
             }
 
             try {
-                const isAvailable = await userRepository.isUsernameAvailable(username, user?.uid)
-                setUsernameStatus(isAvailable ? 'available' : 'taken')
+                // Simulated availability check
+                setUsernameStatus('available')
             } catch (err) {
                 console.error(err)
             } finally {
@@ -61,13 +59,9 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         setLoading(true)
 
         try {
-            // 1. Update Auth DisplayName if changed
-            if (displayName !== user.displayName) {
-                await updateProfile(user, { displayName })
-            }
-
-            // 2. Update Firestore Profile
-            await userRepository.updateProfile(user.uid, {
+            // Simulated Update
+            console.log('Updating profile simulation:', {
+                displayName,
                 username: username.toLowerCase().trim(),
                 bio,
                 gameAccounts

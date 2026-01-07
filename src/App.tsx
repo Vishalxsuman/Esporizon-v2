@@ -1,9 +1,15 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider } from './contexts/AuthContext'
-import ProtectedRoute from './components/ProtectedRoute'
 import Navigation from './components/Navigation'
+
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
+
+if (!PUBLISHABLE_KEY) {
+  throw new Error("Missing Clerk Publishable Key")
+}
 
 // Lazy load pages for code splitting (improves LCP)
 const LandingPage = lazy(() => import('./pages/LandingPage'))
@@ -29,131 +35,158 @@ const PageLoader = () => (
 
 function App() {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <Router>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/auth" element={<AuthPage />} />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tournaments"
-                element={
-                  <ProtectedRoute>
-                    <TournamentGrid />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/predict"
-                element={
-                  <ProtectedRoute>
-                    <ColorPrediction />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tournaments/:gameId"
-                element={
-                  <ProtectedRoute>
-                    <TournamentList />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tournaments/:gameId/create"
-                element={
-                  <ProtectedRoute>
-                    <CreateTournament />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/tournament/:id"
-                element={
-                  <ProtectedRoute>
-                    <TournamentDetails />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/social"
-                element={
-                  <ProtectedRoute>
-                    <SocialPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/wallet"
-                element={
-                  <ProtectedRoute>
-                    <WalletPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/create-post"
-                element={
-                  <ProtectedRoute>
-                    <CreatePost />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/earnings"
-                element={
-                  <ProtectedRoute>
-                    <PlaceholderPage title="Earnings" />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/support"
-                element={
-                  <ProtectedRoute>
-                    <PlaceholderPage title="Support" />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/profile/:userId"
-                element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </Suspense>
-          <Navigation />
-        </Router>
-      </AuthProvider>
-    </ThemeProvider>
+    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <ThemeProvider>
+        <AuthProvider>
+          <Router basename={import.meta.env.BASE_URL}>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/auth" element={
+                  <>
+                    <SignedIn>
+                      <Navigate to="/dashboard" replace />
+                    </SignedIn>
+                    <SignedOut>
+                      <AuthPage />
+                    </SignedOut>
+                  </>
+                } />
+
+                {/* Protected Routes */}
+                <Route
+                  path="/dashboard"
+                  element={
+                    <>
+                      <SignedIn><Dashboard /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/tournaments"
+                  element={
+                    <>
+                      <SignedIn><TournamentGrid /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/predict"
+                  element={
+                    <>
+                      <SignedIn><ColorPrediction /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/tournaments/:gameId"
+                  element={
+                    <>
+                      <SignedIn><TournamentList /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/tournaments/:gameId/create"
+                  element={
+                    <>
+                      <SignedIn><CreateTournament /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/tournament/:id"
+                  element={
+                    <>
+                      <SignedIn><TournamentDetails /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/social"
+                  element={
+                    <>
+                      <SignedIn><SocialPage /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/wallet"
+                  element={
+                    <>
+                      <SignedIn><WalletPage /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/create-post"
+                  element={
+                    <>
+                      <SignedIn><CreatePost /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/earnings"
+                  element={
+                    <>
+                      <SignedIn><PlaceholderPage title="Earnings" /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/support"
+                  element={
+                    <>
+                      <SignedIn><PlaceholderPage title="Support" /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/profile"
+                  element={
+                    <>
+                      <SignedIn><ProfilePage /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/profile/:userId"
+                  element={
+                    <>
+                      <SignedIn><ProfilePage /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <>
+                      <SignedIn><ProfilePage /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+              </Routes>
+            </Suspense>
+            <Navigation />
+          </Router>
+        </AuthProvider>
+      </ThemeProvider>
+    </ClerkProvider>
   )
 }
 
