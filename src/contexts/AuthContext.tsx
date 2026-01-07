@@ -1,8 +1,9 @@
 import React, { createContext, useContext, ReactNode } from 'react'
 import { useUser, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react'
+import { User } from '@/types'
 
 interface AuthContextType {
-  user: any | null // Using any for now to facilitate migration from Firebase User
+  user: User | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, displayName: string) => Promise<void>
@@ -55,12 +56,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   // Map Clerk user to existing components' expectations if needed
-  const mappedUser = user ? {
+  const mappedUser: User | null = user ? {
+    id: user.id,
     uid: user.id,
-    email: user.primaryEmailAddress?.emailAddress,
+    email: user.primaryEmailAddress?.emailAddress || null,
     displayName: user.fullName || user.username || 'Gamer',
-    photoURL: user.imageUrl,
-    ...user
+    photoURL: user.imageUrl || null,
   } : null
 
   return (

@@ -66,8 +66,8 @@ const RealTimeMatchHub: React.FC<RealTimeMatchHubProps> = ({ tournamentId, maxMa
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 className={`p-4 rounded-lg border ${match.status === 'live'
-                    ? 'bg-neon-green/10 border-neon-green/50'
-                    : 'bg-white/5 border-white/10'
+                  ? 'bg-neon-green/10 border-neon-green/50'
+                  : 'bg-white/5 border-white/10'
                   }`}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -84,7 +84,7 @@ const RealTimeMatchHub: React.FC<RealTimeMatchHubProps> = ({ tournamentId, maxMa
                     </span>
                   </div>
                   <span className="text-xs text-gray-400">
-                    {match.startTime.toLocaleTimeString('en-IN', {
+                    {new Date(match.startTime).toLocaleTimeString('en-IN', {
                       hour: '2-digit',
                       minute: '2-digit',
                     })}

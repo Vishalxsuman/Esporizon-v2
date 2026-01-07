@@ -24,7 +24,8 @@ class WalletService {
         type: 'add',
         amount: amount,
         description: 'Added funds to wallet',
-        timestamp: new Date().toISOString() as any // Simulating Timestamp with ISO string for now
+        timestamp: new Date().toISOString(),
+        status: 'completed'
       }
 
       wallet.balance += amount
@@ -52,7 +53,8 @@ class WalletService {
         type: 'deduct',
         amount: amount,
         description: description || 'Deducted from wallet',
-        timestamp: new Date().toISOString() as any
+        timestamp: new Date().toISOString(),
+        status: 'completed'
       }
 
       wallet.balance -= amount
@@ -78,8 +80,8 @@ class WalletService {
         type: 'withdraw',
         amount: amount,
         description: `Withdrawal to ${accountDetails.method || 'bank'}`,
-        timestamp: new Date().toISOString() as any,
-        status: 'pending' as any
+        timestamp: new Date().toISOString(),
+        status: 'pending'
       }
 
       wallet.balance -= amount

@@ -34,7 +34,7 @@ VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
 ### Build & Deploy
 1. Push to the `main` branch.
 2. GitHub Actions will build (`npm run build`) and deploy to GitHub Pages.
-3. Custom domain `esporison.in` is configured via the `public/CNAME` file.
+3. Custom domain `esporizon.in` is configured via the `public/CNAME` file.
 
 ## 📁 Project Structure
 

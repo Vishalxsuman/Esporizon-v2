@@ -4,38 +4,48 @@ const STATIC_TOURNAMENTS: Tournament[] = [
     {
         id: 'freefire_1',
         gameId: 'freefire',
+        gameName: 'Free Fire',
         title: 'Free Fire Open Championship',
         description: 'Compete with the best in the biggest Free Fire tournament of the season.',
         entryFee: 50,
         prizePool: 10000,
         maxTeams: 100,
+        teamSize: 4,
         currentTeams: 45,
         status: 'upcoming',
-        startDate: new Date(Date.now() + 86400000).toISOString() as any,
-        registrationDeadline: new Date(Date.now() + 43200000).toISOString() as any,
-        format: 'SQUAD',
+        startDate: new Date(Date.now() + 86400000).toISOString(),
+        registrationDeadline: new Date(Date.now() + 43200000).toISOString(),
+        format: 'squad',
         mapMode: 'Bermuda',
         prizeDistribution: { first: 50, second: 30, third: 20 },
         organizerId: 'system',
-        organizerName: 'ESPO Admin'
+        organizerName: 'ESPO Admin',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        totalMatches: 3
     },
     {
         id: 'bgmi_1',
         gameId: 'bgmi',
+        gameName: 'BGMI',
         title: 'BGMI Pro League',
         description: 'The ultimate battle royale for pro players.',
         entryFee: 100,
         prizePool: 50000,
         maxTeams: 64,
+        teamSize: 4,
         currentTeams: 60,
         status: 'upcoming',
-        startDate: new Date(Date.now() + 172800000).toISOString() as any,
-        registrationDeadline: new Date(Date.now() + 86400000).toISOString() as any,
-        format: 'SQUAD',
+        startDate: new Date(Date.now() + 172800000).toISOString(),
+        registrationDeadline: new Date(Date.now() + 86400000).toISOString(),
+        format: 'squad',
         mapMode: 'Erangel',
         prizeDistribution: { first: 60, second: 25, third: 15 },
         organizerId: 'system',
-        organizerName: 'ESPO Admin'
+        organizerName: 'ESPO Admin',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        totalMatches: 5
     }
 ]
 
@@ -72,7 +82,7 @@ export const tournamentService = {
         throw new Error('Leave functionality is handled via support')
     },
 
-    async getParticipants(tournamentId: string): Promise<TournamentParticipant[]> {
+    async getParticipants(_tournamentId: string): Promise<TournamentParticipant[]> {
         return [] // Empty for now in static mode
     }
 }

@@ -67,10 +67,10 @@ const TournamentDetails = () => {
 
         setActionLoading(true)
         try {
-            console.log('Joining tournament:', id, 'User:', user.uid)
+            console.log('Joining tournament:', id, 'User:', user.id)
             await tournamentService.joinTournament(id!, {
                 teamName: teamName || (user.displayName ? `${user.displayName}'s Team` : 'Anonymous Team'),
-                players: [{ userId: user.uid, userName: user.displayName || 'Unknown', role: 'leader' }]
+                players: [{ userId: user.id || user.uid || '', userName: user.displayName || 'Unknown', role: 'leader' }]
             })
 
             toast.success('Successfully joined tournament!', {
@@ -161,7 +161,7 @@ const TournamentDetails = () => {
 
     const isFull = tournament.currentTeams >= tournament.maxTeams
     const deadline = tournament.registrationDeadline ?
-        (typeof tournament.registrationDeadline === 'string' ? new Date(tournament.registrationDeadline) : tournament.registrationDeadline.toDate()) :
+        (typeof tournament.registrationDeadline === 'string' ? new Date(tournament.registrationDeadline) : new Date(tournament.registrationDeadline)) :
         new Date()
     const isDeadlinePassed = new Date() > deadline
     const canJoin = !hasJoined && !isFull && !isDeadlinePassed && tournament.status === 'upcoming'

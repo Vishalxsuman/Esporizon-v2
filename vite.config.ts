@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react'
 import path from 'path'
 
 export default defineConfig({
+  base: '/',
   plugins: [react()],
   resolve: {
     alias: {
@@ -21,7 +22,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'firebase-vendor': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/analytics'],
           'animation-vendor': ['framer-motion'],
         },
       },
@@ -33,11 +33,6 @@ export default defineConfig({
       'react-dom',
       'react-router-dom',
       'framer-motion',
-      'firebase/app',
-      'firebase/auth',
-      'firebase/firestore',
-      'firebase/analytics'
     ],
-    exclude: ['firebase-admin']
   },
 })

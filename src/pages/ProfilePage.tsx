@@ -19,7 +19,7 @@ import {
     Briefcase
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { userRepository } from '@/repositories/UserRepository'
+import { userService } from '@/services/UserService'
 import { UserProfile } from '@/types'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast, { Toaster } from 'react-hot-toast'
@@ -36,13 +36,13 @@ const ProfilePage = () => {
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const { theme, toggleTheme } = useTheme()
 
-    const targetUserId = paramId || user?.uid
+    const targetUserId = paramId || user?.id || user?.uid
 
     useEffect(() => {
         if (!targetUserId) return
 
         setLoading(true)
-        const unsubscribe = userRepository.subscribeToProfile(targetUserId, (data) => {
+        const unsubscribe = userService.subscribeToProfile(targetUserId, (data) => {
             setProfile(data)
             setLoading(false)
         })
@@ -50,12 +50,14 @@ const ProfilePage = () => {
         return () => unsubscribe()
     }, [targetUserId])
 
-    const isOwnProfile = user?.uid === targetUserId
+    const isOwnProfile = (user?.id === targetUserId) || (user?.uid === targetUserId)
 
     const handleToggleSetting = async (key: keyof UserProfile['settings']) => {
         if (!user || !profile || !isOwnProfile) return
         try {
-            await userRepository.updateProfile(user.uid, {
+            const userId = user?.id || user?.uid
+            if (!userId) return
+            await userService.updateProfile(userId, {
                 settings: {
                     ...profile.settings,
                     [key]: !profile.settings[key]
@@ -89,7 +91,7 @@ const ProfilePage = () => {
         )
     }
 
-    const StatCard = ({ icon: Icon, label, value, color }: any) => (
+    const StatCard = ({ icon: Icon, label, value, color }: { icon: any, label: string, value: string | number, color: string }) => (
         <motion.div
             whileHover={{ y: -5, scale: 1.02 }}
             className="p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 backdrop-blur-xl relative overflow-hidden group"

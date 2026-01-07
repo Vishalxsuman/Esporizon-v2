@@ -1,5 +1,6 @@
 export interface User {
-  uid: string
+  id: string
+  uid?: string
   email: string | null
   displayName: string | null
   photoURL: string | null
@@ -36,30 +37,27 @@ export interface Transaction {
   id: string
   type: 'add' | 'deduct' | 'withdraw'
   amount: number
-  timestamp: Date
+  timestamp: string
   description: string
   status: 'pending' | 'completed' | 'failed'
 }
 
 export interface Tournament {
   id: string
-  game: 'BGMI' | 'Free Fire' | 'Valorant'
+  gameId: string
   title: string
   entryFee: number
   prizePool: number
-  startDate: Date
-  endDate: Date
-  participants: number
-  maxParticipants: number
-  status: 'upcoming' | 'live' | 'completed'
-  imageUrl: string
+  startDate: string
+  status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
+  imageUrl?: string
 }
 
 export interface Match {
   id: string
   tournamentId: string
   teams: string[]
-  startTime: Date
+  startTime: string
   status: 'scheduled' | 'live' | 'completed'
   result?: {
     winner: string
@@ -74,12 +72,12 @@ export interface Prediction {
   predictedTeam: string
   amount: number
   status: 'pending' | 'won' | 'lost'
-  createdAt: Date
+  createdAt: string
 }
 
 export interface ColorPredictionResult {
   id: string
   color: 'red' | 'green' | 'violet'
   multiplier: number
-  timestamp: Date
+  timestamp: string
 }

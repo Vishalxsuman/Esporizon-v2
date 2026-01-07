@@ -13,7 +13,7 @@ const STATIC_POSTS: Post[] = [
         likes: [],
         shares: [],
         comments: [],
-        createdAt: new Date().toISOString() as any
+        createdAt: new Date().toISOString()
     },
     {
         id: 'post_2',
@@ -25,7 +25,7 @@ const STATIC_POSTS: Post[] = [
         likes: ['user_1'],
         shares: [],
         comments: [],
-        createdAt: new Date(Date.now() - 3600000).toISOString() as any
+        createdAt: new Date(Date.now() - 3600000).toISOString()
     }
 ]
 
@@ -67,7 +67,7 @@ class PostService {
     }
 
     subscribeToPostsByRange(
-        daysAgo: number,
+        _daysAgo: number,
         maxPosts: number = 20,
         callback: (posts: Post[]) => void
     ): () => void {
@@ -88,7 +88,7 @@ class PostService {
             likes: [],
             shares: [],
             comments: [],
-            createdAt: new Date().toISOString() as any
+            createdAt: new Date().toISOString()
         }
 
         const stored = localStorage.getItem(STORAGE_KEY)
