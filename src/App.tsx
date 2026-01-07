@@ -7,9 +7,7 @@ import Navigation from './components/Navigation'
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Clerk Publishable Key")
-}
+// Lazy load pages for code splitting (improves LCP)
 
 // Lazy load pages for code splitting (improves LCP)
 const LandingPage = lazy(() => import('./pages/LandingPage'))
@@ -34,6 +32,21 @@ const PageLoader = () => (
 )
 
 function App() {
+  if (!PUBLISHABLE_KEY) {
+    return (
+      <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
+        <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-8 max-w-md text-center">
+          <h1 className="text-2xl font-bold text-red-500 mb-4">Configuration Error</h1>
+          <p className="text-gray-300 mb-6">The Clerk Publishable Key is missing from the environment variables.</p>
+          <div className="bg-black/50 p-4 rounded-lg text-left text-sm font-mono text-gray-400 overflow-x-auto">
+            VITE_CLERK_PUBLISHABLE_KEY is undefined
+          </div>
+          <p className="text-gray-500 text-sm mt-6">Please add this secret to your GitHub Repository Settings.</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
       <ThemeProvider>
@@ -180,6 +193,7 @@ function App() {
                     </>
                   }
                 />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
             <Navigation />
