@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import { walletService } from '@/services/WalletService'
 import { ColorPredictionResult } from '@/types'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+
 
 const ColorPrediction = () => {
   const { user } = useAuth()
@@ -24,14 +24,14 @@ const ColorPrediction = () => {
   }, [user])
 
   const loadBalance = async () => {
-    if (!user) return
+    const userId = user?.id || user?.uid
+    if (!userId) return
     try {
       setLoadingBalance(true)
-      const wallet = await walletService.getWallet(user.uid)
+      const wallet = await walletService.getWallet(userId)
       setBalance(wallet.balance)
     } catch (error) {
       console.error('Failed to load balance:', error)
-      // Fallback to 0 if wallet doesn't exist yet
       setBalance(0)
     } finally {
       setLoadingBalance(false)
@@ -39,27 +39,17 @@ const ColorPrediction = () => {
   }
 
   const loadRecentResults = async () => {
-    try {
-      const token = user ? await user.getIdToken() : null
-      const headers: HeadersInit = { 'Content-Type': 'application/json' }
-      if (token) {
-        headers.Authorization = `Bearer ${token}`
-      }
-      
-      const response = await fetch(`${API_BASE_URL}/predict/results?limit=10`, {
-        headers,
-      })
-      if (response.ok) {
-        const data = await response.json()
-        setRecentResults(data)
-      }
-    } catch (error) {
-      console.error('Failed to load results:', error)
-    }
+    // Return mock historical results
+    setRecentResults([
+      { id: '1', color: 'red', multiplier: 2, timestamp: new Date().toISOString() },
+      { id: '2', color: 'green', multiplier: 2, timestamp: new Date().toISOString() },
+      { id: '3', color: 'violet', multiplier: 4.5, timestamp: new Date().toISOString() },
+    ])
   }
 
   const handlePredict = async () => {
-    if (!selectedColor || !user) {
+    const userId = user?.id || user?.uid
+    if (!selectedColor || !userId) {
       alert('Please select a color and ensure you are logged in')
       return
     }
@@ -72,35 +62,31 @@ const ColorPrediction = () => {
     setIsSpinning(true)
 
     try {
-      const token = await user.getIdToken()
-      const response = await fetch(`${API_BASE_URL}/predict/play`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          userId: user.uid,
-          color: selectedColor,
-          amount: betAmount,
-        }),
-      })
+      // Simulation: Wait 2 seconds then "win" or "lose"
+      await new Promise(resolve => setTimeout(resolve, 2000))
 
-      if (!response.ok) {
-        throw new Error('Prediction failed')
+      const winningColor = Math.random() < 0.33 ? 'red' : Math.random() < 0.66 ? 'green' : 'violet'
+      const isWinner = winningColor === selectedColor
+      const multiplier = winningColor === 'violet' ? 4.5 : 2
+
+      const playResult: ColorPredictionResult = {
+        id: `res_${Date.now()}`,
+        color: winningColor,
+        multiplier,
+        timestamp: new Date().toISOString()
       }
 
-      const data = await response.json()
-      setResult(data.result)
-      setRecentResults((prev) => [data.result, ...prev].slice(0, 10))
-      
-      // Update balance from server response (server is source of truth)
-      if (data.balance !== undefined) {
-        setBalance(data.balance)
+      setResult(playResult)
+      setRecentResults((prev) => [playResult, ...prev].slice(0, 10))
+
+      if (isWinner) {
+        const winAmount = betAmount * multiplier
+        await walletService.addFunds(winAmount - betAmount, userId)
       } else {
-        // Fallback: reload balance from server
-        await loadBalance()
+        await walletService.deductFunds(betAmount, userId)
       }
+
+      await loadBalance()
 
       // Reset selection after 3 seconds
       setTimeout(() => {
@@ -179,13 +165,11 @@ const ColorPrediction = () => {
                     disabled={isSpinning}
                     whileHover={{ scale: selectedColor === color.value ? 1 : 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className={`relative p-6 rounded-xl font-bold text-white transition-all ${
-                      selectedColor === color.value
-                        ? 'ring-4 ring-electric-purple scale-110'
-                        : 'opacity-70 hover:opacity-100'
-                    } bg-gradient-to-br ${color.gradient} ${
-                      isSpinning ? 'cursor-not-allowed' : 'cursor-pointer'
-                    }`}
+                    className={`relative p-6 rounded-xl font-bold text-white transition-all ${selectedColor === color.value
+                      ? 'ring-4 ring-electric-purple scale-110'
+                      : 'opacity-70 hover:opacity-100'
+                      } bg-gradient-to-br ${color.gradient} ${isSpinning ? 'cursor-not-allowed' : 'cursor-pointer'
+                      }`}
                   >
                     <div className="text-2xl mb-2">
                       {color.value === 'red' ? '🔴' : color.value === 'green' ? '🟢' : '🟣'}
@@ -221,11 +205,10 @@ const ColorPrediction = () => {
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.8 }}
-                    className={`mt-6 p-6 rounded-xl text-center ${
-                      result.color === selectedColor
-                        ? 'bg-neon-green/20 border-2 border-neon-green'
-                        : 'bg-red-500/20 border-2 border-red-500'
-                    }`}
+                    className={`mt-6 p-6 rounded-xl text-center ${result.color === selectedColor
+                      ? 'bg-neon-green/20 border-2 border-neon-green'
+                      : 'bg-red-500/20 border-2 border-red-500'
+                      }`}
                   >
                     <p className="text-2xl font-bold mb-2">
                       {result.color === selectedColor ? '🎉 You Won!' : '❌ You Lost'}
@@ -258,13 +241,12 @@ const ColorPrediction = () => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className={`p-3 rounded-lg flex items-center justify-between ${
-                        res.color === 'red'
-                          ? 'bg-red-500/20'
-                          : res.color === 'green'
+                      className={`p-3 rounded-lg flex items-center justify-between ${res.color === 'red'
+                        ? 'bg-red-500/20'
+                        : res.color === 'green'
                           ? 'bg-green-500/20'
                           : 'bg-violet-500/20'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-center gap-2">
                         <span className="text-2xl">

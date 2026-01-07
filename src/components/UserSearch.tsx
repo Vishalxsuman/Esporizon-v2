@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, User as UserIcon, Trophy, X, ChevronRight } from 'lucide-react'
-import { userRepository } from '@/repositories/UserRepository'
+import { userService } from '@/services/UserService'
 import { UserProfile } from '@/types'
 import { useNavigate } from 'react-router-dom'
 
@@ -17,7 +17,7 @@ const UserSearch = () => {
             if (searchTerm.trim()) {
                 setSearching(true)
                 try {
-                    const users = await userRepository.searchUsers(searchTerm)
+                    const users = await userService.searchUsers(searchTerm)
                     setResults(users)
                     setShowResults(true)
                 } catch (error) {

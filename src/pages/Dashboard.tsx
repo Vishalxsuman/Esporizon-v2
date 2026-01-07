@@ -27,8 +27,9 @@ const Dashboard = () => {
 
     loadWallet()
 
-    const handleWalletUpdate = (e: any) => {
-      setWallet(e.detail)
+    const handleWalletUpdate = (e: Event) => {
+      const detail = (e as CustomEvent).detail
+      if (detail) setWallet(detail)
     }
 
     window.addEventListener('walletUpdate', handleWalletUpdate)

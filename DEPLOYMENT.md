@@ -1,17 +1,135 @@
-# ESPO V 2 - Final Deployment Commands
-
-## ✅ Build Status: SUCCESS
-
-Your production build is now working perfectly! 
-
-**Build Output:**
-- Total bundle size: ~811 kB
-- Gzipped size: ~214 kB  
-- Build time: 2.61s
-- All TypeScript checks passed ✅
-- All modules optimized ✅
+# ESPO V 2 - Deployment Options
 
 ---
+
+## 🚀 Option 1: GitHub Pages (esporizon.in)
+
+**Current Setup:** GitHub Pages with custom domain `esporizon.in`
+
+### ✅ Prerequisites Completed
+
+- [x] Repository: Public (Vishalxsuman/Esporizon-v2)
+- [x] Build configuration: Updated with `base: '/'`
+- [x] CNAME file: Located at `public/CNAME` → copies to `dist/CNAME`
+- [x] GitHub Actions workflow: Configured in `.github/workflows/deploy.yml`
+
+---
+
+### Step 1: Add GitHub Actions Secrets
+
+Go to: `https://github.com/Vishalxsuman/Esporizon-v2/settings/secrets/actions`
+
+Click **New repository secret** and add these 7 secrets from your `.env` file:
+
+| Secret Name | Value (from .env) |
+|-------------|------------------|
+| `VITE_CLERK_PUBLISHABLE_KEY` | pk_test_... |
+| `VITE_FIREBASE_API_KEY` | AIza... |
+| `VITE_FIREBASE_AUTH_DOMAIN` | esporizon-1dd37.firebaseapp.com |
+| `VITE_FIREBASE_PROJECT_ID` | esporizon-1dd37 |
+| `VITE_FIREBASE_STORAGE_BUCKET` | esporizon-1dd37.appspot.com |
+| `VITE_FIREBASE_MESSAGING_SENDER_ID` | 123... |
+| `VITE_FIREBASE_APP_ID` | 1:123... |
+
+---
+
+### Step 2: Configure DNS Records in GoDaddy
+
+**CRITICAL:** Site will NOT work until DNS is configured.
+
+Login to GoDaddy → Manage Domains → esporizon.in → DNS Management
+
+**Add 4 A Records (Delete old ones if any):**
+```
+Type: A
+Name: @
+Value: 185.199.108.153
+TTL: 600 seconds (10 minutes)
+```
+
+Repeat for these 3 additional IPs:
+- `185.199.109.153`
+- `185.199.110.153`
+- `185.199.111.153`
+
+**Add 1 CNAME Record:**
+```
+Type: CNAME
+Name: www
+Value: Vishalxsuman.github.io
+TTL: 1 Hour
+```
+
+**Save all changes.** DNS propagation: 5-60 minutes.
+
+---
+
+### Step 3: Deploy to GitHub Pages
+
+```powershell
+# Ensure all changes are committed
+git status
+git add .
+git commit -m "Configure GitHub Pages with custom domain"
+git push origin main
+```
+
+**Watch the deployment:**
+1. Go to: `https://github.com/Vishalxsuman/Esporizon-v2/actions`
+2. Wait for green checkmark (~2-3 minutes)
+3. Click on the workflow run to see details
+
+---
+
+### Step 4: Configure Custom Domain in GitHub
+
+**ONLY do this AFTER DNS records are configured in GoDaddy.**
+
+1. Go to: `https://github.com/Vishalxsuman/Esporizon-v2/settings/pages`
+2. Under "Source" → Select: **GitHub Actions**
+3. Under "Custom domain":
+   - Enter: `esporizon.in`
+   - Click **Save**
+   - Wait for "DNS check successful" ✅ (may take 5-10 minutes)
+4. Once DNS verifies, check the box: **Enforce HTTPS**
+
+---
+
+### Step 5: Verify Live Site
+
+**Wait 15-75 minutes total for:**
+- GitHub Actions build (2-3 min)
+- DNS propagation (5-60 min)
+- SSL certificate generation (5-15 min)
+
+**Then visit:**
+```
+https://esporizon.in
+```
+
+**Test checklist:**
+- [ ] Site loads without errors
+- [ ] Authentication works (Clerk)
+- [ ] Dashboard displays
+- [ ] All routes work (tournaments, profile, etc.)
+- [ ] No console errors
+- [ ] Mobile responsive
+
+---
+
+### 🔄 Quick Redeploy (After Initial Setup)
+
+```powershell
+# After making code changes
+git add .
+git commit -m "Description of changes"
+git push origin main
+# GitHub Actions will auto-deploy
+```
+
+---
+
+## 🚀 Option 2: Firebase Hosting (Alternative)
 
 ## 🚀 Final Deployment Steps
 

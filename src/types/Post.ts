@@ -4,7 +4,7 @@ export interface Comment {
     userName: string
     userAvatar?: string
     content: string
-    createdAt: any
+    createdAt: string
 }
 
 export interface Post {
@@ -17,8 +17,8 @@ export interface Post {
     likes: string[] // Array of user IDs who liked
     shares: string[] // Array of user IDs who shared
     comments: Comment[]
-    createdAt: any
-    updatedAt?: any
+    createdAt: string
+    updatedAt?: string
 }
 
 export interface CreatePostDto {

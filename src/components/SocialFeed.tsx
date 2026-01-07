@@ -45,9 +45,9 @@ const SocialFeed = ({ daysAgo = 0, maxPosts = 10 }: SocialFeedProps) => {
         }
     }
 
-    const formatTimeAgo = (timestamp: any) => {
+    const formatTimeAgo = (timestamp: string) => {
         if (!timestamp) return ''
-        const date = timestamp?.toDate?.() || new Date(timestamp)
+        const date = new Date(timestamp)
         const now = new Date()
         const diffMs = now.getTime() - date.getTime()
         const diffMins = Math.floor(diffMs / 60000)
@@ -93,7 +93,7 @@ const SocialFeed = ({ daysAgo = 0, maxPosts = 10 }: SocialFeedProps) => {
         <div className="space-y-6">
             <AnimatePresence mode="popLayout">
                 {posts.map((post, index) => {
-                    const isLiked = user ? post.likes?.includes(user.uid) : false
+                    const isLiked = user ? post.likes?.includes(user.id) : false
 
                     return (
                         <motion.div

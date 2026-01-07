@@ -10,8 +10,8 @@ export interface Tournament {
     organizerName: string
 
     // Scheduling
-    startDate: any
-    registrationDeadline: any
+    startDate: string
+    registrationDeadline: string
 
     // Participation
     maxTeams: number
@@ -31,8 +31,8 @@ export interface Tournament {
     status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
 
     // Meta
-    createdAt: any
-    updatedAt: any
+    createdAt: string
+    updatedAt: string
 
     // Rules & Format
     format: 'solo' | 'duo' | 'squad'
@@ -58,14 +58,14 @@ export interface TournamentParticipant {
     // Payment
     paymentStatus: 'pending' | 'paid' | 'refunded'
     paidAmount: number
-    paidAt?: any
+    paidAt?: string
 
     // Performance
     kills?: number
     placement?: number
     points?: number
 
-    joinedAt: any
+    joinedAt: string
 }
 
 export interface CreateTournamentDto {

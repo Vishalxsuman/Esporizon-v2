@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { X, Save, User, Gamepad2, AlignLeft, Target, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
 import { UserProfile } from '@/types'
+import { userService } from '@/services/UserService'
 import toast from 'react-hot-toast'
 
 interface EditProfileModalProps {
@@ -12,7 +13,7 @@ interface EditProfileModalProps {
 }
 
 const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, profile, user }) => {
-    const [displayName, setDisplayName] = useState(user?.displayName || '')
+    const [displayName, setDisplayName] = useState(user?.fullName || user?.displayName || '')
     const [username, setUsername] = useState(profile?.username || '')
     const [bio, setBio] = useState(profile?.bio || '')
     const [gameAccounts, setGameAccounts] = useState(profile?.gameAccounts || {})
@@ -47,10 +48,11 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         }, 800)
 
         return () => clearTimeout(timer)
-    }, [username, profile, user])
+    }, [username, profile])
 
     const handleSave = async () => {
-        if (!user) return
+        const userId = user?.id || user?.uid
+        if (!userId) return
         if (usernameStatus === 'taken' || usernameStatus === 'invalid') {
             toast.error('Identification Error: Username unavailable')
             return
@@ -59,9 +61,7 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         setLoading(true)
 
         try {
-            // Simulated Update
-            console.log('Updating profile simulation:', {
-                displayName,
+            await userService.updateProfile(userId, {
                 username: username.toLowerCase().trim(),
                 bio,
                 gameAccounts

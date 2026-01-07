@@ -6,52 +6,43 @@ const TournamentGrid = () => {
   const tournaments: Tournament[] = [
     {
       id: '1',
-      game: 'BGMI',
+      gameId: 'bgmi',
       title: 'BGMI Championship 2026',
       entryFee: 100,
       prizePool: 50000,
-      startDate: new Date('2026-02-01'),
-      endDate: new Date('2026-02-15'),
-      participants: 245,
-      maxParticipants: 500,
+      startDate: new Date('2026-02-01').toISOString(),
       status: 'upcoming',
       imageUrl: '/bgmi.jpg',
     },
     {
       id: '2',
-      game: 'Free Fire',
+      gameId: 'freefire',
       title: 'Free Fire Pro League',
       entryFee: 150,
       prizePool: 75000,
-      startDate: new Date('2026-02-05'),
-      endDate: new Date('2026-02-20'),
-      participants: 189,
-      maxParticipants: 300,
-      status: 'live',
+      startDate: new Date('2026-02-05').toISOString(),
+      status: 'ongoing',
       imageUrl: '/freefire.jpg',
     },
     {
       id: '3',
-      game: 'Valorant',
+      gameId: 'valorant',
       title: 'Valorant Masters',
       entryFee: 200,
       prizePool: 100000,
-      startDate: new Date('2026-02-10'),
-      endDate: new Date('2026-02-25'),
-      participants: 156,
-      maxParticipants: 400,
+      startDate: new Date('2026-02-10').toISOString(),
       status: 'upcoming',
       imageUrl: '/valorant.jpg',
     },
   ]
 
-  const getGameColor = (game: string) => {
-    switch (game) {
-      case 'BGMI':
+  const getGameColor = (gameId: string) => {
+    switch (gameId) {
+      case 'bgmi':
         return 'from-yellow-500 to-orange-500'
-      case 'Free Fire':
+      case 'freefire':
         return 'from-blue-500 to-cyan-500'
-      case 'Valorant':
+      case 'valorant':
         return 'from-red-500 to-pink-500'
       default:
         return 'from-electric-purple to-neon-green'
@@ -80,13 +71,13 @@ const TournamentGrid = () => {
               className="glass-card hover:scale-105 transition-transform duration-300 cursor-pointer group"
             >
               {/* Game Badge */}
-              <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-4 bg-gradient-to-r ${getGameColor(tournament.game)}`}>
-                {tournament.game}
+              <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold mb-4 bg-gradient-to-r ${getGameColor(tournament.gameId)}`}>
+                {tournament.gameId.toUpperCase()}
               </div>
 
               {/* Tournament Image Placeholder */}
-              <div className={`w-full h-48 rounded-lg mb-4 bg-gradient-to-br ${getGameColor(tournament.game)} opacity-80 flex items-center justify-center text-6xl`}>
-                {tournament.game === 'BGMI' ? '🎮' : tournament.game === 'Free Fire' ? '🔥' : '⚔️'}
+              <div className={`w-full h-48 rounded-lg mb-4 bg-gradient-to-br ${getGameColor(tournament.gameId)} opacity-80 flex items-center justify-center text-6xl`}>
+                {tournament.gameId === 'bgmi' ? '🎮' : tournament.gameId === 'freefire' ? '🔥' : '⚔️'}
               </div>
 
               <h2 className="text-xl font-bold mb-2">{tournament.title}</h2>
@@ -103,30 +94,22 @@ const TournamentGrid = () => {
                   <p className="text-sm text-gray-400">Entry Fee</p>
                   <p className="text-lg font-semibold">₹{tournament.entryFee}</p>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                  tournament.status === 'live' ? 'bg-neon-green/20 text-neon-green' : 'bg-electric-purple/20 text-electric-purple'
-                }`}>
+                <div className={`px-3 py-1 rounded-full text-xs font-semibold ${tournament.status === 'ongoing' ? 'bg-neon-green/20 text-neon-green' : 'bg-electric-purple/20 text-electric-purple'
+                  }`}>
                   {tournament.status.toUpperCase()}
                 </div>
               </div>
 
-              {/* Participants */}
+              {/* Date Info */}
               <div className="mb-4">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-gray-400">Participants</span>
-                  <span className="font-semibold">{tournament.participants}/{tournament.maxParticipants}</span>
-                </div>
-                <div className="w-full bg-white/5 rounded-full h-2">
-                  <div
-                    className="bg-gradient-cyber h-2 rounded-full transition-all"
-                    style={{ width: `${(tournament.participants / tournament.maxParticipants) * 100}%` }}
-                  />
-                </div>
+                <p className="text-sm text-gray-400">Starts On</p>
+                <p className="text-sm font-semibold">{new Date(tournament.startDate).toLocaleDateString()}</p>
               </div>
+
 
               {/* Join Button */}
               <button className="w-full py-3 bg-gradient-cyber rounded-lg font-semibold hover:scale-105 transition-transform neon-glow">
-                {tournament.status === 'live' ? 'Join Now' : 'Register'}
+                {tournament.status === 'ongoing' ? 'Join Now' : 'Register'}
               </button>
             </motion.div>
           ))}

@@ -11,8 +11,7 @@ import {
     Gift
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { walletRepository } from '@/repositories/WalletRepository'
-import { userRepository } from '@/repositories/UserRepository'
+import { userService } from '@/services/UserService'
 import { Wallet as WalletType, Transaction, UserProfile } from '@/types'
 import WalletModal from '@/components/WalletModal'
 import { walletService } from '@/services/WalletService'
@@ -29,39 +28,55 @@ const WalletPage = () => {
     useEffect(() => {
         if (!user) return
 
-        const unsubscribeWallet = walletRepository.subscribeToWallet(user.uid, (data) => {
-            setWallet(data)
-        })
+        const fetchInitialData = async () => {
+            const userId = user?.id || user?.uid
+            if (!userId) return
 
-        const unsubscribeProfile = userRepository.subscribeToProfile(user.uid, (data) => {
-            setProfile(data)
-        })
-
-        const fetchTransactions = async () => {
             try {
-                const txs = await walletRepository.getTransactions(user.uid)
-                setTransactions(txs)
+                const w = await walletService.getWallet(userId)
+                setWallet(w)
+                setTransactions(w.transactions)
+
+                const p = await userService.getProfile(userId)
+                setProfile(p)
             } catch (err) {
-                console.error('Error fetching transactions:', err)
+                console.error('Initial fetch error:', err)
             }
         }
 
-        fetchTransactions()
+        fetchInitialData()
+
+        const handleWalletUpdate = (e: Event) => {
+            const updatedWallet = (e as CustomEvent<WalletType>).detail
+            if (updatedWallet) {
+                setWallet(updatedWallet)
+                setTransactions(updatedWallet.transactions)
+            }
+        }
+
+        window.addEventListener('walletUpdate', handleWalletUpdate)
+
+        const userId = user?.id || user?.uid
+        const unsubscribeProfile = userId ? userService.subscribeToProfile(userId, (data) => {
+            setProfile(data)
+        }) : () => { }
+
         return () => {
-            unsubscribeWallet()
+            window.removeEventListener('walletUpdate', handleWalletUpdate)
             unsubscribeProfile()
         }
     }, [user])
 
     const handleWalletAction = async (amount: number) => {
-        if (!user || !modalType) return
+        const userId = user?.id || user?.uid
+        if (!userId || !modalType) return
 
         try {
             if (modalType === 'add') {
-                await walletService.addFunds(amount, user.uid)
+                await walletService.addFunds(amount, userId)
                 toast.success(`₹${amount} Added to Deployment Fund`)
             } else {
-                await walletService.withdrawFunds(amount, user.uid, { method: 'default' })
+                await walletService.withdrawFunds(amount, userId, { method: 'default' })
                 toast.success(`Withdrawal Request of ₹${amount} Submitted`)
             }
             setModalType(null)
@@ -208,7 +223,7 @@ const WalletPage = () => {
                                         </div>
                                         <div>
                                             <div className="text-xs font-black uppercase tracking-wide group-hover:text-[var(--accent)] transition-colors">{tx.description}</div>
-                                            <div className="text-[10px] text-[var(--text-secondary)] font-bold uppercase mt-1">{tx.timestamp.toLocaleDateString()}</div>
+                                            <div className="text-[10px] text-[var(--text-secondary)] font-bold uppercase mt-1">{new Date(tx.timestamp).toLocaleDateString()}</div>
                                         </div>
                                     </div>
                                     <div className={`text-lg font-black italic tracking-tighter ${tx.type === 'add' ? 'text-[var(--accent)]' : 'text-red-500'}`}>
