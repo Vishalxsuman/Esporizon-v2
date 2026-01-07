@@ -75,7 +75,7 @@ const CreatePost = () => {
                 toast.error('Security Protocol Error: Storage Access Denied (Check Rules)', {
                     duration: 5000
                 })
-            } else if (error.message?.includes('CORS') || error.name === 'FirebaseError') {
+            } else if (error.message?.includes('CORS')) {
                 toast.error('Network Protocol Error: Storage CORS settings need to be configured. See instructions.', {
                     duration: 6000
                 })
