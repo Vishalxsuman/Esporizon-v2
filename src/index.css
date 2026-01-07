@@ -1,0 +1,212 @@
+:root {
+  --bg-primary: #09090b;
+  --bg-secondary: #000000;
+  --surface: #18181b;
+  --surface-hover: #27272a;
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1aa;
+  --accent: #00ffc2;
+  --accent-muted: rgba(0, 255, 194, 0.1);
+  --border: rgba(255, 255, 255, 0.05);
+  --glass: rgba(255, 255, 255, 0.02);
+  --glass-intense: rgba(255, 255, 255, 0.05);
+}
+
+:root[data-theme='light'] {
+  --bg-primary: #f1f5f9;
+  --bg-secondary: #e2e8f0;
+  --surface: #ffffff;
+  --surface-hover: #f8fafc;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --accent: #10b981;
+  --accent-muted: rgba(16, 185, 129, 0.1);
+  --border: rgba(15, 23, 42, 0.08);
+  --glass: rgba(15, 23, 42, 0.03);
+  --glass-intense: rgba(15, 23, 42, 0.06);
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    @apply antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .glass-effect {
+    @apply bg-white/5 backdrop-blur-glass border border-white/10;
+  }
+
+  .glass-card {
+    @apply glass-effect rounded-2xl p-6 shadow-2xl;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-cyber bg-clip-text text-transparent;
+  }
+
+  .neon-glow {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+  }
+
+  .win-glow {
+    text-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
+  }
+
+  /* Obsidian Glass Theme */
+  .glass-card-premium {
+    background: var(--glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+  }
+
+  /* Breathing animation for LIVE badges */
+  @keyframes breathe {
+
+    0%,
+    100% {
+      box-shadow: 0 0 10px rgba(255, 75, 43, 0.5);
+      transform: scale(1);
+    }
+
+    50% {
+      box-shadow: 0 0 20px rgba(255, 75, 43, 0.9), 0 0 30px rgba(255, 75, 43, 0.5);
+      transform: scale(1.05);
+    }
+  }
+
+  .glass-chip-premium {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 255, 194, 0.2);
+    border-radius: 24px;
+    padding: 0.75rem 1.25rem;
+    transition: all 0.3s ease;
+  }
+
+  .glass-chip-premium:hover {
+    background: rgba(0, 255, 194, 0.1);
+    border-color: rgba(0, 255, 194, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  @keyframes breathe {
+
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    50% {
+      opacity: 0.7;
+      transform: scale(0.95);
+    }
+  }
+
+  .animate-breathe {
+    animation: breathe 2s ease-in-out infinite;
+  }
+
+  /* Custom scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 4px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 194, 0.3);
+    border-radius: 4px;
+    transition: background 0.3s ease;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 255, 194, 0.5);
+  }
+
+  /* Firefox scrollbar */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 255, 194, 0.3) rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Mobile-first optimizations */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+}
+
+/* Performance optimizations for LCP < 1.2s */
+img {
+  content-visibility: auto;
+  loading: lazy;
+  decoding: async;
+}
+
+/* Preload critical fonts */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Inter'), local('Inter-Regular');
+}
+
+/* Optimize rendering */
+* {
+  box-sizing: border-box;
+}
+
+/* Reduce layout shift */
+button,
+a {
+  min-height: 44px;
+  /* Touch target size */
+}
+
+/* Optimize animations for performance */
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
