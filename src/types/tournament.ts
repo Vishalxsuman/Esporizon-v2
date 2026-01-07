@@ -1,5 +1,3 @@
-import { Timestamp } from 'firebase/firestore'
-
 export interface Tournament {
     id: string
     gameId: 'freefire' | 'bgmi' | 'valorant' | 'minecraft'
@@ -12,8 +10,8 @@ export interface Tournament {
     organizerName: string
 
     // Scheduling
-    startDate: Timestamp
-    registrationDeadline: Timestamp
+    startDate: any
+    registrationDeadline: any
 
     // Participation
     maxTeams: number
@@ -33,8 +31,8 @@ export interface Tournament {
     status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
 
     // Meta
-    createdAt: Timestamp
-    updatedAt: Timestamp
+    createdAt: any
+    updatedAt: any
 
     // Rules & Format
     format: 'solo' | 'duo' | 'squad'
@@ -60,14 +58,14 @@ export interface TournamentParticipant {
     // Payment
     paymentStatus: 'pending' | 'paid' | 'refunded'
     paidAmount: number
-    paidAt?: Timestamp
+    paidAt?: any
 
     // Performance
     kills?: number
     placement?: number
     points?: number
 
-    joinedAt: Timestamp
+    joinedAt: any
 }
 
 export interface CreateTournamentDto {

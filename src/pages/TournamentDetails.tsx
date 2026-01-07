@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { doc, onSnapshot } from 'firebase/firestore'
-import { db } from '@/config/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 import { Tournament, TournamentParticipant } from '@/types/tournament'
 import { tournamentService } from '@/services/TournamentService'
@@ -18,18 +16,26 @@ const TournamentDetails = () => {
     const [actionLoading, setActionLoading] = useState(false)
     const [hasJoined, setHasJoined] = useState(false)
 
-    // Real-time tournament listener
+    // Load tournament data
     useEffect(() => {
         if (!id) return
 
-        const unsubscribe = onSnapshot(doc(db, 'tournaments', id), (snapshot) => {
-            if (snapshot.exists()) {
-                setTournament({ id: snapshot.id, ...snapshot.data() } as Tournament)
+        const fetchTournament = async () => {
+            try {
+                // In our migrated architecture, tournamentService returns static data
+                const allTournaments = await tournamentService.getTournaments()
+                const found = allTournaments.find(t => t.id === id)
+                if (found) {
+                    setTournament(found)
+                }
+            } catch (error) {
+                console.error('Failed to load tournament:', error)
+            } finally {
+                setLoading(false)
             }
-            setLoading(false)
-        })
+        }
 
-        return () => unsubscribe()
+        fetchTournament()
     }, [id])
 
     // Load participants
@@ -131,9 +137,11 @@ const TournamentDetails = () => {
         }
     }
 
-    const formatDate = (timestamp: any) => {
-        if (!timestamp) return 'TBA'
-        const date = timestamp.toDate()
+    const formatDate = (dateInput: any) => {
+        if (!dateInput) return 'TBA'
+        const date = typeof dateInput === 'string' ? new Date(dateInput) :
+            (dateInput.toDate ? dateInput.toDate() : new Date(dateInput))
+
         return new Intl.DateTimeFormat('en-IN', {
             weekday: 'short',
             month: 'short',
@@ -152,7 +160,10 @@ const TournamentDetails = () => {
     }
 
     const isFull = tournament.currentTeams >= tournament.maxTeams
-    const isDeadlinePassed = new Date() > tournament.registrationDeadline.toDate()
+    const deadline = tournament.registrationDeadline ?
+        (typeof tournament.registrationDeadline === 'string' ? new Date(tournament.registrationDeadline) : tournament.registrationDeadline.toDate()) :
+        new Date()
+    const isDeadlinePassed = new Date() > deadline
     const canJoin = !hasJoined && !isFull && !isDeadlinePassed && tournament.status === 'upcoming'
 
     return (

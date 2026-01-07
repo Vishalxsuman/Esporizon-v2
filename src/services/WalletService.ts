@@ -1,33 +1,39 @@
-import { db } from '@/config/firebase'
-import {
-  doc,
-  updateDoc,
-  arrayUnion,
-  increment,
-  Timestamp,
-  runTransaction
-} from 'firebase/firestore'
-import { Wallet } from '@/types'
+import { Wallet, Transaction } from '@/types'
 
 class WalletService {
-  async getWallet(_userId: string): Promise<Wallet> {
-    // This logic is already handled by WalletRepository and real-time listeners in Dashboard
-    return { balance: 0, transactions: [] }
+  private getStorageKey(userId: string): string {
+    return `espo_wallet_${userId}`
+  }
+
+  async getWallet(userId: string): Promise<Wallet> {
+    const key = this.getStorageKey(userId)
+    const stored = localStorage.getItem(key)
+    if (stored) {
+      return JSON.parse(stored)
+    }
+    const newWallet: Wallet = { balance: 0, transactions: [] }
+    localStorage.setItem(key, JSON.stringify(newWallet))
+    return newWallet
   }
 
   async addFunds(amount: number, userId: string): Promise<void> {
     try {
-      const walletRef = doc(db, 'wallets', userId)
-      await updateDoc(walletRef, {
-        balance: increment(amount),
-        transactions: arrayUnion({
-          id: `txn_${Date.now()}`,
-          type: 'add',
-          amount: amount,
-          description: 'Added funds to wallet',
-          timestamp: Timestamp.now()
-        })
-      })
+      const wallet = await this.getWallet(userId)
+      const newTransaction: Transaction = {
+        id: `txn_${Date.now()}`,
+        type: 'add',
+        amount: amount,
+        description: 'Added funds to wallet',
+        timestamp: new Date().toISOString() as any // Simulating Timestamp with ISO string for now
+      }
+
+      wallet.balance += amount
+      wallet.transactions.unshift(newTransaction)
+
+      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
+
+      // Dispatch custom event for real-time-like behavior across tabs/components
+      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
     } catch (error) {
       console.error('Error adding funds:', error)
       throw new Error('Failed to add funds')
@@ -36,30 +42,24 @@ class WalletService {
 
   async deductFunds(amount: number, userId: string, description?: string): Promise<void> {
     try {
-      await runTransaction(db, async (transaction) => {
-        const walletRef = doc(db, 'wallets', userId)
-        const walletDoc = await transaction.get(walletRef)
+      const wallet = await this.getWallet(userId)
+      if (wallet.balance < amount) {
+        throw new Error('Insufficient balance')
+      }
 
-        if (!walletDoc.exists()) {
-          throw new Error('Wallet not found')
-        }
+      const newTransaction: Transaction = {
+        id: `txn_${Date.now()}`,
+        type: 'deduct',
+        amount: amount,
+        description: description || 'Deducted from wallet',
+        timestamp: new Date().toISOString() as any
+      }
 
-        const currentBalance = walletDoc.data().balance || 0
-        if (currentBalance < amount) {
-          throw new Error('Insufficient balance')
-        }
+      wallet.balance -= amount
+      wallet.transactions.unshift(newTransaction)
 
-        transaction.update(walletRef, {
-          balance: increment(-amount),
-          transactions: arrayUnion({
-            id: `txn_${Date.now()}`,
-            type: 'deduct',
-            amount: amount,
-            description: description || 'Deducted from wallet',
-            timestamp: Timestamp.now()
-          })
-        })
-      })
+      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
+      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
     } catch (error) {
       console.error('Error deducting funds:', error)
       throw error
@@ -68,31 +68,25 @@ class WalletService {
 
   async withdrawFunds(amount: number, userId: string, accountDetails: any): Promise<void> {
     try {
-      await runTransaction(db, async (transaction) => {
-        const walletRef = doc(db, 'wallets', userId)
-        const walletDoc = await transaction.get(walletRef)
+      const wallet = await this.getWallet(userId)
+      if (wallet.balance < amount) {
+        throw new Error('Insufficient balance')
+      }
 
-        if (!walletDoc.exists()) {
-          throw new Error('Wallet not found')
-        }
+      const newTransaction: Transaction = {
+        id: `txn_${Date.now()}`,
+        type: 'withdraw',
+        amount: amount,
+        description: `Withdrawal to ${accountDetails.method || 'bank'}`,
+        timestamp: new Date().toISOString() as any,
+        status: 'pending' as any
+      }
 
-        const currentBalance = walletDoc.data().balance || 0
-        if (currentBalance < amount) {
-          throw new Error('Insufficient balance')
-        }
+      wallet.balance -= amount
+      wallet.transactions.unshift(newTransaction)
 
-        transaction.update(walletRef, {
-          balance: increment(-amount),
-          transactions: arrayUnion({
-            id: `txn_${Date.now()}`,
-            type: 'withdraw',
-            amount: amount,
-            description: `Withdrawal to ${accountDetails.method || 'bank'}`,
-            timestamp: Timestamp.now(),
-            status: 'pending'
-          })
-        })
-      })
+      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
+      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
     } catch (error) {
       console.error('Error withdrawing funds:', error)
       throw error
