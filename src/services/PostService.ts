@@ -50,7 +50,7 @@ class PostService {
 
     // Atomic Like Toggle using Transaction
     async toggleLike(postId: string, userId: string): Promise<void> {
-        if (!userId) throw new Error("User must be logged in")
+        if (!userId) throw new Error("Authentication Required")
 
         const postRef = doc(db, POSTS_COLLECTION, postId)
 
@@ -62,19 +62,21 @@ class PostService {
             const likes = data.likes || []
             const hasLiked = likes.includes(userId)
 
+            const currentCount = typeof data.likeCount === 'number' ? data.likeCount : likes.length
+
             if (hasLiked) {
                 // Unlike
                 const newLikes = likes.filter(id => id !== userId)
                 transaction.update(postRef, {
                     likes: newLikes,
-                    likeCount: Math.max(0, (data.likeCount || likes.length) - 1)
+                    likeCount: Math.max(0, currentCount - 1)
                 })
             } else {
                 // Like
                 const newLikes = [...likes, userId]
                 transaction.update(postRef, {
                     likes: newLikes,
-                    likeCount: (data.likeCount || likes.length) + 1
+                    likeCount: currentCount + 1
                 })
             }
         })
@@ -89,7 +91,7 @@ class PostService {
         console.log('Post shared', postId)
     }
 
-    async addComment(postId: string, userId: string, userName: string, content: string): Promise<void> {
+    async addComment(postId: string, userId: string, userName: string, content: string, userAvatar?: string): Promise<void> {
         if (!userId || !content.trim()) return
 
         const postRef = doc(db, POSTS_COLLECTION, postId)
@@ -98,39 +100,44 @@ class PostService {
         const newComment = {
             userId,
             userName,
+            userAvatar: userAvatar || '',
             content,
             createdAt: new Date().toISOString()
         }
+
+        // We use a transaction to ensure count and doc creation are synced
+        // NOTE: In Firestore, we can't reliably use transaction.set with auto-ID 
+        // without knowing the ID. We can pre-generate a doc ref.
+        const newCommentRef = doc(commentsRef)
 
         await runTransaction(db, async (transaction) => {
             const postDoc = await transaction.get(postRef)
             if (!postDoc.exists()) throw new Error("Post does not exist")
 
-            // Add comment to subcollection
-            // defined outside transaction technically, but good to link
-            // Actually, for subcollection addDoc we can't use transaction.update directly easily on a new generated ID ref unless we create doc ref first.
-            // Simplified: Write comment first, then update count? 
-            // Better: Use batch or just independent writes, but the count is critical.
-            // Let's use transaction for the count update, and regular add for the doc, or link them.
-            // Firestore transactions require all reads before writes.
+            const data = postDoc.data() as Post
+            const currentCount = typeof data.commentCount === 'number' ? data.commentCount : 0
 
-            // Re-think: "Maintain a commentCount field".
-            // We can just add the doc and then update the count atomically using `increment`.
-            // This is "eventually consistent" enough for this app.
-            // But let's try to be robust.
-        })
-
-        // Simpler approach for this specific app constraint:
-        // 1. Add comment to subcollection
-        await addDoc(commentsRef, newComment)
-
-        // 2. Atomically increment count on parent Post
-        await updateDoc(postRef, {
-            commentCount: increment(1)
+            transaction.set(newCommentRef, newComment)
+            transaction.update(postRef, {
+                commentCount: currentCount + 1
+            })
         })
     }
 
-    // Fetch comments for a post (if needed by UI)
+    // Real-time comments for a specific post
+    subscribeToComments(postId: string, callback: (comments: Comment[]) => void): () => void {
+        const commentsRef = collection(db, POSTS_COLLECTION, postId, 'comments')
+        const q = query(commentsRef, orderBy('createdAt', 'desc'))
+
+        return onSnapshot(q, (snapshot) => {
+            const comments = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as Comment))
+            callback(comments)
+        })
+    }
+
     async getComments(postId: string): Promise<Comment[]> {
         const commentsRef = collection(db, POSTS_COLLECTION, postId, 'comments')
         const q = query(commentsRef, orderBy('createdAt', 'desc'))
@@ -140,16 +147,15 @@ class PostService {
 
     async createPost(content: string, imageUrl: string | null, userId: string, userName: string, userAvatar: string): Promise<void> {
         const postsRef = collection(db, POSTS_COLLECTION)
-        const newPost = { // Omit 'id', Firestore adds it
+        const newPost = {
             userId,
             userName,
             userAvatar: userAvatar || '',
             content,
             imageUrl: imageUrl || '',
-            likes: [], // Initial empty array
+            likes: [],
             likeCount: 0,
             shares: [],
-            // comments: [], // We don't store full comments in parent array anymore
             commentCount: 0,
             createdAt: new Date().toISOString()
         }
