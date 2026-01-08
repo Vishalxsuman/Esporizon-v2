@@ -170,14 +170,14 @@ const SocialFeed = ({ daysAgo = 0, maxPosts = 10 }: SocialFeedProps) => {
                                         <div className={`p-2.5 rounded-xl border transition-all duration-300 ${isLiked ? 'bg-[#ff4b2b]/10 border-[#ff4b2b]/30' : 'bg-white/5 border-white/5 group-hover/btn:border-white/10 group-hover/btn:bg-white/10'}`}>
                                             <Heart size={18} className={isLiked ? 'fill-current' : ''} />
                                         </div>
-                                        <span className="text-xs font-black italic tracking-widest">{post.likes?.length || 0}</span>
+                                        <span className="text-xs font-black italic tracking-widest">{post.likeCount ?? post.likes?.length ?? 0}</span>
                                     </motion.button>
 
                                     <div className="flex items-center gap-2.5 group/btn text-gray-500 hover:text-white transition-colors duration-300 cursor-pointer">
                                         <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 group-hover/btn:border-white/10 group-hover/btn:bg-white/10 transition-all duration-300">
                                             <MessageCircle size={18} />
                                         </div>
-                                        <span className="text-xs font-black italic tracking-widest">{post.comments?.length || 0}</span>
+                                        <span className="text-xs font-black italic tracking-widest">{post.commentCount ?? post.comments?.length ?? 0}</span>
                                     </div>
                                 </div>
 

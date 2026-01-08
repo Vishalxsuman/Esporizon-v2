@@ -14,9 +14,11 @@ export interface Post {
     userAvatar?: string
     content: string
     imageUrl?: string
-    likes: string[] // Array of user IDs who liked
-    shares: string[] // Array of user IDs who shared
-    comments: Comment[]
+    likes: string[] // Array of user IDs who liked (keep for checking 'isLiked')
+    likeCount?: number // Atomic counter
+    shares: string[]
+    commentCount?: number // Atomic counter
+    comments: Comment[] // Keep for immediate display if fetched, but usually fetched on demand
     createdAt: string
     updatedAt?: string
 }
