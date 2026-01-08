@@ -73,8 +73,26 @@ Once you push to the `main` branch, the GitHub Action in `.github/workflows/depl
 
 - **Hosting:** GitHub Pages (Static)
 - **Auth:** Clerk (Social & Email)
+- **Image Storage:** Cloudinary (Unsigned Uploads)
 - **Data:** `localStorage` (Wallet, Posts simulation)
 - **Assets:** jsDelivr CDN (`https://cdn.jsdelivr.net/gh/[Username]/[Repo]@main/Images/`)
+
+### Image Uploads
+
+All user-uploaded images (post images, avatars) are stored on **Cloudinary** using unsigned uploads:
+
+- **Cloud Name:** `dzpdypyxq`
+- **Upload Preset:** `esporizon_uploads`
+- **Max Size:** 5MB per image
+- **Allowed Types:** JPEG, PNG, GIF, WEBP
+
+Images are uploaded directly from the browser to Cloudinary and stored as URLs in the application. No backend or Firebase Storage is required.
+
+**Benefits:**
+- ✅ Persistent storage (images don't expire)
+- ✅ CDN-backed delivery (fast loading)
+- ✅ No server-side code needed
+- ✅ Automatic optimization
 
 ---
 

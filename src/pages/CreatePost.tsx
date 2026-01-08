@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Image as ImageIcon, Send, X, ShieldAlert, Cpu, Sparkles } from 'lucide-react'
 import toast, { Toaster } from 'react-hot-toast'
 import { postService } from '@/services/PostService'
+import { uploadImage } from '@/utils/uploadImage'
 
 const CreatePost = () => {
     const navigate = useNavigate()
@@ -11,15 +13,34 @@ const CreatePost = () => {
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+    const [uploading, setUploading] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+
+    const { user } = useAuth()
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
 
-        // Check size: 500 KB limit
-        if (file.size > 500 * 1024) {
-            toast.error('Data Overflow: Image exceeds 500 KB limit', {
+        // Check file type
+        if (!file.type.startsWith('image/')) {
+            toast.error('Invalid File: Only images are allowed', {
+                style: {
+                    background: '#18181b',
+                    color: '#ff4b2b',
+                    border: '1px solid rgba(255, 75, 43, 0.2)',
+                    fontSize: '10px',
+                    fontWeight: '900',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em'
+                }
+            })
+            return
+        }
+
+        // Check size: 5 MB limit
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Data Overflow: Image exceeds 5 MB limit', {
                 style: {
                     background: '#18181b',
                     color: '#ff4b2b',
@@ -50,10 +71,40 @@ const CreatePost = () => {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!content.trim() && !imageFile) return
+        if (!user) {
+            toast.error('Authentication Error: User not found')
+            return
+        }
 
         setLoading(true)
+        let uploadedImageUrl: string | null = null
+
         try {
-            await postService.createPost(content, imageFile)
+            // Upload image to Cloudinary first if present
+            if (imageFile) {
+                setUploading(true)
+                toast.loading('Uploading image to cloud...', { id: 'image-upload' })
+
+                try {
+                    uploadedImageUrl = await uploadImage(imageFile)
+                    toast.success('Image uploaded successfully', { id: 'image-upload' })
+                } catch (uploadError: any) {
+                    toast.error(uploadError.message || 'Image upload failed', { id: 'image-upload' })
+                    throw uploadError
+                } finally {
+                    setUploading(false)
+                }
+            }
+
+            // Create post with the uploaded image URL and user details
+            await postService.createPost(
+                content,
+                uploadedImageUrl,
+                user.id,
+                user.displayName || 'Anonymous',
+                user.photoURL || ''
+            )
+
             toast.success('Transmission Successful: Signal Uplinked', {
                 icon: '⚡',
                 style: {
@@ -69,20 +120,8 @@ const CreatePost = () => {
             setTimeout(() => navigate('/social'), 1500)
         } catch (error: any) {
             console.error('Create post error:', error)
-
-            // Specifically handle CORS/Network errors often seen with Storage
-            if (error.code === 'storage/unauthorized') {
-                toast.error('Security Protocol Error: Storage Access Denied (Check Rules)', {
-                    duration: 5000
-                })
-            } else if (error.message?.includes('CORS')) {
-                toast.error('Network Protocol Error: Storage CORS settings need to be configured. See instructions.', {
-                    duration: 6000
-                })
-            } else {
-                toast.error(error.message || 'System Failure: Transmission Interrupted')
-            }
-            setLoading(false) // Ensure loading is reset
+            toast.error(error.message || 'System Failure: Transmission Interrupted')
+            setLoading(false) // Only reset on error, success navigates away
         }
     }
 
@@ -202,10 +241,15 @@ const CreatePost = () => {
 
                         <button
                             type="submit"
-                            disabled={loading || (!content.trim() && !imageFile)}
+                            disabled={loading || uploading || (!content.trim() && !imageFile)}
                             className="flex items-center gap-3 px-8 py-4 bg-[#00ffc2] text-[#09090b] rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] shadow-[0_0_30px_rgba(0,255,194,0.2)] hover:scale-[1.05] active:scale-[0.98] transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:shadow-none"
                         >
-                            {loading ? (
+                            {uploading ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-[#09090b]/20 border-t-[#09090b] rounded-full animate-spin" />
+                                    Uploading...
+                                </>
+                            ) : loading ? (
                                 <>
                                     <div className="w-4 h-4 border-2 border-[#09090b]/20 border-t-[#09090b] rounded-full animate-spin" />
                                     Encrypting...

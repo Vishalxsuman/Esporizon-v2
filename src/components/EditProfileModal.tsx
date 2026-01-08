@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Save, User, Gamepad2, AlignLeft, Target, Loader2, CheckCircle2, AlertCircle } from 'lucide-react'
+import { X, Save, User, Gamepad2, AlignLeft, Target, Loader, CheckCircle, CircleAlert, Image as ImageIcon } from 'lucide-react'
 import { UserProfile } from '@/types'
 import { userService } from '@/services/UserService'
 import toast from 'react-hot-toast'
+import { uploadImage } from '@/utils/uploadImage'
 
 interface EditProfileModalProps {
     isOpen: boolean
@@ -17,9 +18,13 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
     const [username, setUsername] = useState(profile?.username || '')
     const [bio, setBio] = useState(profile?.bio || '')
     const [gameAccounts, setGameAccounts] = useState(profile?.gameAccounts || {})
+    const [avatarFile, setAvatarFile] = useState<File | null>(null)
+    const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
     const [loading, setLoading] = useState(false)
+    const [uploadingAvatar, setUploadingAvatar] = useState(false)
     const [checkingUsername, setCheckingUsername] = useState(false)
     const [usernameStatus, setUsernameStatus] = useState<'available' | 'taken' | 'invalid' | 'idle'>('idle')
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     // Simplified username availability check with timer-based debounce
     useEffect(() => {
@@ -50,6 +55,28 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         return () => clearTimeout(timer)
     }, [username, profile])
 
+    const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        if (!file.type.startsWith('image/')) {
+            toast.error('Invalid file type. Please select an image.')
+            return
+        }
+
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error('Image exceeds 5MB limit')
+            return
+        }
+
+        setAvatarFile(file)
+        const reader = new FileReader()
+        reader.onloadend = () => {
+            setAvatarPreview(reader.result as string)
+        }
+        reader.readAsDataURL(file)
+    }
+
     const handleSave = async () => {
         const userId = user?.id || user?.uid
         if (!userId) return
@@ -59,13 +86,37 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
         }
 
         setLoading(true)
+        let uploadedAvatarUrl: string | undefined
 
         try {
-            await userService.updateProfile(userId, {
+            // Upload avatar to Cloudinary if a new one is selected
+            if (avatarFile) {
+                setUploadingAvatar(true)
+                toast.loading('Uploading avatar...', { id: 'avatar-upload' })
+
+                try {
+                    uploadedAvatarUrl = await uploadImage(avatarFile)
+                    toast.success('Avatar uploaded', { id: 'avatar-upload' })
+                } catch (uploadError: any) {
+                    toast.error(uploadError.message || 'Avatar upload failed', { id: 'avatar-upload' })
+                    throw uploadError
+                } finally {
+                    setUploadingAvatar(false)
+                }
+            }
+
+            const updateData: any = {
                 username: username.toLowerCase().trim(),
                 bio,
                 gameAccounts
-            })
+            }
+
+            // Add avatar URL if uploaded
+            if (uploadedAvatarUrl) {
+                updateData.avatarUrl = uploadedAvatarUrl
+            }
+
+            await userService.updateProfile(userId, updateData)
 
             toast.success('Operational Profile Updated')
             onClose()
@@ -108,6 +159,40 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
                         </div>
 
                         <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto custom-scrollbar">
+                            {/* Avatar Upload */}
+                            <div className="flex flex-col items-center space-y-4">
+                                <div className="relative group">
+                                    <div className="w-24 h-24 rounded-[2rem] bg-gradient-to-br from-[#00ffc2] to-[#7c3aed] p-1">
+                                        <div className="w-full h-full rounded-[1.8rem] bg-[#18181b] flex items-center justify-center overflow-hidden">
+                                            {avatarPreview ? (
+                                                <img src={avatarPreview} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : user?.photoURL || profile?.avatarUrl ? (
+                                                <img src={user?.photoURL || profile?.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <User size={40} className="text-gray-600" />
+                                            )}
+                                        </div>
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="absolute -bottom-2 -right-2 p-2.5 bg-[#00ffc2] rounded-xl hover:scale-110 transition-transform shadow-lg"
+                                    >
+                                        <ImageIcon size={16} className="text-[#09090b]" />
+                                    </button>
+                                </div>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleAvatarChange}
+                                    accept="image/*"
+                                    className="hidden"
+                                />
+                                <p className="text-[9px] font-bold uppercase tracking-wider text-gray-600">
+                                    Click camera to change avatar
+                                </p>
+                            </div>
+
                             {/* Basic Info */}
                             <div className="space-y-6">
                                 <div className="space-y-2">
@@ -138,11 +223,11 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
                                             />
                                             <div className="absolute right-4 top-1/2 -translate-y-1/2">
                                                 {checkingUsername ? (
-                                                    <Loader2 className="w-4 h-4 text-[#00ffc2] animate-spin" />
+                                                    <Loader className="w-4 h-4 text-[#00ffc2] animate-spin" />
                                                 ) : usernameStatus === 'available' ? (
-                                                    <CheckCircle2 className="w-4 h-4 text-[#00ffc2]" />
+                                                    <CheckCircle className="w-4 h-4 text-[#00ffc2]" />
                                                 ) : usernameStatus === 'taken' ? (
-                                                    <AlertCircle className="w-4 h-4 text-red-500" />
+                                                    <CircleAlert className="w-4 h-4 text-red-500" />
                                                 ) : null}
                                             </div>
                                         </div>
@@ -205,10 +290,15 @@ const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onClose, pr
                             </button>
                             <button
                                 onClick={handleSave}
-                                disabled={loading || checkingUsername || usernameStatus === 'taken' || usernameStatus === 'invalid'}
+                                disabled={loading || uploadingAvatar || checkingUsername || usernameStatus === 'taken' || usernameStatus === 'invalid'}
                                 className="flex-[2] px-6 py-4 bg-[#00ffc2] text-[#09090b] rounded-2xl text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
                             >
-                                {loading ? (
+                                {uploadingAvatar ? (
+                                    <>
+                                        <div className="w-4 h-4 border-2 border-[#09090b]/20 border-t-[#09090b] rounded-full animate-spin" />
+                                        Uploading...
+                                    </>
+                                ) : loading ? (
                                     <div className="w-4 h-4 border-2 border-[#09090b]/20 border-t-[#09090b] rounded-full animate-spin" />
                                 ) : (
                                     <>

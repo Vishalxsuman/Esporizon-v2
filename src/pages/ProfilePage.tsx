@@ -16,8 +16,10 @@ import {
     Target,
     Activity,
     Users,
-    Briefcase
+    Briefcase,
+    User
 } from 'lucide-react'
+import { useClerk } from '@clerk/clerk-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { userService } from '@/services/UserService'
 import { UserProfile } from '@/types'
@@ -35,7 +37,7 @@ const ProfilePage = () => {
     const [loading, setLoading] = useState(true)
     const [isEditModalOpen, setIsEditModalOpen] = useState(false)
     const { theme, toggleTheme } = useTheme()
-
+    const { openUserProfile } = useClerk()
     const targetUserId = paramId || user?.id || user?.uid
 
     useEffect(() => {
@@ -128,12 +130,20 @@ const ProfilePage = () => {
                     </h1>
                 </div>
                 {isOwnProfile ? (
-                    <button
-                        onClick={() => setIsEditModalOpen(true)}
-                        className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-[var(--accent)] hover:text-black transition-all group"
-                    >
-                        <Zap size={20} className="group-hover:rotate-12 transition-transform" />
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => openUserProfile()}
+                            className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-[var(--accent)] hover:text-black transition-all group"
+                        >
+                            <User size={20} className="group-hover:scale-110 transition-transform" />
+                        </button>
+                        <button
+                            onClick={() => setIsEditModalOpen(true)}
+                            className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-[var(--accent)] hover:text-black transition-all group"
+                        >
+                            <Zap size={20} className="group-hover:rotate-12 transition-transform" />
+                        </button>
+                    </div>
                 ) : (
                     <div className="w-11" /> // Spacer
                 )}

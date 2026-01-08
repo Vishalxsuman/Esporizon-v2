@@ -14,6 +14,7 @@ export interface UserProfile {
   referralEarnings: number
   username?: string
   bio?: string
+  avatarUrl?: string
   gameAccounts: {
     bgmi?: string
     freefire?: string
