@@ -95,7 +95,7 @@ const Dashboard = () => {
   ]
 
   const quickActions = [
-    { icon: '✍️', label: 'Create Post', route: '/create-post' },
+    { icon: '✍️', label: 'Social Hub', route: '/social' },
     { icon: '🎲', label: 'Color Prediction', route: '/predict' },
     { icon: '🎮', label: 'Tournaments', route: '/tournaments' },
     { icon: '📊', label: 'Earnings', route: '/earnings' },
@@ -172,8 +172,8 @@ const Dashboard = () => {
             <h2 className="text-xl font-bold">Welcome back, {user?.firstName || 'Gamer'}!</h2>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/create-post" className="px-5 py-2 rounded-lg bg-[var(--accent)] text-[var(--bg-primary)] text-sm font-bold hover:bg-[var(--accent)]/90 transition-all hover:scale-105 shadow-[0_0_20px_rgba(0,255,194,0.3)]">
-              + Create Post
+            <Link to="/social" className="px-5 py-2 rounded-lg bg-[var(--accent)] text-[var(--bg-primary)] text-sm font-bold hover:bg-[var(--accent)]/90 transition-all hover:scale-105 shadow-[0_0_20px_rgba(0,255,194,0.3)]">
+              + Intelligence Nexus
             </Link>
           </div>
         </header>
@@ -260,7 +260,7 @@ const Dashboard = () => {
                 <span className="w-1.5 h-8 bg-[#7c3aed] rounded-full shadow-[0_0_15px_#7c3aed]"></span>
                 LIVE FEED
               </h3>
-              <Link to="/posts" className="text-xs text-[var(--accent)]">View All</Link>
+              <Link to="/social" className="text-xs text-[var(--accent)]">View All</Link>
             </div>
             <div className="space-y-4">
               <SocialFeed maxPosts={3} />
@@ -301,7 +301,7 @@ const Dashboard = () => {
         <div className="flex-1 overflow-hidden flex flex-col">
           <div className="px-6 py-4 flex justify-between items-end border-b border-[var(--border)] bg-[var(--glass)]">
             <h3 className="font-bold text-[var(--text-secondary)]">Social Feed</h3>
-            <Link to="/posts" className="text-xs text-[var(--accent)] hover:underline hover:text-[var(--accent)]/80 transition-colors">View All</Link>
+            <Link to="/social" className="text-xs text-[var(--accent)] hover:underline hover:text-[var(--accent)]/80 transition-colors">View All</Link>
           </div>
           <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
             <SocialFeed maxPosts={5} />

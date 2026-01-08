@@ -42,15 +42,15 @@ const UserSearch = () => {
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search agents by @username..."
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-[#00ffc2]/50 focus:bg-white/10 transition-all placeholder-gray-500"
+                    placeholder="Search users..."
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl py-3.5 pl-11 pr-4 text-sm font-medium focus:outline-none focus:border-[var(--accent)]/50 focus:bg-white/10 transition-all placeholder-[var(--text-secondary)]/30"
                 />
                 {searchTerm && (
                     <button
                         onClick={() => setSearchTerm('')}
                         className="absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-white/10 rounded-full transition-all"
                     >
-                        <X className="w-3 h-3 text-gray-500" />
+                        <X className="w-3 h-3 text-[var(--text-secondary)]" />
                     </button>
                 )}
             </div>
@@ -61,13 +61,13 @@ const UserSearch = () => {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
-                        className="absolute top-full mt-2 w-full bg-[#18181b] border border-white/10 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl z-50"
+                        className="absolute top-full mt-2 w-full bg-[var(--bg-secondary)] border border-[var(--border)] rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl z-50"
                     >
                         <div className="max-h-[400px] overflow-y-auto custom-scrollbar p-2">
                             {searching ? (
                                 <div className="p-8 text-center">
-                                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-[#00ffc2]"></div>
-                                    <p className="mt-2 text-xs text-gray-500 uppercase font-black tracking-widest">Scanning Network...</p>
+                                    <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-[var(--accent)]"></div>
+                                    <p className="mt-2 text-xs text-[var(--text-secondary)] uppercase font-black tracking-widest">Searching...</p>
                                 </div>
                             ) : results.length > 0 ? (
                                 results.map((result) => (

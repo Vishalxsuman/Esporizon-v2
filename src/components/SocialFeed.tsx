@@ -43,13 +43,14 @@ const SocialFeed = ({ daysAgo = 0, maxPosts = 10 }: SocialFeedProps) => {
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="p-12 text-center rounded-[2rem] bg-white/[0.02] border border-white/5 backdrop-blur-xl"
+                className="p-12 text-center rounded-[2rem] bg-black/40 border border-dashed border-[var(--accent)]/20 backdrop-blur-3xl overflow-hidden relative"
             >
-                <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-white/10">
-                    <ShieldCheck className="w-8 h-8 text-gray-700" />
+                <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,255,194,0.02)_10px,rgba(0,255,194,0.02)_20px)] pointer-events-none" />
+                <div className="w-14 h-14 bg-[var(--accent)]/10 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-[var(--accent)]/20 shadow-[0_0_15px_rgba(0,255,194,0.05)]">
+                    <ShieldCheck className="w-7 h-7 text-[var(--accent)]/40" />
                 </div>
-                <h3 className="text-sm font-black uppercase tracking-widest text-gray-500">Zero Activity Detected</h3>
-                <p className="text-[10px] text-gray-600 font-bold uppercase tracking-tighter mt-1">Be the first to transmit a signal to the network</p>
+                <h3 className="text-xs font-black uppercase tracking-widest text-[var(--accent)]/60">Uplink Silent</h3>
+                <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter mt-1">Fragment_ID: Zero_Detected</p>
             </motion.div>
         )
     }

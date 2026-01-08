@@ -19,6 +19,7 @@ export interface Post {
     shares: string[]
     commentCount?: number // Atomic counter
     comments: Comment[] // Keep for immediate display if fetched, but usually fetched on demand
+    visibility?: 'public' | 'private'
     createdAt: string
     updatedAt?: string
 }
