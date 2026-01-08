@@ -8,8 +8,6 @@ import Navigation from './components/Navigation'
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
 // Lazy load pages for code splitting (improves LCP)
-
-// Lazy load pages for code splitting (improves LCP)
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 const AuthPage = lazy(() => import('./pages/AuthPage'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -18,7 +16,6 @@ const ColorPrediction = lazy(() => import('./pages/ColorPrediction'))
 const TournamentList = lazy(() => import('./pages/TournamentList'))
 const CreateTournament = lazy(() => import('./pages/CreateTournament'))
 const TournamentDetails = lazy(() => import('./pages/TournamentDetails'))
-const CreatePost = lazy(() => import('./pages/CreatePost'))
 const SocialPage = lazy(() => import('./pages/SocialPage'))
 const WalletPage = lazy(() => import('./pages/WalletPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
@@ -141,12 +138,7 @@ function App() {
                 />
                 <Route
                   path="/create-post"
-                  element={
-                    <>
-                      <SignedIn><CreatePost /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
-                  }
+                  element={<Navigate to="/social" replace />}
                 />
                 <Route
                   path="/earnings"

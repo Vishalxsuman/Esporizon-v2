@@ -11,6 +11,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true,      // 🔥 THIS FIXES MOBILE ACCESS
     port: 3000,
     open: true,
   },
@@ -26,13 +27,5 @@ export default defineConfig({
         },
       },
     },
-  },
-  optimizeDeps: {
-    include: [
-      'react',
-      'react-dom',
-      'react-router-dom',
-      'framer-motion',
-    ],
   },
 })

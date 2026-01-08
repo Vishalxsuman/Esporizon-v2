@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Heart, MessageCircle, Share2, User as UserIcon, MoreHorizontal, ShieldCheck } from 'lucide-react'
+import { Heart, MessageCircle, Share2, User as UserIcon, MoreHorizontal, Lock, X } from 'lucide-react'
 import { postService } from '@/services/PostService'
 import { Post } from '@/types/Post'
 import { useAuth } from '@/contexts/AuthContext'
@@ -16,13 +16,16 @@ interface PostCardProps {
 const PostCard = ({ post, index }: PostCardProps) => {
     const [showComments, setShowComments] = useState(false)
     const [processingLike, setProcessingLike] = useState(false)
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+    const [isDeleting, setIsDeleting] = useState(false)
     const { user } = useAuth()
 
     const isLiked = user ? post.likes?.includes(user.id) : false
+    const isOwner = user?.id === post.userId
 
     const handleLike = async () => {
         if (!user) {
-            toast.error('Tactical Override: Sign in to engage')
+            toast.error('Sign in to like')
             return
         }
         if (processingLike) return
@@ -30,10 +33,28 @@ const PostCard = ({ post, index }: PostCardProps) => {
         try {
             await postService.toggleLike(post.id, user.id)
         } catch (error) {
-            toast.error('Signal Interference: Failed to update like')
+            toast.error('Failed to update like')
         } finally {
             setProcessingLike(false)
         }
+    }
+
+    const handleDelete = async () => {
+        setIsDeleting(true)
+        try {
+            await postService.deletePost(post.id)
+            toast.success('Post Deleted')
+            setShowDeleteConfirm(false)
+        } catch (error) {
+            toast.error('Failed to delete post')
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const handleShare = async () => {
+        await postService.sharePost(post)
+        toast.success('Link Copied')
     }
 
     const formatTimeAgo = (timestamp: string) => {
@@ -44,113 +65,164 @@ const PostCard = ({ post, index }: PostCardProps) => {
         const diffMins = Math.floor(diffMs / 60000)
         const diffHours = Math.floor(diffMs / 3600000)
 
-        if (diffMins < 1) return 'Active Now'
-        if (diffMins < 60) return `${diffMins}m`
-        if (diffHours < 24) return `${diffHours}h`
+        if (diffMins < 1) return 'Just Now'
+        if (diffMins < 60) return `${diffMins}m ago`
+        if (diffHours < 24) return `${diffHours}h ago`
         return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
     }
 
     return (
         <motion.div
             layout
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            initial={{ opacity: 0, scale: 0.98, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -20 }}
-            transition={{ duration: 0.4, delay: index * 0.05 }}
-            className="group relative bg-[#18181b] border border-white/5 rounded-[2.5rem] overflow-hidden hover:border-[#00ffc2]/30 transition-all duration-500 shadow-2xl"
+            exit={{ opacity: 0, scale: 0.95, y: -15 }}
+            transition={{ duration: 0.4, delay: index * 0.03, ease: "circOut" }}
+            className="group relative bg-black/40 backdrop-blur-3xl border border-[var(--border)] rounded-[2.5rem] overflow-hidden hover:border-[var(--accent)]/40 transition-all duration-500 shadow-xl"
         >
             {/* Header */}
-            <div className="p-6 flex items-center justify-between">
+            <div className="p-6 flex items-center justify-between relative z-10">
                 <Link to={`/profile/${post.userId}`} className="flex items-center gap-4 group/user">
                     <div className="relative">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#00ffc2] to-[#7c3aed] p-[1px] shadow-[0_0_20px_rgba(0,255,194,0.1)] group-hover/user:shadow-[0_0_30px_rgba(0,255,194,0.3)] transition-all duration-500">
-                            <div className="w-full h-full rounded-full bg-[#09090b] flex items-center justify-center overflow-hidden">
+                        <div className="w-11 h-11 rounded-2xl bg-[var(--accent)]/10 p-[1px] border border-[var(--border)] group-hover/user:border-[var(--accent)]/40 transition-all shadow-lg">
+                            <div className="w-full h-full rounded-2xl bg-black flex items-center justify-center overflow-hidden">
                                 {post.userAvatar ? (
-                                    <img src={post.userAvatar} alt="" className="w-full h-full object-cover" />
+                                    <img src={post.userAvatar} alt="" className="w-full h-full object-cover group-hover/user:scale-110 transition-all duration-700" />
                                 ) : (
-                                    <UserIcon className="w-5 h-5 text-gray-600" />
+                                    <UserIcon className="w-5 h-5 text-[var(--accent)]/50" />
                                 )}
                             </div>
-                        </div>
-                        <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-[#00ffc2] rounded-full border-2 border-[#18181b] flex items-center justify-center">
-                            <div className="w-1.5 h-1.5 bg-[#09090b] rounded-full animate-ping"></div>
                         </div>
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <h3 className="text-sm font-black italic uppercase tracking-tighter text-white group-hover/user:text-[#00ffc2] transition-colors">@{post.userName}</h3>
-                            <div className="p-0.5 bg-[#00ffc2]/10 rounded-md border border-[#00ffc2]/20">
-                                <ShieldCheck size={10} className="text-[#00ffc2]" />
-                            </div>
+                            <h3 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-primary)] group-hover/user:text-[var(--accent)] transition-colors">@{post.userName}</h3>
+                            {post.visibility === 'private' ? (
+                                <Lock size={10} className="text-white" />
+                            ) : (
+                                <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]/40" />
+                            )}
                         </div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-600">{formatTimeAgo(post.createdAt)}</p>
+                        <p className="text-[8px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] mt-0.5">{formatTimeAgo(post.createdAt)}</p>
                     </div>
                 </Link>
-                <button className="p-3 text-gray-600 hover:text-white hover:bg-white/5 rounded-2xl transition-all">
-                    <MoreHorizontal size={18} />
-                </button>
+
+                <div className="flex items-center gap-1">
+                    {isOwner && (
+                        <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="p-3 text-[var(--text-secondary)] hover:text-red-500 hover:bg-red-500/5 rounded-2xl transition-all"
+                            title="Delete Post"
+                        >
+                            <MoreHorizontal size={18} />
+                        </button>
+                    )}
+                </div>
             </div>
+
+            {/* Delete Confirmation */}
+            <AnimatePresence>
+                {showDeleteConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-30 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
+                    >
+                        <div className="w-16 h-16 bg-red-500/10 rounded-[1.5rem] flex items-center justify-center mb-4 border border-red-500/30">
+                            <X className="w-8 h-8 text-red-500" />
+                        </div>
+                        <h3 className="text-sm font-black uppercase tracking-widest mb-2 italic text-red-500">Delete Post?</h3>
+                        <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tight mb-8 max-w-xs">This action cannot be undone. Are you sure?</p>
+                        <div className="flex gap-4 w-full max-w-xs">
+                            <button
+                                onClick={() => setShowDeleteConfirm(false)}
+                                className="flex-1 py-4 bg-white/5 border border-white/5 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-all"
+                            >
+                                CANCEL
+                            </button>
+                            <button
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                                className="flex-1 py-4 bg-red-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-lg hover:scale-105 active:scale-95 transition-all"
+                            >
+                                {isDeleting ? 'DELETING...' : 'DELETE'}
+                            </button>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Content */}
-            <div className="px-8 pb-4">
-                <p className="text-sm leading-relaxed text-gray-300 font-medium whitespace-pre-wrap">{post.content}</p>
+            <div className="px-8 pb-6 relative z-10">
+                <p className="text-sm leading-relaxed text-[var(--text-primary)] font-medium whitespace-pre-wrap tracking-tight">{post.content}</p>
             </div>
 
-            {/* Image Overlay Effect */}
+            {/* Media */}
             {post.imageUrl && (
-                <div className="px-6 mb-4">
-                    <div className="relative rounded-[2rem] overflow-hidden border border-white/5 group-hover:border-white/10 transition-colors bg-black/40 aspect-video">
+                <div className="px-6 mb-6">
+                    <div className="relative rounded-[1.5rem] overflow-hidden border border-[var(--border)] group-hover:border-[var(--accent)]/30 transition-all bg-black/40 aspect-video shadow-2xl">
                         <img
                             src={post.imageUrl}
                             alt=""
-                            className="w-full h-full object-cover scale-100 group-hover:scale-105 transition-transform duration-700"
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#09090b]/40 to-transparent" />
                     </div>
                 </div>
             )}
 
             {/* Actions */}
-            <div className="px-8 py-6 bg-white/[0.01] border-t border-white/5 flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-8">
-                        <motion.button
-                            whileTap={{ scale: 0.9 }}
-                            onClick={handleLike}
-                            disabled={processingLike}
-                            className={`flex items-center gap-2.5 group/btn ${isLiked ? 'text-[#ff4b2b]' : 'text-gray-500 hover:text-white'} transition-colors duration-300`}
-                        >
-                            <div className={`p-2.5 rounded-xl border transition-all duration-300 ${isLiked ? 'bg-[#ff4b2b]/10 border-[#ff4b2b]/30' : 'bg-white/5 border-white/5 group-hover/btn:border-white/10 group-hover/btn:bg-white/10'}`}>
-                                <Heart size={18} className={isLiked ? 'fill-current' : ''} />
-                            </div>
-                            <span className="text-xs font-black italic tracking-widest">{post.likeCount ?? post.likes?.length ?? 0}</span>
-                        </motion.button>
-
-                        <button
-                            onClick={() => setShowComments(!showComments)}
-                            className="flex items-center gap-2.5 group/btn text-gray-500 hover:text-white transition-colors duration-300 cursor-pointer"
-                        >
-                            <div className={`p-2.5 rounded-xl bg-white/5 border border-white/5 group-hover/btn:border-white/10 group-hover/btn:bg-white/10 transition-all duration-300 ${showComments ? 'bg-[#00ffc2]/10 border-[#00ffc2]/30 text-[#00ffc2]' : ''}`}>
-                                <MessageCircle size={18} />
-                            </div>
-                            <span className="text-xs font-black italic tracking-widest">{post.commentCount ?? 0}</span>
-                        </button>
-                    </div>
-
+            <div className="px-8 py-5 bg-[var(--accent)]/5 border-t border-[var(--border)] flex items-center justify-between relative z-10">
+                <div className="flex items-center gap-6">
                     <motion.button
                         whileTap={{ scale: 0.9 }}
-                        className="p-3 text-gray-600 hover:text-[#00ffc2] hover:bg-[#00ffc2]/5 rounded-2xl border border-transparent hover:border-[#00ffc2]/20 transition-all"
+                        onClick={handleLike}
+                        disabled={processingLike}
+                        className={`flex items-center gap-3 transition-all duration-300 ${isLiked ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-white'}`}
                     >
-                        <Share2 size={18} />
+                        <Heart size={18} className={isLiked ? 'fill-current shadow-[0_0_15px_var(--accent)]' : ''} />
+                        <span className="text-[10px] font-black tracking-widest">{post.likeCount ?? post.likes?.length ?? 0}</span>
                     </motion.button>
+
+                    <button
+                        onClick={() => setShowComments(!showComments)}
+                        className={`flex items-center gap-3 transition-all duration-300 ${showComments ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-white'}`}
+                    >
+                        <MessageCircle size={18} className={showComments ? 'shadow-[0_0_15px_var(--accent)]' : ''} />
+                        <span className="text-[10px] font-black tracking-widest">{post.commentCount ?? 0}</span>
+                    </button>
+
+                    <button
+                        onClick={handleShare}
+                        className="p-1 text-[var(--text-secondary)] hover:text-[var(--accent)] transition-all"
+                        title="Share"
+                    >
+                        <Share2 size={16} />
+                    </button>
                 </div>
 
-                <AnimatePresence>
-                    {showComments && (
-                        <CommentSection postId={post.id} onClose={() => setShowComments(false)} />
-                    )}
-                </AnimatePresence>
+                <div className="flex items-center gap-4">
+                    <div className="flex gap-1">
+                        {[1, 2, 3].map((i) => (
+                            <div key={i} className={`w-1 h-3 rounded-full ${i <= (post.likes?.length || 0) % 4 ? 'bg-[var(--accent)] shadow-[0_0_5px_var(--accent)]' : 'bg-white/10'}`} />
+                        ))}
+                    </div>
+                    <span className="text-[8px] font-black uppercase tracking-widest text-[var(--accent)]/40">Verified</span>
+                </div>
             </div>
+
+            <AnimatePresence>
+                {showComments && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden bg-black/40 border-t border-[var(--border)]"
+                    >
+                        <CommentSection postId={post.id} onClose={() => setShowComments(false)} />
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </motion.div>
     )
 }
