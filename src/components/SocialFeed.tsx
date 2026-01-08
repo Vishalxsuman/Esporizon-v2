@@ -37,7 +37,10 @@ const SocialFeed = ({ daysAgo = 0, maxPosts = 10 }: SocialFeedProps) => {
         if (processingAction === actionKey) return
         setProcessingAction(actionKey)
         try {
-            await postService.toggleLike(postId)
+            // Determine current like status from the posts array state (optimistic or current)
+            const post = posts.find(p => p.id === postId)
+            const isLiked = post?.likes?.includes(user.id) || false
+            await postService.toggleLikeStatus(postId, user.id, isLiked)
         } catch (error) {
             toast.error('Signal Interference: Failed to update like')
         } finally {

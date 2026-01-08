@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow public read/write access for development/demo purposes
+    // WARNING: This is insecure for production. 
+    // TODO: Lock this down when Firebase Auth is fully integrated with Clerk.
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
