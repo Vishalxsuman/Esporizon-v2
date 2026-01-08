@@ -8,7 +8,9 @@ import {
     onSnapshot,
     doc,
     runTransaction,
-    getDocs
+    getDocs,
+    deleteDoc,
+    where
 } from 'firebase/firestore'
 import { Post, Comment } from '@/types/Post'
 
@@ -22,12 +24,44 @@ class PostService {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
     }
 
-    subscribeTodaysPosts(
+    subscribePublicPosts(
         maxPosts: number = 20,
         callback: (posts: Post[]) => void
     ): () => void {
         const postsRef = collection(db, POSTS_COLLECTION)
-        const q = query(postsRef, orderBy('createdAt', 'desc'), limit(maxPosts))
+        // Simplify query to avoid composite index requirement (visibility + createdAt)
+        const q = query(
+            postsRef,
+            orderBy('createdAt', 'desc'),
+            limit(maxPosts * 2) // Fetch a few extra to account for private ones
+        )
+
+        return onSnapshot(q, (snapshot) => {
+            const posts = snapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                } as Post))
+                .filter(post => post.visibility !== 'private') // Client-side filter
+                .slice(0, maxPosts)
+            callback(posts)
+        }, (error) => {
+            console.error("Firestore [subscribePublicPosts] error:", error)
+        })
+    }
+
+    subscribeUserPosts(
+        userId: string,
+        maxPosts: number = 20,
+        callback: (posts: Post[]) => void
+    ): () => void {
+        const postsRef = collection(db, POSTS_COLLECTION)
+        const q = query(
+            postsRef,
+            where('userId', '==', userId),
+            orderBy('createdAt', 'desc'),
+            limit(maxPosts)
+        )
 
         return onSnapshot(q, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({
@@ -35,6 +69,19 @@ class PostService {
                 ...doc.data()
             } as Post))
             callback(posts)
+        }, (error) => {
+            console.error("Firestore [subscribeUserPosts] error:", error)
+            // Fallback: search without orderBy if index is missing (common in new projects)
+            if (error.code === 'failed-precondition') {
+                const simpleQ = query(postsRef, where('userId', '==', userId))
+                onSnapshot(simpleQ, (snap) => {
+                    const posts = snap.docs
+                        .map(d => ({ id: d.id, ...d.data() } as Post))
+                        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                        .slice(0, maxPosts)
+                    callback(posts)
+                })
+            }
         })
     }
 
@@ -43,7 +90,7 @@ class PostService {
         maxPosts: number = 20,
         callback: (posts: Post[]) => void
     ): () => void {
-        return this.subscribeTodaysPosts(maxPosts, callback)
+        return this.subscribePublicPosts(maxPosts, callback)
     }
 
     // Atomic Like Toggle using Transaction
@@ -85,8 +132,30 @@ class PostService {
         return this.toggleLike(postId, userId)
     }
 
-    async sharePost(postId: string): Promise<void> {
-        console.log('Post shared', postId)
+    async sharePost(post: Post): Promise<void> {
+        const shareData = {
+            title: 'ESPO V2 Post',
+            text: post.content,
+            url: window.location.origin + `/social?post=${post.id}`
+        }
+
+        try {
+            if (navigator.share) {
+                await navigator.share(shareData)
+            } else {
+                await navigator.clipboard.writeText(shareData.url)
+            }
+        } catch (error) {
+            console.error('Share failed', error)
+        }
+    }
+
+    async deletePost(postId: string): Promise<void> {
+        const postRef = doc(db, POSTS_COLLECTION, postId)
+        // Note: Comments subcollection is not deleted automatically.
+        // In a production app, we would use a Cloud Function or recursive loop.
+        // For this task, we delete the main doc as requested.
+        await deleteDoc(postRef)
     }
 
     async addComment(postId: string, userId: string, userName: string, content: string, userAvatar?: string): Promise<void> {
@@ -143,7 +212,14 @@ class PostService {
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment))
     }
 
-    async createPost(content: string, imageUrl: string | null, userId: string, userName: string, userAvatar: string): Promise<void> {
+    async createPost(
+        content: string,
+        imageUrl: string | null,
+        userId: string,
+        userName: string,
+        userAvatar: string,
+        visibility: 'public' | 'private' = 'public'
+    ): Promise<void> {
         const postsRef = collection(db, POSTS_COLLECTION)
         const newPost = {
             userId,
@@ -155,6 +231,7 @@ class PostService {
             likeCount: 0,
             shares: [],
             commentCount: 0,
+            visibility,
             createdAt: new Date().toISOString()
         }
         await addDoc(postsRef, newPost)
