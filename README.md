@@ -5,9 +5,9 @@ A high-performance, static esports platform migrated to GitHub Pages with modern
 ## 🚀 System Architecture
 
 - **Hosting:** GitHub Pages (Static Hosting)
-- **Authentication:** [Clerk](https://clerk.com) (OIDC / OAuth 2.0)
-- **Assets:** [jsDelivr](https://www.jsdelivr.net/) (CDN for static images)
-- **Data Persistence:** `localStorage` (Wallet & Post simulation)
+- **Authentication:** [Clerk](https://clerk.com) (OIDC / OAuth 2.0) - **SOLE AUTH PROVIDER**
+- **Assets:** [Cloudinary](https://cloudinary.com/) (Image Uploads)
+- **Data Persistence:** Firebase Firestore (Posts, Likes, Comments)
 - **CI/CD:** GitHub Actions (`.github/workflows/deploy.yml`)
 
 ## 🛠️ Tech Stack
@@ -17,18 +17,24 @@ A high-performance, static esports platform migrated to GitHub Pages with modern
 - **Icons:** Lucide React
 - **Notifications:** React Hot Toast
 
-## 🔐 Security Features
+## 🔐 Security & Architecture
 
-- **Clerk Auth:** Secure, industry-standard authentication.
-- **Stateless Architecture:** Minimizes server-side vulnerabilities by leveraging static hosting.
-- **Client-Side Simulation:** Wallet operations and posts are managed via `localStorage` for a zero-server prototype.
+- **Clerk Auth Only:** Firebase Auth is NOT used. All user identity is managed by Clerk.
+- **Firestore Data:** Posts, likes, and comments are stored in Firestore.
+- **Stateless Frontend:** No backend server required.
 
 ## 📦 Deployment Guide
 
 ### Environment Variables
-Create a `.env` file in the root:
+Create a `.env` file in the root using `VITE_` prefix:
 ```env
-VITE_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
+# Clerk
+VITE_CLERK_PUBLISHABLE_KEY=...
+
+# Firebase (Firestore Only)
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_PROJECT_ID=...
+# ... other firebase config
 ```
 
 ### Build & Deploy
