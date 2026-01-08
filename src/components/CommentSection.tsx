@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Send, User as UserIcon, X, Loader2 } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { postService } from '@/services/PostService'
 import { Comment } from '@/types/Post'
 import { useAuth } from '@/contexts/AuthContext'
@@ -56,7 +56,6 @@ const CommentSection = ({ postId, onClose }: CommentSectionProps) => {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
             className="mt-4 bg-black/40 rounded-3xl border border-white/5 overflow-hidden flex flex-col max-h-[400px]"
         >
             <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">

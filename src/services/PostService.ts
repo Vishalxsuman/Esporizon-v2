@@ -7,10 +7,8 @@ import {
     limit,
     onSnapshot,
     doc,
-    updateDoc,
     runTransaction,
-    getDocs,
-    increment
+    getDocs
 } from 'firebase/firestore'
 import { Post, Comment } from '@/types/Post'
 
