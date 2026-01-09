@@ -12,6 +12,17 @@ const MatchLobby = () => {
     const { id } = useParams<{ id: string }>()
     const { user } = useUser()
     const navigate = useNavigate()
+
+    // Resolve User Identity (Auth or Guest)
+    const [userId, setUserId] = useState<string | null>(null)
+    useEffect(() => {
+        if (user) {
+            setUserId(user.id)
+        } else {
+            const stored = localStorage.getItem('guest_identity')
+            if (stored) setUserId(JSON.parse(stored).id)
+        }
+    }, [user])
     const [match, setMatch] = useState<Match | null>(null)
     const [timeRemaining, setTimeRemaining] = useState('')
 
@@ -75,12 +86,12 @@ const MatchLobby = () => {
     }
 
     const handleLeaveMatch = async () => {
-        if (!match || !user) return
+        if (!match || !userId) return
         toast.success('Left match')
         navigate('/play')
     }
 
-    const isCreator = match?.creatorId === user?.id
+    const isCreator = match?.creatorId === userId
 
     if (!match) {
         return (
@@ -178,7 +189,7 @@ const MatchLobby = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {player.userId === user?.id && (
+                                    {player.userId === userId && (
                                         <span className="text-xs bg-[var(--accent)]/20 text-[var(--accent)] px-2 py-1 rounded">You</span>
                                     )}
                                     {isCreator && player.isBot && match.status === 'waiting' && (

@@ -79,11 +79,22 @@ const Card29Game = () => {
     const { user } = useUser()
     const navigate = useNavigate()
 
+    // Resolve User Identity (Auth or Guest)
+    const [userId, setUserId] = useState<string | null>(null)
+    useEffect(() => {
+        if (user) {
+            setUserId(user.id)
+        } else {
+            const stored = localStorage.getItem('guest_identity')
+            if (stored) setUserId(JSON.parse(stored).id)
+        }
+    }, [user])
+
     const [showHistory, setShowHistory] = useState(false)
     const { match, gameState } = useCard29GameState(id)
-    const isHost = match?.creatorId === user?.id
+    const isHost = match?.creatorId === userId
 
-    useCard29Bots(id, match, gameState, user?.id, isHost)
+    useCard29Bots(id, match, gameState, userId ?? undefined, isHost)
 
     const [timeoutOccurred, setTimeoutOccurred] = useState(false)
     const [playerLeftName, setPlayerLeftName] = useState<string | null>(null)
@@ -203,7 +214,7 @@ const Card29Game = () => {
     const handleTrumpSelect = async (suit: string) => {
         if (!gameState || !id || !match || !user) return
         try {
-            await matchService.selectTrump29(id, user.id, suit, gameState, match.players)
+            await matchService.selectTrump29(id, userId || 'unknown', suit, gameState, match.players)
         } catch (error: any) {
             toast.error(error.message || "Failed to select trump")
         }
@@ -220,8 +231,8 @@ const Card29Game = () => {
 
     if (!match || !gameState) return <div className="min-h-screen bg-[#0a0f1e] flex items-center justify-center text-cyan-400 font-mono">Loading Game...</div>
 
-    const myHand = gameState.hands[user?.id || ''] || []
-    const mySeat = match.players.findIndex(p => p.userId === user?.id)
+    const myHand = gameState.hands[userId || ''] || []
+    const mySeat = match.players.findIndex(p => p.userId === userId)
     const isMyTurn = gameState.phase === 'bidding' ? gameState.currentBidder === mySeat : gameState.currentPlayer === mySeat
 
     // Circular positions

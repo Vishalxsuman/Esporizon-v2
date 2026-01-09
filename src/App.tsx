@@ -25,7 +25,6 @@ const CreateMatch = lazy(() => import('./pages/CreateMatch'))
 const MatchLobby = lazy(() => import('./pages/MatchLobby'))
 const GameRouter = lazy(() => import('./pages/GameRouter'))
 const PublicLobbies = lazy(() => import('./pages/PublicLobbies'))
-const JoinMatch = lazy(() => import('./pages/JoinMatch'))
 
 // Loading component for suspense
 const PageLoader = () => (
@@ -148,12 +147,7 @@ function App() {
                 />
                 <Route
                   path="/play"
-                  element={
-                    <>
-                      <SignedIn><PlayHub /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
-                  }
+                  element={<PlayHub />}
                 />
                 <Route
                   path="/play/create"
@@ -166,39 +160,16 @@ function App() {
                 />
                 <Route
                   path="/play/lobbies"
-                  element={
-                    <>
-                      <SignedIn><PublicLobbies /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
-                  }
+                  element={<PublicLobbies />}
                 />
                 <Route
                   path="/play/match/:id"
-                  element={
-                    <>
-                      <SignedIn><MatchLobby /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
-                  }
+                  element={<MatchLobby />}
                 />
-                <Route
-                  path="/play/join/:code"
-                  element={
-                    <>
-                      <SignedIn><JoinMatch /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
-                  }
-                />
+
                 <Route
                   path="/play/game/:id"
-                  element={
-                    <>
-                      <SignedIn><GameRouter /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
-                  }
+                  element={<GameRouter />}
                 />
                 <Route
                   path="/notifications"

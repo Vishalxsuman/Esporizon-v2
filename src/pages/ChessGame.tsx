@@ -66,6 +66,17 @@ const ChessGameContent = () => {
     const { id } = useParams<{ id: string }>()
     const { user } = useUser()
     const navigate = useNavigate()
+
+    // Resolve User Identity (Auth or Guest)
+    const [userId, setUserId] = useState<string | null>(null)
+    useEffect(() => {
+        if (user) {
+            setUserId(user.id)
+        } else {
+            const stored = localStorage.getItem('guest_identity')
+            if (stored) setUserId(JSON.parse(stored).id)
+        }
+    }, [user])
     const [match, setMatch] = useState<Match | null>(null)
     const [chess] = useState(new Chess())
     const [fen, setFen] = useState(chess.fen())
@@ -212,15 +223,15 @@ const ChessGameContent = () => {
 
 
     // Bot Logic Hook - ALWAYS called
-    useChessBots(id, match, chess, setFen, gameOver, user?.id, whiteTime, blackTime)
+    useChessBots(id, match, chess, setFen, gameOver, userId, whiteTime, blackTime)
 
     // Handlers
     const onDrop = async (sourceSquare: string, targetSquare: string) => {
         if (!match || gameOver) return false
 
         // Prevent moving if it's not my turn
-        const isWhite = match.players[0].userId === user?.id
-        const isBlack = match.players[1].userId === user?.id
+        const isWhite = match.players[0].userId === userId
+        const isBlack = match.players[1].userId === userId
 
         if (isWhite && chess.turn() !== 'w') return false
         if (isBlack && chess.turn() !== 'b') return false
@@ -299,7 +310,7 @@ const ChessGameContent = () => {
                 matchId: id,
                 winnerId,
                 winnerName,
-                submittedBy: user?.id || 'system',
+                submittedBy: userId || 'system',
                 submittedAt: new Date().toISOString(),
                 verified: true
             })
@@ -307,7 +318,7 @@ const ChessGameContent = () => {
             // Credit winner if human and paid (Bots can't win money, Paid is human only anyway)
             if (match.mode === 'paid' && !match.players.find(p => p.userId === winnerId)?.isBot) {
                 await walletService.creditMatchWinnings(match.winnerPrize, winnerId, id)
-                if (winnerId === user?.id) {
+                if (winnerId === userId) {
                     toast.success(`You won ${match.winnerPrize} Espo Coins!`, {
                         duration: 5000,
                         icon: '🏆'
@@ -391,11 +402,11 @@ const ChessGameContent = () => {
                             <div className="flex justify-between items-center mb-4 px-2">
                                 <div className="flex items-center gap-2">
                                     <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-xs font-bold border border-red-500/30">
-                                        {match.players.find(p => p.userId !== user?.id)?.userName?.charAt(0) || '?'}
+                                        {match.players.find(p => p.userId !== userId)?.userName?.charAt(0) || '?'}
                                     </div>
                                     <span className="font-bold text-sm">
-                                        {match.players.find(p => p.userId !== user?.id)?.userName || 'Opponent'}
-                                        {match.players.find(p => p.userId !== user?.id)?.isBot && <span className="ml-2 text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">BOT</span>}
+                                        {match.players.find(p => p.userId !== userId)?.userName || 'Opponent'}
+                                        {match.players.find(p => p.userId !== userId)?.isBot && <span className="ml-2 text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">BOT</span>}
                                     </span>
                                 </div>
                             </div>
@@ -444,7 +455,7 @@ const ChessGameContent = () => {
                                                 {player.userName ? player.userName.charAt(0) : '?'}
                                             </div>
                                             <p className="text-sm">{player.userName || 'Unknown'}</p>
-                                            {player.userId === user?.id && (
+                                            {player.userId === userId && (
                                                 <span className="text-xs text-[var(--accent)]">(You)</span>
                                             )}
                                             {player.isBot && (
