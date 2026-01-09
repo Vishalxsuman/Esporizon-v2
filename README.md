@@ -1,13 +1,13 @@
 # Esporizon V2 - Premium Esports Platform
 
-A high-performance, static esports platform migrated to GitHub Pages with modern authentication and CDN-based asset delivery.
+A high-performance, real-time esports platform featuring competitive card games, chess, and social features, migrated to GitHub Pages with modern authentication and CDN-based asset delivery.
 
 ## 🚀 System Architecture
 
 - **Hosting:** GitHub Pages (Static Hosting)
 - **Authentication:** [Clerk](https://clerk.com) (OIDC / OAuth 2.0) - **SOLE AUTH PROVIDER**
 - **Assets:** [Cloudinary](https://cloudinary.com/) (Image Uploads)
-- **Data Persistence:** Firebase Firestore (Posts, Likes, Comments)
+- **Data Persistence:** Firebase Firestore (Posts, Likes, Comments, Game State, Tournaments)
 - **CI/CD:** GitHub Actions (`.github/workflows/deploy.yml`)
 
 ## 🛠️ Tech Stack
@@ -16,12 +16,14 @@ A high-performance, static esports platform migrated to GitHub Pages with modern
 - **Styling:** Tailwind CSS + Framer Motion
 - **Icons:** Lucide React
 - **Notifications:** React Hot Toast
+- **Game Logic:** Custom TypeScript Game Engines (Card 29, Chess)
 
 ## 🔐 Security & Architecture
 
 - **Clerk Auth Only:** Firebase Auth is NOT used. All user identity is managed by Clerk.
-- **Firestore Data:** Posts, likes, and comments are stored in Firestore.
-- **Stateless Frontend:** No backend server required.
+- **Firestore Data:** Security rules enforce read/write access based on Clerk User IDs.
+- **Stateless Frontend:** SPA architecture with client-side routing.
+- **Zero Trust:** Backend-less design relying on robust Firestore rules.
 
 ## 📦 Deployment Guide
 
@@ -34,6 +36,7 @@ VITE_CLERK_PUBLISHABLE_KEY=...
 # Firebase (Firestore Only)
 VITE_FIREBASE_API_KEY=...
 VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
 # ... other firebase config
 ```
 
@@ -49,21 +52,50 @@ esporizon/
 ├── .github/workflows/  # Deployment automation
 ├── public/             # CNAME, 404.html, and favicon
 ├── src/
-│   ├── components/     # UI Components
+│   ├── components/     # UI Components (GameHeader, PlayerSeat, SocialFeed, etc.)
 │   ├── contexts/       # Auth & Theme providers
-│   ├── pages/          # Application views
-│   ├── services/       # LocalStorage data logic
-│   └── types/          # TypeScript definitions
+│   ├── hooks/          # Custom hooks (Game State, Bots, Audio)
+│   ├── pages/          # Application views (Dashboard, Card29Game, ChessGame, etc.)
+│   ├── services/       # Firebase & Game Logic (MatchService, WalletService)
+│   ├── types/          # TypeScript definitions
+│   └── utils/          # Helper functions
 └── Images/             # Static game posters
 ```
 
 ## 🎮 Features
 
-- **Cinematic Landing Page:** Modern hero section with glassmorphism.
-- **Interactive Dashboard:** 3:4 vertical game posters with live indicators.
-- **Wallet System:** Simulated balance and transactions via `localStorage`.
-- **Social Feed:** Real-time post simulation with local persistence.
-- **Tournament Management:** Static tournament listings with join/create mocks.
+### Core Platform
+- **Cinematic Landing Page:** Modern hero section with glassmorphism effects.
+- **Interactive Dashboard:** 3:4 vertical game posters with live indicators and real-time wallet updates.
+- **Wallet System:** Simulated balance and transactions via `localStorage` (migrating to Firestore).
+- **Social Nexus:** Real-time social feed with posts, likes, comments, and user search.
+- **Profile System:** Custom attributes, stats tracking, and avatar management.
+- **Tournament System:** Create, join, and manage tournaments with automated bracket generation (frontend mocked).
+
+### 🃏 29 Card Game (Flagship)
+- **Complete Rule Set:** Full bidding mechanic (16-28), trump selection, and strict trick-taking rules.
+- **Advanced UI/UX:**
+  - Glassmorphism Game Header with round/trick tracking.
+  - "Last Hand" history overlay.
+  - Interactive table animations for card plays.
+  - Smart trump reveal mechanics with "pop-out" card.
+- **Multiplayer Engine:**
+  - Real-time firestore syncing (sub-second latency).
+  - Robust reconnection handling.
+  - Server-synced 30s turn timers.
+- **Intelligence:**
+  - Smart Bots for practice mode (3s delay).
+  - "Double" and "Redouble" challenge phases.
+
+### ♟️ Chess
+- **Online Multiplayer:** Quick matchmaking and invite system.
+- **Bot Integration:** Play against AI engine.
+- **Standard Rules:** Checkmate, stalemate, and move validation.
+
+### 🏆 Tournaments & Matchmaking
+- **Public Lobbies:** Browse and join open games.
+- **Private Rooms:** Invite friends via 6-digit codes.
+- **Spectator Mode:** (Planned) Watch live high-stakes matches.
 
 ---
 

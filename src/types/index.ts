@@ -30,17 +30,24 @@ export interface UserProfile {
 }
 
 export interface Wallet {
-  balance: number
+  balance: number // INR balance
+  espoCoins: number // Espo Coin balance (2.5 EC = ₹1)
   transactions: Transaction[]
 }
 
 export interface Transaction {
   id: string
-  type: 'add' | 'deduct' | 'withdraw'
+  type: 'add' | 'deduct' | 'withdraw' | 'match_entry' | 'match_win' | 'ad_reward' | 'platform_fee'
   amount: number
+  currency: 'INR' | 'ESPO_COIN'
   timestamp: string
   description: string
   status: 'pending' | 'completed' | 'failed'
+  metadata?: {
+    matchId?: string
+    adId?: string
+    [key: string]: any
+  }
 }
 
 export interface Tournament {

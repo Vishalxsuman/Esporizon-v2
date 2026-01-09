@@ -20,6 +20,12 @@ const SocialPage = lazy(() => import('./pages/SocialPage'))
 const WalletPage = lazy(() => import('./pages/WalletPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'))
+const PlayHub = lazy(() => import('./pages/PlayHub'))
+const CreateMatch = lazy(() => import('./pages/CreateMatch'))
+const MatchLobby = lazy(() => import('./pages/MatchLobby'))
+const GameRouter = lazy(() => import('./pages/GameRouter'))
+const PublicLobbies = lazy(() => import('./pages/PublicLobbies'))
+const JoinMatch = lazy(() => import('./pages/JoinMatch'))
 
 // Loading component for suspense
 const PageLoader = () => (
@@ -139,6 +145,69 @@ function App() {
                 <Route
                   path="/create-post"
                   element={<Navigate to="/social" replace />}
+                />
+                <Route
+                  path="/play"
+                  element={
+                    <>
+                      <SignedIn><PlayHub /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/play/create"
+                  element={
+                    <>
+                      <SignedIn><CreateMatch /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/play/lobbies"
+                  element={
+                    <>
+                      <SignedIn><PublicLobbies /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/play/match/:id"
+                  element={
+                    <>
+                      <SignedIn><MatchLobby /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/play/join/:code"
+                  element={
+                    <>
+                      <SignedIn><JoinMatch /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/play/game/:id"
+                  element={
+                    <>
+                      <SignedIn><GameRouter /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
+                />
+                <Route
+                  path="/notifications"
+                  element={
+                    <>
+                      <SignedIn><PlaceholderPage title="Notifications" /></SignedIn>
+                      <SignedOut><RedirectToSignIn /></SignedOut>
+                    </>
+                  }
                 />
                 <Route
                   path="/earnings"

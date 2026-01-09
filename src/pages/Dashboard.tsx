@@ -8,6 +8,7 @@ import WalletModal from '@/components/WalletModal'
 import SocialFeed from '@/components/SocialFeed'
 import ParticlesBackground from '@/components/ParticlesBackground'
 import toast, { Toaster } from 'react-hot-toast'
+import NotificationBell from '@/components/NotificationBell'
 
 const Dashboard = () => {
   const { user } = useUser()
@@ -96,9 +97,9 @@ const Dashboard = () => {
 
   const quickActions = [
     { icon: '✍️', label: 'Social Hub', route: '/social' },
+    { icon: '🎮', label: 'Play Games', route: '/play' },
     { icon: '🎲', label: 'Color Prediction', route: '/predict' },
-    { icon: '🎮', label: 'Tournaments', route: '/tournaments' },
-    { icon: '📊', label: 'Earnings', route: '/earnings' },
+    { icon: '🏆', label: 'Tournaments', route: '/tournaments' },
     { icon: '💬', label: 'Support', route: '/support' },
     { icon: '⚙️', label: 'Settings', route: '/profile' },
   ]
@@ -122,6 +123,7 @@ const Dashboard = () => {
           <p className="text-sm text-[var(--text-secondary)] mt-0.5">Welcome {user?.firstName || 'Gamer'}</p>
         </div>
         <div className="flex items-center gap-3">
+          <NotificationBell />
           <div className="flex flex-col items-end mr-2">
             <span className="text-[10px] text-[var(--text-secondary)] uppercase">Balance</span>
             <span className="text-sm font-bold text-[var(--accent)]">₹{wallet?.balance.toLocaleString()}</span>
@@ -172,6 +174,7 @@ const Dashboard = () => {
             <h2 className="text-xl font-bold">Welcome back, {user?.firstName || 'Gamer'}!</h2>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <Link to="/social" className="px-5 py-2 rounded-lg bg-[var(--accent)] text-[var(--bg-primary)] text-sm font-bold hover:bg-[var(--accent)]/90 transition-all hover:scale-105 shadow-[0_0_20px_rgba(0,255,194,0.3)]">
               + Intelligence Nexus
             </Link>
