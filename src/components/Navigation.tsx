@@ -9,7 +9,7 @@ const Navigation = () => {
 
   const navItems = [
     { path: '/dashboard', label: 'Home', icon: Home },
-    { path: '/tournaments', label: 'Play', icon: Gamepad2 },
+    { path: '/play', label: 'Play', icon: Gamepad2 },
     { path: '/predict', label: 'Predict', icon: Target },
     { path: '/social', label: 'Social', icon: MessageSquare }, // Changed from /posts to /social
     { path: '/wallet', label: 'Wallet', icon: Wallet },    // Assuming /wallet for wallet
@@ -20,7 +20,7 @@ const Navigation = () => {
 
   // Paths where we might want to hide nav (e.g., Auth, Landing)
   const hideNavPaths = ['/', '/auth']
-  if (hideNavPaths.includes(location.pathname)) return null
+  if (hideNavPaths.includes(location.pathname) || location.pathname.startsWith('/play/game/')) return null
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-[#09090b]/80 backdrop-blur-xl border-t border-white/10 lg:hidden pb-safe">
