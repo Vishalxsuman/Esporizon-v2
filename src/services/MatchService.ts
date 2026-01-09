@@ -140,6 +140,30 @@ class MatchService {
         }
     }
 
+    // New: Join Room by Code (Guest Friendly)
+    async joinRoom(inviteCode: string, player: { id: string; name: string; avatar: string }): Promise<Match> {
+        try {
+            const match = await this.getMatchByInviteCode(inviteCode)
+            if (!match) throw new Error('Room not found')
+
+            // If game expects a fee and this is a guest joining (no wallet check here for now), allow only free games
+            if (match.entryFee > 0 && player.id.startsWith('guest_')) {
+                // Optional: Block guests from paid games if strict logic needed
+                // throw new Error('Guests cannot join paid rooms')
+            }
+
+            return await this.joinMatch({
+                matchId: match.id,
+                userId: player.id,
+                userName: player.name,
+                userAvatar: player.avatar
+            })
+        } catch (error) {
+            console.error('Error joining room:', error)
+            throw error
+        }
+    }
+
 
 
     async makeBid29(matchId: string, userId: string, amount: number | 'pass', gameState: any, players: MatchPlayer[]) {
