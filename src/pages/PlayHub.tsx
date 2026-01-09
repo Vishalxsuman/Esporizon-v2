@@ -1,211 +1,231 @@
 import { useEffect, useState } from 'react'
-import { motion } from 'framer-motion'
-import { Link } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import { useUser } from '@clerk/clerk-react'
-import { Trophy, Users, Zap, Crown, ArrowRight } from 'lucide-react'
+import { Users, Zap, Crown, X } from 'lucide-react'
 import { matchService } from '@/services/MatchService'
 import { leaderboardService } from '@/services/LeaderboardService'
 import { walletService } from '@/services/WalletService'
 import { formatEspoCoins } from '@/utils/espoCoin'
 import ParticlesBackground from '@/components/ParticlesBackground'
 import type { Wallet } from '@/types'
+import toast from 'react-hot-toast'
 
 const PlayHub = () => {
     const { user } = useUser()
+    const navigate = useNavigate()
     const [wallet, setWallet] = useState<Wallet | null>(null)
     const [activeMatches, setActiveMatches] = useState(0)
     const [userRank, setUserRank] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
 
+    // Guest Logic State
+    const [showGuestModal, setShowGuestModal] = useState(false)
+    const [guestName, setGuestName] = useState('')
+    const [pendingAction, setPendingAction] = useState<{ type: 'create' | 'join', data: any } | null>(null)
+    const [isProcessing, setIsProcessing] = useState(false)
+
     useEffect(() => {
-        if (!user) return
-
         const loadData = async () => {
-            try {
-                // Load wallet
-                const w = await walletService.getWallet(user.id)
-                setWallet(w)
-
-                // Load active matches count
-                const matches = await matchService.getUserMatches(user.id)
-                setActiveMatches(matches.length)
-
-                // Load user rank
-                const rank = await leaderboardService.getUserRank(user.id, 'overall_champions')
-                setUserRank(rank)
-            } catch (error) {
-                console.error('Error loading play hub data:', error)
-            } finally {
-                setLoading(false)
+            if (user) {
+                try {
+                    const w = await walletService.getWallet(user.id)
+                    setWallet(w)
+                    const matches = await matchService.getUserMatches(user.id)
+                    setActiveMatches(matches.length)
+                    const rank = await leaderboardService.getUserRank(user.id, 'overall_champions')
+                    setUserRank(rank)
+                } catch (error) {
+                    console.error('Error loading data:', error)
+                }
             }
+            setLoading(false)
         }
-
         loadData()
     }, [user])
 
-    const games = [
-        {
-            id: 'chess',
-            name: 'Online Chess',
-            description: '1v1 strategic battle',
-            players: 2,
-            bgGradient: 'from-purple-600/20 to-pink-600/20',
-            icon: '♟️',
-            liveCount: '1.2K'
-        },
-        {
-            id: 'card29',
-            name: '29 Card Game',
-            description: 'Multiplayer card strategy',
-            players: 4,
-            bgGradient: 'from-orange-600/20 to-red-600/20',
-            icon: '🃏',
-            liveCount: '850'
+    const getGuestIdentity = () => {
+        const stored = localStorage.getItem('guest_identity')
+        if (stored) return JSON.parse(stored)
+        return null
+    }
+
+    const createGuestIdentity = (name: string) => {
+        const identity = {
+            id: `guest_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            name: name,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`
         }
+        localStorage.setItem('guest_identity', JSON.stringify(identity))
+        return identity
+    }
+
+    const handleAction = async (action: { type: 'create' | 'join', data: any }, identity?: any) => {
+        setIsProcessing(true)
+        try {
+            const currentUser = user ? {
+                id: user.id,
+                name: user.fullName || user.username || 'Player',
+                avatar: user.imageUrl
+            } : (identity || getGuestIdentity())
+
+            if (!currentUser) {
+                setPendingAction(action)
+                setShowGuestModal(true)
+                setIsProcessing(false)
+                return
+            }
+
+            if (action.type === 'create') {
+                const { gameId, mode } = action.data
+                // For PAID games, guests are NOT allowed (simple rule for now)
+                if (mode === 'paid' && !user) {
+                    toast.error("Guests can only play Free matches. Please login to play Paid.")
+                    setIsProcessing(false)
+                    return
+                }
+
+                const match = await matchService.createMatch({
+                    gameId,
+                    mode,
+                    maxPlayers: gameId === 'chess' ? 2 : 4,
+                    entryFee: mode === 'paid' ? 10 : 0, // Mock entry fee for now
+                    visibility: 'private',
+                    withBots: false
+                }, currentUser.id, currentUser.name, currentUser.avatar)
+
+                navigate(`/play/match/${match.id}`)
+
+            } else if (action.type === 'join') {
+                const { code } = action.data
+                const match = await matchService.joinRoom(code, currentUser)
+                navigate(`/play/match/${match.id}`)
+            }
+        } catch (error: any) {
+            toast.error(error.message || "Action failed")
+        } finally {
+            setIsProcessing(false)
+            setShowGuestModal(false)
+        }
+    }
+
+    const confirmGuestName = () => {
+        if (!guestName.trim()) return
+        const identity = createGuestIdentity(guestName)
+        if (pendingAction) {
+            handleAction(pendingAction, identity)
+        }
+    }
+
+    const gameCards = [
+        { id: 'chess', name: 'Online Chess', icon: '♟️', players: 2, desc: 'Strategy' },
+        { id: 'card29', name: '29 Card Game', icon: '🃏', players: 4, desc: 'Multiplayer' }
     ]
 
     const quickStats = [
-        {
-            label: 'Your Espo Coins',
-            value: wallet ? formatEspoCoins(wallet.espoCoins) : '0 EC',
-            icon: Zap,
-            color: 'text-[var(--accent)]'
-        },
-        {
-            label: 'Active Matches',
-            value: activeMatches.toString(),
-            icon: Users,
-            color: 'text-blue-400'
-        },
-        {
-            label: 'Your Rank',
-            value: userRank ? `#${userRank}` : 'N/A',
-            icon: Crown,
-            color: 'text-yellow-400'
-        }
+        { label: 'Espo Coins', value: wallet ? formatEspoCoins(wallet.espoCoins) : '0 EC', icon: Zap, color: 'text-yellow-400' },
+        { label: 'Active Matches', value: activeMatches, icon: Users, color: 'text-blue-400' },
+        { label: 'Rank', value: userRank ? `#${userRank}` : 'N/A', icon: Crown, color: 'text-[var(--accent)]' }
     ]
 
-    if (loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-[var(--bg-primary)]">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--accent)]"></div>
-            </div>
-        )
-    }
+    if (loading) return <div className="min-h-screen flex items-center justify-center bg-[#0a0f1e] text-cyan-400">Loading...</div>
 
     return (
-        <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] pb-24 lg:pb-8"
-        >
+        <div className="min-h-screen bg-[#0a0f1e] text-white pb-24 relative overflow-hidden">
             <ParticlesBackground />
 
-            {/* Hero Section */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-[var(--accent)]/10 to-purple-600/10 border-b border-[var(--border)]">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1511512578047-dfb367046420?q=80&w=2671')] bg-cover bg-center opacity-5"></div>
-                <div className="relative z-10 max-w-7xl mx-auto px-4 py-16 lg:py-24">
+            {/* Guest Name Modal */}
+            <AnimatePresence>
+                {showGuestModal && (
                     <motion.div
-                        initial={{ y: 20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        transition={{ delay: 0.1 }}
-                        className="text-center"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
                     >
-                        <h1 className="text-4xl lg:text-6xl font-black mb-4 bg-gradient-to-r from-[var(--accent)] to-purple-500 bg-clip-text text-transparent">
-                            PLAY & EARN
-                        </h1>
-                        <p className="text-lg lg:text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-8">
-                            Challenge players worldwide. Win real Espo Coins. Dominate the leaderboards.
-                        </p>
-
-                        <div className="flex flex-wrap justify-center gap-4">
-                            <Link
-                                to="/play/lobbies"
-                                className="px-6 py-3 bg-[var(--accent)] text-[var(--bg-primary)] font-bold rounded-lg hover:bg-[var(--accent)]/90 transition-all hover:scale-105 shadow-[0_0_30px_rgba(0,255,194,0.3)]"
-                            >
-                                Browse Lobbies
-                            </Link>
-                            <Link
-                                to="/leaderboards"
-                                className="px-6 py-3 bg-[var(--glass)] text-[var(--text-primary)] font-bold rounded-lg border border-[var(--border)] hover:bg-[var(--glass-intense)] transition-all"
-                            >
-                                <Trophy className="inline w-5 h-5 mr-2" />
-                                Leaderboards
-                            </Link>
-                        </div>
-                    </motion.div>
-                </div>
-            </div>
-
-            {/* Quick Stats */}
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {quickStats.map((stat, idx) => (
                         <motion.div
-                            key={stat.label}
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.2 + idx * 0.1 }}
-                            className="p-6 rounded-xl bg-[var(--glass)] border border-[var(--border)] hover:border-[var(--accent)]/30 transition-all"
+                            initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+                            className="bg-[#1a2332] w-full max-w-md p-6 rounded-2xl border border-white/10 shadow-xl"
                         >
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-sm text-[var(--text-secondary)] mb-1">{stat.label}</p>
-                                    <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                                </div>
-                                <stat.icon className={`w-8 h-8 ${stat.color}`} />
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-xl font-bold bg-gradient-to-r from-cyan-400 to-purple-500 bg-clip-text text-transparent">Enter Guest Name</h3>
+                                <button onClick={() => setShowGuestModal(false)}><X className="text-white/50 hover:text-white" /></button>
                             </div>
+                            <input
+                                type="text"
+                                value={guestName}
+                                onChange={e => setGuestName(e.target.value)}
+                                placeholder="Your Display Name..."
+                                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-white mb-6 focus:border-cyan-400 outline-none"
+                                autoFocus
+                            />
+                            <button
+                                onClick={confirmGuestName}
+                                disabled={!guestName.trim() || isProcessing}
+                                className="w-full bg-gradient-to-r from-cyan-500 to-blue-600 py-3 rounded-xl font-bold text-white hover:opacity-90 disabled:opacity-50"
+                            >
+                                {isProcessing ? 'Processing...' : 'Continue as Guest'}
+                            </button>
                         </motion.div>
-                    ))}
-                </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Hero */}
+            <div className="relative pt-24 pb-12 px-4 text-center">
+                <motion.h1
+                    initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+                    className="text-4xl md:text-6xl font-black mb-4 bg-gradient-to-r from-cyan-400 via-purple-400 to-pink-400 bg-clip-text text-transparent"
+                >
+                    PLAY & EARN
+                </motion.h1>
+                <p className="text-white/60 text-lg max-w-2xl mx-auto mb-8">
+                    Challenge players worldwide. No login needed for free games.
+                </p>
+
+                {/* Quick Stats (Only if logged in) */}
+                {user && (
+                    <div className="flex justify-center gap-4 flex-wrap mb-8">
+                        {quickStats.map((stat, i) => (
+                            <div key={i} className="bg-white/5 border border-white/10 rounded-xl p-4 flex items-center gap-3 backdrop-blur-md">
+                                <div className={`p-2 rounded-lg bg-white/5 ${stat.color}`}><stat.icon size={20} /></div>
+                                <div className="text-left">
+                                    <div className="text-xs text-white/40">{stat.label}</div>
+                                    <div className="font-bold">{stat.value}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
-            {/* Join Room Section */}
-            <div className="max-w-7xl mx-auto px-4 mb-4">
-                <div className="bg-[var(--glass)] rounded-2xl p-6 border border-[var(--border)] relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--accent)]/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-
-                    <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
-                        <div>
-                            <h3 className="text-2xl font-black mb-2 flex items-center gap-2">
-                                <span className="text-3xl">🎫</span>
-                                Have a Room Code?
-                            </h3>
-                            <p className="text-[var(--text-secondary)]">
-                                Enter the invite code shared by your friend to join their lobby.
-                            </p>
-                        </div>
-
+            {/* Join Room Input */}
+            <div className="max-w-xl mx-auto px-4 mb-16">
+                <div className="bg-gradient-to-br from-white/10 to-white/5 rounded-2xl p-1 border border-white/10 shadow-2xl">
+                    <div className="bg-[#0a0f1e]/90 rounded-xl p-6 backdrop-blur-xl">
+                        <label className="block text-xs font-bold text-cyan-400 uppercase tracking-widest mb-3">
+                            Have a Room Code?
+                        </label>
                         <form
-                            onSubmit={async (e) => {
+                            onSubmit={(e) => {
                                 e.preventDefault()
                                 // @ts-ignore
                                 const code = e.target.code.value
-                                if (!code) return
-
-                                const match = await matchService.getMatchByInviteCode(code)
-                                if (match) {
-                                    // @ts-ignore
-                                    window.location.href = `/play/match/${match.id}`
-                                } else {
-                                    alert('Invalid Room Code')
-                                }
+                                if (code) handleAction({ type: 'join', data: { code } })
                             }}
-                            className="flex w-full md:w-auto gap-2"
+                            className="flex gap-2"
                         >
                             <input
-                                type="text"
                                 name="code"
-                                placeholder="Enter Code (e.g. X7K9L)"
-                                className="flex-1 md:w-64 px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border)] rounded-xl focus:outline-none focus:border-[var(--accent)] font-mono uppercase tracking-widest text-center font-bold"
+                                type="text"
+                                placeholder="ENTER CODE"
+                                className="flex-1 bg-black/40 border border-white/10 rounded-xl px-4 font-mono text-center tracking-widest uppercase focus:border-cyan-400 outline-none"
                                 maxLength={8}
                             />
                             <button
                                 type="submit"
-                                className="px-6 py-3 bg-[var(--accent)] text-black font-bold rounded-xl hover:bg-[var(--accent)-hover] transition-all flex items-center gap-2"
+                                disabled={isProcessing}
+                                className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold px-6 py-3 rounded-xl transition-all"
                             >
-                                Join
-                                <ArrowRight className="w-4 h-4" />
+                                JOIN
                             </button>
                         </form>
                     </div>
@@ -213,83 +233,41 @@ const PlayHub = () => {
             </div>
 
             {/* Games Grid */}
-            <div className="max-w-7xl mx-auto px-4 py-8">
-                <h2 className="text-2xl font-black mb-6 flex items-center gap-3">
-                    <span className="w-1.5 h-8 bg-[var(--accent)] rounded-full shadow-[0_0_15px_var(--accent)]"></span>
-                    SELECT YOUR GAME
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {games.map((game, idx) => (
-                        <motion.div
-                            key={game.id}
-                            initial={{ y: 20, opacity: 0 }}
-                            animate={{ y: 0, opacity: 1 }}
-                            transition={{ delay: 0.3 + idx * 0.1 }}
-                            className="group relative"
-                        >
-                            <div className={`relative p-8 rounded-2xl border-2 border-[var(--border)] bg-gradient-to-br ${game.bgGradient} overflow-hidden transition-all duration-300 hover:border-[var(--accent)] hover:shadow-[0_0_30px_rgba(0,255,194,0.2)]`}>
-                                {/* Background Pattern */}
-                                <div className="absolute inset-0 opacity-5 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iMC40Ij48cGF0aCBkPSJNMzYgMzRjMC0yLjIxIDEuNzktNCA0LTRzNCAxLjc5IDQgNC0xLjc5IDQtNCA0LTQtMS43OS00LTR6bTAtMTZjMC0yLjIxIDEuNzktNCA0LTRzNCAxLjc5IDQgNC0xLjc5IDQtNCA0LTQtMS43OS00LTR6Ii8+PC9nPjwvZz48L3N2Zz4=')]"></div>
-
-                                {/* Live Badge */}
-                                <div className="absolute top-4 right-4 flex items-center gap-2 bg-green-500/20 px-3 py-1.5 rounded-full backdrop-blur-sm border border-green-500/30">
-                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                                    <span className="text-xs font-bold text-green-400">{game.liveCount} LIVE</span>
-                                </div>
-
-                                <div className="relative z-10">
-                                    <div className="text-6xl mb-4">{game.icon}</div>
-                                    <h3 className="text-2xl font-black mb-2">{game.name}</h3>
-                                    <p className="text-[var(--text-secondary)] mb-1">{game.description}</p>
-                                    <p className="text-sm text-[var(--text-secondary)] mb-6">{game.players} Players</p>
-
-                                    <div className="flex gap-3">
-                                        <Link
-                                            to={`/play/create?game=${game.id}&mode=free`}
-                                            className="flex-1 py-3 bg-[var(--glass)] hover:bg-[var(--glass-intense)] border border-[var(--border)] rounded-lg font-bold text-center transition-all"
-                                        >
-                                            Create Room (Free)
-                                        </Link>
-                                        <Link
-                                            to={`/play/create?game=${game.id}&mode=paid`}
-                                            className="flex-1 py-3 bg-[var(--accent)] hover:bg-[var(--accent)]/90 text-[var(--bg-primary)] rounded-lg font-bold text-center transition-all shadow-lg shadow-[var(--accent)]/20"
-                                        >
-                                            Create Room (Paid)
-                                        </Link>
-                                    </div>
+            <div className="max-w-6xl mx-auto px-4 grid md:grid-cols-2 gap-6">
+                {gameCards.map(game => (
+                    <div key={game.id} className="relative group">
+                        <div className="absolute inset-0 bg-gradient-to-r from-cyan-500/20 to-purple-500/20 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity" />
+                        <div className="relative bg-[#131b2a] border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all">
+                            <div className="flex justify-between items-start mb-8">
+                                <div className="text-5xl">{game.icon}</div>
+                                <div className="px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20 text-green-400 text-xs font-bold flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                                    LIVE
                                 </div>
                             </div>
-                        </motion.div>
-                    ))}
-                </div>
-            </div>
 
-            {/* CTA Section */}
-            <div className="max-w-7xl mx-auto px-4 py-16">
-                <motion.div
-                    initial={{ y: 20, opacity: 0 }}
-                    animate={{ y: 0, opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    className="relative p-8 lg:p-12 rounded-2xl bg-gradient-to-r from-purple-600/20 to-[var(--accent)]/20 border border-[var(--border)] overflow-hidden"
-                >
-                    <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1614294148960-9aa740632a87?q=80&w=2574')] bg-cover bg-center opacity-5"></div>
-                    <div className="relative z-10 text-center">
-                        <h2 className="text-3xl font-black mb-4">Ready to Compete?</h2>
-                        <p className="text-[var(--text-secondary)] mb-6 max-w-2xl mx-auto">
-                            Join thousands of players earning Espo Coins daily. Skill beats luck. Fair play guaranteed.
-                        </p>
-                        <Link
-                            to="/play/lobbies"
-                            className="inline-flex items-center gap-2 px-8 py-4 bg-[var(--accent)] text-[var(--bg-primary)] font-bold rounded-lg hover:bg-[var(--accent)]/90 transition-all hover:scale-105 shadow-[0_0_40px_rgba(0,255,194,0.4)]"
-                        >
-                            <Users className="w-5 h-5" />
-                            Find a Match
-                        </Link>
+                            <h3 className="text-2xl font-bold mb-2">{game.name}</h3>
+                            <p className="text-white/40 mb-8">{game.desc} • {game.players} Players</p>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <button
+                                    onClick={() => handleAction({ type: 'create', data: { gameId: game.id, mode: 'free' } })}
+                                    className="py-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 font-bold transition-all"
+                                >
+                                    Create Free
+                                </button>
+                                <button
+                                    onClick={() => handleAction({ type: 'create', data: { gameId: game.id, mode: 'paid' } })}
+                                    className="py-3 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:opacity-90 font-bold shadow-lg shadow-cyan-500/20 transition-all"
+                                >
+                                    Create Paid
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                </motion.div>
+                ))}
             </div>
-        </motion.div>
+        </div>
     )
 }
 
