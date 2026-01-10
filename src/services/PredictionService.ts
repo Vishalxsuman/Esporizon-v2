@@ -1,6 +1,6 @@
-import axios from 'axios';
 import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot } from 'firebase/firestore';
+import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -31,7 +31,7 @@ const api = axios.create({
 });
 
 // Add auth interceptor
-api.interceptors.request.use(async (config) => {
+api.interceptors.request.use(async (config: any) => {
     const token = await getAuthToken();
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;

@@ -252,7 +252,7 @@ const BettingControls: React.FC<BettingControlsProps> = ({ isLocked, balance, on
 
             {/* Submit Button */}
             <motion.button
-                whileHover={{ scale: 1.02, brightness: 1.1 }}
+                whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={handleSubmit}
                 disabled={isLocked || !selectedPrediction}

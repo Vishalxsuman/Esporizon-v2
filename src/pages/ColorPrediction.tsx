@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { walletService } from '@/services/WalletService';
 import PredictionHeader from '@/components/prediction/PredictionHeader';
@@ -262,7 +262,7 @@ const ColorPrediction = () => {
   };
 
   // 4️⃣ BETTING HANDLER (with status guards)
-  const handlePlaceBet = (selection: string, amount: number, type: 'color' | 'number' | 'big_small') => {
+  const handlePlaceBet = (selection: string, amount: number) => {
     // Safety guard: Only allow betting when status is BETTING
     if (!roundData || roundData.status !== 'BETTING') {
       toast.error('Betting is currently closed!');
