@@ -16,16 +16,12 @@ const PAYOUT_MULTIPLIERS = {
 }
 
 /**
- * Conversion rate: 2.5 Espo Coin = ₹1
- */
-const ESPO_TO_RUPEE = 2.5
-
-/**
  * Calculate payout for a winning bet
+ * SIMPLIFIED: Direct multiplier on bet amount (no currency conversion)
  * @param {string} betType - "COLOR", "NUMBER", or "SIZE"
  * @param {string} betValue - The bet value
  * @param {number} betAmount - Amount bet in Espo Coins
- * @returns {number} Payout amount in Espo Coins
+ * @returns {number} Payout amount in Espo Coins (includes original bet)
  */
 export const calculatePayout = (betType, betValue, betAmount) => {
     let multiplier = 0
@@ -38,12 +34,10 @@ export const calculatePayout = (betType, betValue, betAmount) => {
         multiplier = PAYOUT_MULTIPLIERS[betValue] // RED, GREEN, or VIOLET
     }
 
-    // Calculate based on ₹ equivalent then convert to Espo Coin
-    const rupeeEquivalent = betAmount / ESPO_TO_RUPEE
-    const payoutInRupee = rupeeEquivalent * multiplier
-    const payoutInEspo = payoutInRupee * ESPO_TO_RUPEE
+    // Direct multiplier application (betAmount already in Espo Coins)
+    const payout = betAmount * multiplier
 
-    return Math.round(payoutInEspo) // Round to nearest integer
+    return Math.round(payout) // Round to nearest integer
 }
 
 /**
@@ -96,13 +90,25 @@ export const distributePayouts = async (mode, periodId, result) => {
                     settledAt: admin.firestore.FieldValue.serverTimestamp()
                 })
 
-                // Credit wallet
+                // Credit ALL wallets
                 const walletRef = getDb().collection('prediction_wallets').doc(bet.userId)
+                const mainWalletRef = getDb().collection('wallets').doc(bet.userId)
+                const userWalletRef = getDb().collection('users').doc(bet.userId).collection('wallet').doc('data')
+
                 batch.update(walletRef, {
                     balance: admin.firestore.FieldValue.increment(payout),
                     totalWon: admin.firestore.FieldValue.increment(payout),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 })
+                batch.set(mainWalletRef, {
+                    balance: admin.firestore.FieldValue.increment(payout),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true })
+                batch.set(userWalletRef, {
+                    balance: admin.firestore.FieldValue.increment(payout),
+                    totalWon: admin.firestore.FieldValue.increment(payout),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                }, { merge: true })
 
                 winners++
                 totalPayout += payout

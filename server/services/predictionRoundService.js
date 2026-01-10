@@ -35,7 +35,7 @@ export const checkAndAdvanceRound = async (mode) => {
 
         // If no current round exists, create one
         if (!roundDoc.exists) {
-            console.log(`📝 No current round found. Creating initial round for ${mode}`)
+            console.log(`📝 [${mode}] No current round found. Creating initial round...`)
             await createNewRound(mode, modeConfig)
             return
         }
@@ -53,7 +53,31 @@ export const checkAndAdvanceRound = async (mode) => {
         const roundEndTime = round.roundEndAt.toMillis()
         const timeRemaining = Math.floor((roundEndTime - now) / 1000)
 
-        console.log(`[${mode}] Status: ${round.status}, Time Remaining: ${timeRemaining}s, Period: ${round.periodId}`)
+        console.log(`[${mode}] Status: ${round.status}, Time Remaining: ${timeRemaining}s, Period: ${round.periodId}, PayoutDone: ${round.payoutDone}`)
+
+        // 🚨 UNIVERSAL STUCK DETECTION
+        // If we're more than 30 seconds past the round end time, something is critically wrong
+        // Auto-recovery: force the round to complete and move forward
+        if (timeRemaining <= -30) {
+            console.log(`[${mode}] 🚨 CRITICAL: Round stuck ${Math.abs(timeRemaining)}s past deadline!`)
+            console.log(`[${mode}] 🔧 Auto-recovery: Forcing round to complete...`)
+
+            if (round.status === 'BETTING' || round.status === 'LOCKED') {
+                // Force result generation
+                console.log(`[${mode}] 🎲 Force-generating result for stuck round ${round.periodId}`)
+                await generateResultAndPayout(mode, round.periodId, modeConfig)
+                return
+            } else if (round.status === 'RESULT') {
+                // Force new round creation
+                if (!round.payoutDone) {
+                    console.log(`[${mode}] ⚠️ Payout stuck. Marking as done and creating new round...`)
+                    await roundRef.update({ payoutDone: true })
+                }
+                console.log(`[${mode}] 🔄 Force-creating new round after stuck RESULT`)
+                await createNewRound(mode, modeConfig)
+                return
+            }
+        }
 
         // BETTING → LOCKED (when time <= 5 seconds)
         if (round.status === 'BETTING') {
@@ -71,11 +95,11 @@ export const checkAndAdvanceRound = async (mode) => {
                 console.log(`[${mode}] 🎲 TRANSITION: LOCKED → RESULT (period ${round.periodId})`)
                 await generateResultAndPayout(mode, round.periodId, modeConfig)
             }
-        }
-        // SAFETY: If stuck in LOCKED for too long (> 10s past deadline), force result
-        else if (round.status === 'LOCKED' && timeRemaining <= -10) {
-            console.log(`[${mode}] ⚠️ STUCK in LOCKED. Forcing result generation...`)
-            await generateResultAndPayout(mode, round.periodId, modeConfig)
+            // SAFETY: If stuck in LOCKED for too long (> 10s past deadline), force result
+            else if (timeRemaining <= -10) {
+                console.log(`[${mode}] ⚠️ STUCK in LOCKED. Forcing result generation...`)
+                await generateResultAndPayout(mode, round.periodId, modeConfig)
+            }
         }
         // RESULT → NEW ROUND (immediately when payout done)
         else if (round.status === 'RESULT') {
@@ -83,7 +107,7 @@ export const checkAndAdvanceRound = async (mode) => {
                 console.log(`[${mode}] 🔄 TRANSITION: RESULT → NEW ROUND (after ${round.periodId})`)
                 await createNewRound(mode, modeConfig)
             } else {
-                console.log(`[${mode}] ⏳ Waiting for payout to complete...`)
+                console.log(`[${mode}] ⏳ Waiting for payout to complete... (Period: ${round.periodId})`)
             }
         }
     } catch (error) {
@@ -103,9 +127,30 @@ const createNewRound = async (mode, modeConfig) => {
     try {
         // Check if a round already exists to prevent duplicates
         const existingRound = await roundRef.get()
-        if (existingRound.exists && existingRound.data().status === 'BETTING') {
-            console.log('⚠️ Active betting round already exists. Skipping creation.')
-            return
+        if (existingRound.exists) {
+            const existingData = existingRound.data()
+
+            // Check if existing round is still valid (not expired)
+            if (existingData.status === 'BETTING') {
+                const now = admin.firestore.Timestamp.now().toMillis()
+                const endTime = existingData.roundEndAt.toMillis()
+                const timeRemaining = (endTime - now) / 1000
+
+                // If betting round still has time left, don't create duplicate
+                if (timeRemaining > 0) {
+                    console.log(`⚠️ Active betting round already exists with ${Math.floor(timeRemaining)}s remaining. Skipping creation.`)
+                    return
+                } else {
+                    console.log(`🔧 Existing BETTING round is expired (${Math.floor(Math.abs(timeRemaining))}s past deadline). Replacing with new round...`)
+                    // Continue to create new round (will overwrite)
+                }
+            } else if (existingData.status === 'RESULT' && existingData.payoutDone) {
+                console.log(`🔧 Existing RESULT round is complete. Creating new round...`)
+                // Continue to create new round
+            } else {
+                console.log(`⚠️ Round exists in ${existingData.status} state (payoutDone: ${existingData.payoutDone}). Skipping creation (scheduler will advance it).`)
+                return
+            }
         }
 
         // Generate new period ID (mode-specific)
