@@ -1,232 +1,106 @@
-import { Wallet, Transaction } from '@/types'
+
+import { Wallet } from '@/types'
+import { db } from '@/services/firebase'
+import { doc, getDoc, onSnapshot } from 'firebase/firestore'
+import axios from 'axios'
+import { getAuth } from "firebase/auth";
 
 class WalletService {
-  private getStorageKey(userId: string): string {
-    return `espo_wallet_${userId}`
+  private activeListenerUnsubscribe: (() => void) | null = null;
+  private currentUserId: string | null = null;
+
+  // Helper to get token
+  private async getToken(): Promise<string | null> {
+    const auth = getAuth();
+    if (!auth.currentUser) return null;
+    return auth.currentUser.getIdToken();
   }
 
   async getWallet(userId: string): Promise<Wallet> {
-    const key = this.getStorageKey(userId)
-    const stored = localStorage.getItem(key)
-    if (stored) {
-      const wallet = JSON.parse(stored)
-      // Ensure espoCoins exists for backwards compatibility
-      if (wallet.espoCoins === undefined) {
-        wallet.espoCoins = 0
-      }
-      return wallet
-    }
-    const newWallet: Wallet = { balance: 0, espoCoins: 0, transactions: [] }
-    localStorage.setItem(key, JSON.stringify(newWallet))
-    return newWallet
-  }
+    // 1. Return initial data via single fetch (fast)
+    // 2. Setup background listener to keep app in sync via events
+    this.setupRealtimeSync(userId);
 
-  async addFunds(amount: number, userId: string): Promise<void> {
     try {
-      const wallet = await this.getWallet(userId)
-      const newTransaction: Transaction = {
-        id: `txn_${Date.now()}`,
-        type: 'add',
-        amount: amount,
-        currency: 'INR',
-        description: 'Added funds to wallet',
-        timestamp: new Date().toISOString(),
-        status: 'completed'
+      const walletRef = doc(db, 'prediction_wallets', userId);
+      const snapshot = await getDoc(walletRef);
+      if (snapshot.exists()) {
+        const data = snapshot.data();
+        return {
+          balance: data.balance || 0,
+          espoCoins: data.espoCoins || 0,
+          transactions: []
+        };
       }
-
-      wallet.balance += amount
-      wallet.transactions.unshift(newTransaction)
-
-      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
-
-      // Dispatch custom event for real-time-like behavior across tabs/components
-      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
-    } catch (error) {
-      console.error('Error adding funds:', error)
-      throw new Error('Failed to add funds')
+      return { balance: 0, espoCoins: 0, transactions: [] };
+    } catch (err) {
+      console.error("Error fetching wallet:", err);
+      return { balance: 0, espoCoins: 0, transactions: [] };
     }
   }
 
-  async deductFunds(amount: number, userId: string, description?: string): Promise<void> {
+  private setupRealtimeSync(userId: string) {
+    // Prevent multiple listeners for same user
+    if (this.currentUserId === userId && this.activeListenerUnsubscribe) return;
+
+    // Cleanup previous
+    if (this.activeListenerUnsubscribe) {
+      this.activeListenerUnsubscribe();
+    }
+
+    this.currentUserId = userId;
+    const walletRef = doc(db, 'prediction_wallets', userId);
+
+    // Start listening
+    this.activeListenerUnsubscribe = onSnapshot(walletRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        const wallet = {
+          balance: data.balance || 0,
+          espoCoins: data.espoCoins || 0,
+          transactions: []
+        };
+        // DISPATCH EVENT so Dashboard.tsx updates automatically
+        window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }));
+      }
+    });
+  }
+
+  async addFunds(amount: number, _userId: string): Promise<void> {
     try {
-      const wallet = await this.getWallet(userId)
-      if (wallet.balance < amount) {
-        throw new Error('Insufficient balance')
-      }
+      const token = await this.getToken();
+      if (!token) throw new Error("Authentication required");
 
-      const newTransaction: Transaction = {
-        id: `txn_${Date.now()}`,
-        type: 'deduct',
-        amount: amount,
-        currency: 'INR',
-        description: description || 'Deducted from wallet',
-        timestamp: new Date().toISOString(),
-        status: 'completed'
-      }
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-      wallet.balance -= amount
-      wallet.transactions.unshift(newTransaction)
-
-      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
-      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
+      await axios.post(`${API_URL}/predict/wallet/deposit`, {
+        amount: amount
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
     } catch (error) {
-      console.error('Error deducting funds:', error)
-      throw error
+      console.error('Error adding funds:', error);
+      throw new Error('Failed to deposit funds');
     }
   }
 
-  async withdrawFunds(amount: number, userId: string, accountDetails: any): Promise<void> {
-    try {
-      const wallet = await this.getWallet(userId)
-      if (wallet.balance < amount) {
-        throw new Error('Insufficient balance')
+  // Placeholders for legacy interface compatibility
+  async withdrawFunds(_amount: number, _userId: string, _accountDetails: any): Promise<void> { console.warn("Withdraw API not integrated"); }
+  async addEspoCoins(_amount: number, _userId: string, _description: string): Promise<void> { }
+  async deductEspoCoins(_amount: number, _userId: string, _description: string): Promise<void> { }
+  async convertINRToEspoCoins(_inrAmount: number, _userId: string): Promise<void> { }
+
+  // Helper for manual subscription if needed
+  subscribeToWallet(userId: string, callback: (wallet: Wallet) => void): () => void {
+    const walletRef = doc(db, 'prediction_wallets', userId);
+    return onSnapshot(walletRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        callback({ balance: data.balance || 0, espoCoins: data.espoCoins || 0, transactions: [] });
       }
-
-      const newTransaction: Transaction = {
-        id: `txn_${Date.now()}`,
-        type: 'withdraw',
-        amount: amount,
-        currency: 'INR',
-        description: `Withdrawal to ${accountDetails.method || 'bank'}`,
-        timestamp: new Date().toISOString(),
-        status: 'pending'
-      }
-
-      wallet.balance -= amount
-      wallet.transactions.unshift(newTransaction)
-
-      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
-      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
-    } catch (error) {
-      console.error('Error withdrawing funds:', error)
-      throw error
-    }
-  }
-
-  // Add Espo Coins (for ad rewards, conversions, etc.)
-  async addEspoCoins(amount: number, userId: string, description: string, metadata?: any): Promise<void> {
-    try {
-      const wallet = await this.getWallet(userId)
-      const newTransaction: Transaction = {
-        id: `txn_${Date.now()}`,
-        type: 'ad_reward',
-        amount: amount,
-        currency: 'ESPO_COIN',
-        description: description,
-        timestamp: new Date().toISOString(),
-        status: 'completed',
-        metadata
-      }
-
-      wallet.espoCoins += amount
-      wallet.transactions.unshift(newTransaction)
-
-      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
-      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
-    } catch (error) {
-      console.error('Error adding Espo Coins:', error)
-      throw new Error('Failed to add Espo Coins')
-    }
-  }
-
-  // Deduct Espo Coins (for match entry fees)
-  async deductEspoCoins(amount: number, userId: string, description: string, metadata?: any): Promise<void> {
-    try {
-      const wallet = await this.getWallet(userId)
-      if (wallet.espoCoins < amount) {
-        throw new Error('Insufficient Espo Coins')
-      }
-
-      const newTransaction: Transaction = {
-        id: `txn_${Date.now()}`,
-        type: 'match_entry',
-        amount: amount,
-        currency: 'ESPO_COIN',
-        description: description,
-        timestamp: new Date().toISOString(),
-        status: 'completed',
-        metadata
-      }
-
-      wallet.espoCoins -= amount
-      wallet.transactions.unshift(newTransaction)
-
-      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
-      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
-    } catch (error) {
-      console.error('Error deducting Espo Coins:', error)
-      throw error
-    }
-  }
-
-  // Credit match winnings
-  async creditMatchWinnings(amount: number, userId: string, matchId: string): Promise<void> {
-    try {
-      const wallet = await this.getWallet(userId)
-      const newTransaction: Transaction = {
-        id: `txn_${Date.now()}`,
-        type: 'match_win',
-        amount: amount,
-        currency: 'ESPO_COIN',
-        description: `Match winnings`,
-        timestamp: new Date().toISOString(),
-        status: 'completed',
-        metadata: { matchId }
-      }
-
-      wallet.espoCoins += amount
-      wallet.transactions.unshift(newTransaction)
-
-      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
-      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
-    } catch (error) {
-      console.error('Error crediting match winnings:', error)
-      throw new Error('Failed to credit match winnings')
-    }
-  }
-
-  // Convert INR to Espo Coins (2.5 EC = ₹1)
-  async convertINRToEspoCoins(inrAmount: number, userId: string): Promise<void> {
-    try {
-      const wallet = await this.getWallet(userId)
-      if (wallet.balance < inrAmount) {
-        throw new Error('Insufficient INR balance')
-      }
-
-      const espoCoins = inrAmount * 2.5
-
-      // Deduct INR
-      const deductTxn: Transaction = {
-        id: `txn_${Date.now()}`,
-        type: 'deduct',
-        amount: inrAmount,
-        currency: 'INR',
-        description: `Converted to ${espoCoins} Espo Coins`,
-        timestamp: new Date().toISOString(),
-        status: 'completed'
-      }
-
-      // Add Espo Coins
-      const addTxn: Transaction = {
-        id: `txn_${Date.now() + 1}`,
-        type: 'add',
-        amount: espoCoins,
-        currency: 'ESPO_COIN',
-        description: `Converted from ₹${inrAmount}`,
-        timestamp: new Date().toISOString(),
-        status: 'completed'
-      }
-
-      wallet.balance -= inrAmount
-      wallet.espoCoins += espoCoins
-      wallet.transactions.unshift(addTxn, deductTxn)
-
-      localStorage.setItem(this.getStorageKey(userId), JSON.stringify(wallet))
-      window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }))
-    } catch (error) {
-      console.error('Error converting currency:', error)
-      throw error
-    }
+    });
   }
 }
 

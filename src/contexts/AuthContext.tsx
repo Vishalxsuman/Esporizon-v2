@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react'
-import { useUser, useClerk, useSignIn, useSignUp } from '@clerk/clerk-react'
+import { useUser, useClerk, useSignIn, useSignUp, useAuth as useAuthFromClerk } from '@clerk/clerk-react'
 import { User } from '@/types'
 
 interface AuthContextType {
@@ -9,6 +9,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
+  getToken: (options?: any) => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -18,6 +19,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { signOut: clerkSignOut } = useClerk()
   const { signIn: clerkSignIn, isLoaded: signInLoaded } = useSignIn()
   const { signUp: clerkSignUp, isLoaded: signUpLoaded } = useSignUp()
+  const { getToken: clerkGetToken } = useAuthFromClerk()
+
+  const getToken = async (options?: any) => {
+    return clerkGetToken(options)
+  }
 
   const signIn = async (email: string, password: string) => {
     if (!signInLoaded) return
@@ -71,7 +77,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       signIn,
       signUp,
       signInWithGoogle,
-      signOut
+      signOut,
+      getToken
     }}>
       {children}
     </AuthContext.Provider>
