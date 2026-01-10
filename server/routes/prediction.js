@@ -1,12 +1,12 @@
 import express from 'express'
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 import { initializePeriodCounter } from '../services/predictionPeriodService.js'
 import { getCurrentRound, isBettingAllowed } from '../services/predictionRoundService.js'
 import { getPeriodHistory } from '../services/periodService.js' // This import seems to be for the old history endpoint, but is kept as per instruction.
 import { getOrCreateWallet, getBalance } from '../services/walletService.js' // These imports seem to be for the old wallet endpoints, but are kept as per instruction.
 
 const router = express.Router()
-const db = admin.firestore()
+// Lazy-loaded db (do not initialize at module level)
 
 /**
  * POST /api/predict/init
@@ -93,8 +93,12 @@ router.post('/place-bet', async (req, res) => {
       return res.status(400).json({ error: 'Bet value required' })
     }
 
-    if (!betAmount || betAmount < 10) {
-      return res.status(400).json({ error: 'Minimum bet is 10 Espo Coins' })
+    // Amount Validation (Min 5, Max 100,000)
+    if (!betAmount || betAmount < 5) {
+      return res.status(400).json({ error: 'Minimum bet is ₹5' })
+    }
+    if (betAmount > 100000) {
+      return res.status(400).json({ error: 'Maximum bet is ₹100,000' })
     }
 
     // Check if betting is allowed for this mode
@@ -110,9 +114,9 @@ router.post('/place-bet', async (req, res) => {
     }
 
     // Check wallet balance
-    const walletRef = db.collection('prediction_wallets').doc(userId)
+    const walletRef = getDb().collection('prediction_wallets').doc(userId)
 
-    await db.runTransaction(async (transaction) => {
+    await getDb().runTransaction(async (transaction) => {
       const walletDoc = await transaction.get(walletRef)
 
       if (!walletDoc.exists) {
@@ -127,18 +131,18 @@ router.post('/place-bet', async (req, res) => {
 
       // Deduct from wallet
       transaction.update(walletRef, {
-        balance: balance - betAmount,
+        balance: admin.firestore.FieldValue.increment(-betAmount),
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       })
 
       // Create bet
-      const betRef = db.collection('prediction_bets').doc()
+      const betRef = getDb().collection('prediction_bets').doc()
       transaction.set(betRef, {
         userId,
         mode: round.mode,
         periodId: round.periodId,
         betType,
-        betValue,
+        betValue: betValue.toString().toUpperCase(), // Normalize to UPPERCASE
         betAmount,
         status: 'pending',
         payout: 0,
@@ -172,7 +176,7 @@ router.get('/history', async (req, res) => {
     const mode = req.query.mode || 'WIN_GO_1_MIN'
     const limit = parseInt(req.query.limit) || 20
 
-    const snapshot = await db.collection('prediction_history')
+    const snapshot = await getDb().collection('prediction_history')
       .where('mode', '==', mode)
       .orderBy('periodId', 'desc')
       .limit(limit)
@@ -200,7 +204,7 @@ router.get('/my-bets', async (req, res) => {
       return res.status(400).json({ error: 'User ID required' })
     }
 
-    const snapshot = await db.collection('prediction_bets')
+    const snapshot = await getDb().collection('prediction_bets')
       .where('userId', '==', userId)
       .orderBy('createdAt', 'desc')
       .limit(limit)

@@ -1,9 +1,9 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 import { calculatePayout } from './resultService.js'
 import { creditWinnings } from './walletService.js'
 import { getPeriodBets, updateBetStatus } from './betService.js'
 
-const db = admin.firestore()
+// Lazy-loaded db
 
 /**
  * Settle all bets for a completed period
@@ -70,7 +70,7 @@ export const settlePeriod = async (gameMode, periodId, result) => {
         }
 
         // Update period with total payout
-        const periodRef = db.collection(`prediction-games-${gameMode}`).doc(periodId)
+        const periodRef = getDb().collection(`prediction-games-${gameMode}`).doc(periodId)
         await periodRef.update({
             totalPayoutAmount: totalPayout
         })
@@ -97,7 +97,7 @@ export const settlePeriod = async (gameMode, periodId, result) => {
  * @returns {Promise<object>} - Settlement statistics
  */
 export const getSettlementStats = async (gameMode, periodId) => {
-    const periodRef = db.collection(`prediction-games-${gameMode}`).doc(periodId)
+    const periodRef = getDb().collection(`prediction-games-${gameMode}`).doc(periodId)
     const periodDoc = await periodRef.get()
 
     if (!periodDoc.exists) {

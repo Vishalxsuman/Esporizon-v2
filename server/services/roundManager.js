@@ -1,10 +1,10 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 import { getModeConfig, GAME_MODES } from '../config/gameModes.js'
 import { createPeriod, settlePeriod as settlePeriodDoc } from '../services/periodService.js'
 import { generateResult } from '../services/resultService.js'
 import { settlePeriod as processPeriodSettlement } from '../services/settlementService.js'
 
-const db = admin.firestore()
+// Lazy-loaded db
 
 /**
  * Get or create game state document
@@ -12,7 +12,7 @@ const db = admin.firestore()
  * @returns {Promise<object>} - Game state data
  */
 const getOrCreateGameState = async (modeId) => {
-    const stateRef = db.collection('prediction-system').doc(`game-state-${modeId}`)
+    const stateRef = getDb().collection('prediction-system').doc(`game-state-${modeId}`)
     const stateDoc = await stateRef.get()
 
     if (!stateDoc.exists) {
@@ -43,7 +43,7 @@ const getOrCreateGameState = async (modeId) => {
  * @param {object} updates - Updates to apply
  */
 const updateGameState = async (modeId, updates) => {
-    const stateRef = db.collection('prediction-system').doc(`game-state-${modeId}`)
+    const stateRef = getDb().collection('prediction-system').doc(`game-state-${modeId}`)
     await stateRef.update({
         ...updates,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()

@@ -1,16 +1,16 @@
 import express from 'express';
-import admin from 'firebase-admin';
+import { admin, getDb } from '../utils/firebase.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
-const db = admin.firestore();
+// Lazy-loaded db (do not initialize at module level);
 
 // GET /api/tournaments - Get tournaments filtered by game and status
 router.get('/', async (req, res) => {
     try {
         const { gameId, status } = req.query;
 
-        let query = db.collection('tournaments');
+        let query = getDb().collection('tournaments');
 
         if (gameId) {
             query = query.where('gameId', '==', gameId);
@@ -43,7 +43,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const doc = await db.collection('tournaments').doc(id).get();
+        const doc = await getDb().collection('tournaments').doc(id).get();
 
         if (!doc.exists) {
             return res.status(404).json({ error: 'Tournament not found' });
@@ -88,7 +88,7 @@ router.post('/create', authenticateToken, async (req, res) => {
         const initialPrizePool = 0;
 
         // Create tournament
-        const tournamentRef = await db.collection('tournaments').add({
+        const tournamentRef = await getDb().collection('tournaments').add({
             gameId,
             gameName,
             title,
@@ -132,8 +132,8 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
         console.log(`[JOIN DATA] Team: ${teamName}, Players: ${JSON.stringify(players)}`);
 
         // Use Firestore transaction for atomicity
-        await db.runTransaction(async (transaction) => {
-            const tournamentRef = db.collection('tournaments').doc(id);
+        await getDb().runTransaction(async (transaction) => {
+            const tournamentRef = getDb().collection('tournaments').doc(id);
             const tournamentDoc = await transaction.get(tournamentRef);
 
             if (!tournamentDoc.exists) {
@@ -158,7 +158,7 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
             }
 
             // Check if user already joined - simplified check
-            const existingParticipant = await db.collection('tournament_participants')
+            const existingParticipant = await getDb().collection('tournament_participants')
                 .where('tournamentId', '==', id)
                 .get();
 
@@ -170,7 +170,7 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
             }
 
             // Check wallet balance
-            const walletRef = db.collection('wallets').doc(uid);
+            const walletRef = getDb().collection('wallets').doc(uid);
             const walletDoc = await transaction.get(walletRef);
 
             if (!walletDoc.exists) {
@@ -209,7 +209,7 @@ router.post('/:id/join', authenticateToken, async (req, res) => {
                 joinedAt: now
             };
 
-            transaction.set(db.collection('tournament_participants').doc(), participantData);
+            transaction.set(getDb().collection('tournament_participants').doc(), participantData);
 
             // Update tournament (increment teams, add to prize pool)
             transaction.update(tournamentRef, {
@@ -233,8 +233,8 @@ router.post('/:id/leave', authenticateToken, async (req, res) => {
         const { uid } = req.user;
         const { id } = req.params;
 
-        await db.runTransaction(async (transaction) => {
-            const tournamentRef = db.collection('tournaments').doc(id);
+        await getDb().runTransaction(async (transaction) => {
+            const tournamentRef = getDb().collection('tournaments').doc(id);
             const tournamentDoc = await transaction.get(tournamentRef);
 
             if (!tournamentDoc.exists) {
@@ -250,7 +250,7 @@ router.post('/:id/leave', authenticateToken, async (req, res) => {
             }
 
             // Find participant
-            const participantSnapshot = await db.collection('tournament_participants')
+            const participantSnapshot = await getDb().collection('tournament_participants')
                 .where('tournamentId', '==', id)
                 .get();
 
@@ -270,7 +270,7 @@ router.post('/:id/leave', authenticateToken, async (req, res) => {
             const participant = participantDoc.data();
 
             // Refund entry fee
-            const walletRef = db.collection('wallets').doc(uid);
+            const walletRef = getDb().collection('wallets').doc(uid);
             transaction.update(walletRef, {
                 balance: admin.firestore.FieldValue.increment(participant.paidAmount),
                 transactions: admin.firestore.FieldValue.arrayUnion({
@@ -305,7 +305,7 @@ router.get('/:id/participants', async (req, res) => {
     try {
         const { id } = req.params;
 
-        const snapshot = await db.collection('tournament_participants')
+        const snapshot = await getDb().collection('tournament_participants')
             .where('tournamentId', '==', id)
             .orderBy('joinedAt', 'asc')
             .get();

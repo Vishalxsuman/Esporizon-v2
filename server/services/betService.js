@@ -1,8 +1,8 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 import { deductForBet, hasSufficientBalance } from './walletService.js'
 import { PAYOUT_MULTIPLIERS } from '../config/gameModes.js'
 
-const db = admin.firestore()
+// Lazy-loaded db
 
 /**
  * Place a bet for a user/guest
@@ -35,7 +35,7 @@ export const placeBet = async (betData) => {
     }
 
     // Check if period is still accepting bets
-    const periodRef = db.collection(`prediction-games-${gameMode}`).doc(periodId)
+    const periodRef = getDb().collection(`prediction-games-${gameMode}`).doc(periodId)
     const periodDoc = await periodRef.get()
 
     if (!periodDoc.exists) {
@@ -56,7 +56,7 @@ export const placeBet = async (betData) => {
     const payoutMultiplier = getPayoutMultiplier(betType, betValue)
 
     // Create bet document
-    const betRef = db.collection(`prediction-games-${gameMode}`)
+    const betRef = getDb().collection(`prediction-games-${gameMode}`)
         .doc(periodId)
         .collection('bets')
         .doc()
@@ -77,7 +77,7 @@ export const placeBet = async (betData) => {
 
     // Deduct from wallet and create bet in atomic operation
     try {
-        await db.runTransaction(async (transaction) => {
+        await getDb().runTransaction(async (transaction) => {
             // Create bet
             transaction.set(betRef, bet)
 
@@ -144,7 +144,7 @@ const getPayoutMultiplier = (betType, betValue) => {
  * @returns {Promise<array>} - Array of bets
  */
 export const getPeriodBets = async (gameMode, periodId, status = null) => {
-    let query = db.collection(`prediction-games-${gameMode}`)
+    let query = getDb().collection(`prediction-games-${gameMode}`)
         .doc(periodId)
         .collection('bets')
 
@@ -173,7 +173,7 @@ export const getUserBets = async (userId, isGuest = false, limit = 50) => {
     const allBets = []
 
     for (const mode of gameModes) {
-        const snapshot = await db.collectionGroup('bets')
+        const snapshot = await getDb().collectionGroup('bets')
             .where('userId', '==', userId)
             .where('isGuest', '==', isGuest)
             .where('gameMode', '==', mode)
@@ -204,7 +204,7 @@ export const getUserBets = async (userId, isGuest = false, limit = 50) => {
  * @param {number} payout - Payout amount
  */
 export const updateBetStatus = async (gameMode, periodId, betId, status, payout) => {
-    const betRef = db.collection(`prediction-games-${gameMode}`)
+    const betRef = getDb().collection(`prediction-games-${gameMode}`)
         .doc(periodId)
         .collection('bets')
         .doc(betId)

@@ -1,6 +1,6 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 
-const db = admin.firestore()
+// Lazy-loaded db
 
 /**
  * Get wallet collection reference based on user type
@@ -10,7 +10,7 @@ const db = admin.firestore()
  */
 const getWalletRef = (userId, isGuest = false) => {
     const collection = isGuest ? 'guests' : 'users'
-    return db.collection(collection).doc(userId).collection('wallet').doc('data')
+    return getDb().collection(collection).doc(userId).collection('wallet').doc('data')
 }
 
 /**
@@ -75,7 +75,7 @@ export const deductForBet = async (userId, isGuest, amount, periodId, betId) => 
     const walletRef = getWalletRef(userId, isGuest)
 
     try {
-        const newBalance = await db.runTransaction(async (transaction) => {
+        const newBalance = await getDb().runTransaction(async (transaction) => {
             const walletDoc = await transaction.get(walletRef)
 
             if (!walletDoc.exists) {
@@ -132,7 +132,7 @@ export const creditWinnings = async (userId, isGuest, amount, periodId, betId) =
     const walletRef = getWalletRef(userId, isGuest)
 
     try {
-        const newBalance = await db.runTransaction(async (transaction) => {
+        const newBalance = await getDb().runTransaction(async (transaction) => {
             const walletDoc = await transaction.get(walletRef)
 
             if (!walletDoc.exists) {
@@ -180,7 +180,7 @@ export const creditWinnings = async (userId, isGuest, amount, periodId, betId) =
  */
 const logTransaction = async (userId, isGuest, txData) => {
     const collection = isGuest ? 'guests' : 'users'
-    const txRef = db.collection(collection).doc(userId).collection('wallet').collection('transactions').doc()
+    const txRef = getDb().collection(collection).doc(userId).collection('wallet').collection('transactions').doc()
 
     await txRef.set({
         ...txData,
@@ -208,7 +208,7 @@ export const getBalance = async (userId, isGuest = false) => {
  */
 export const getTransactionHistory = async (userId, isGuest = false, limit = 50) => {
     const collection = isGuest ? 'guests' : 'users'
-    const snapshot = await db.collection(collection)
+    const snapshot = await getDb().collection(collection)
         .doc(userId)
         .collection('wallet')
         .collection('transactions')
