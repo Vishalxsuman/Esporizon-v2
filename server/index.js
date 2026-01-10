@@ -6,6 +6,8 @@ import walletRoutes from './routes/wallet.js'
 import predictionRoutes from './routes/prediction.js'
 import tournamentRoutes from './routes/tournaments.js'
 import postRoutes from './routes/posts.js'
+import { startScheduler } from './jobs/scheduler.js'
+import { startPredictionScheduler } from './jobs/predictionScheduler.js'
 
 dotenv.config()
 
@@ -62,4 +64,10 @@ app.get('/health', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`🚀 Esporizon Server running on port ${PORT}`)
+
+  // Start prediction game scheduler
+  startScheduler()
+
+  // Start Color Prediction round scheduler
+  startPredictionScheduler()
 })
