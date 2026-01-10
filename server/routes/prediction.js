@@ -1,50 +1,117 @@
 import express from 'express'
 import admin from 'firebase-admin'
+import { initializePeriodCounter } from '../services/predictionPeriodService.js'
+import { getCurrentRound, isBettingAllowed } from '../services/predictionRoundService.js'
+import { getPeriodHistory } from '../services/periodService.js' // This import seems to be for the old history endpoint, but is kept as per instruction.
+import { getOrCreateWallet, getBalance } from '../services/walletService.js' // These imports seem to be for the old wallet endpoints, but are kept as per instruction.
 
 const router = express.Router()
 const db = admin.firestore()
 
-// Generate random color prediction result
-const generateResult = () => {
-  const random = Math.random()
-  if (random < 0.45) {
-    return { color: 'red', multiplier: 2 }
-  } else if (random < 0.9) {
-    return { color: 'green', multiplier: 2 }
-  } else {
-    return { color: 'violet', multiplier: 4.5 }
-  }
-}
-
-// Play color prediction game
-router.post('/play', async (req, res) => {
+/**
+ * POST /api/predict/init
+ * Initialize prediction system (run once)
+ */
+router.post('/init', async (req, res) => {
   try {
-    const { userId, color, amount } = req.body
+    // Initialize counters for all modes
+    await initializePeriodCounter()
+
+    res.json({
+      success: true,
+      message: 'Prediction system initialized successfully'
+    })
+  } catch (error) {
+    console.error('Initialization error:', error)
+    res.status(500).json({
+      error: 'Failed to initialize prediction system',
+      details: error.message
+    })
+  }
+})
+
+/**
+ * GET /api/predict/current-round?mode=WIN_GO_1_MIN
+ * Get current round information for a specific mode
+ */
+router.get('/current-round', async (req, res) => {
+  try {
+    // Get mode from query param, default to WIN_GO_1_MIN
+    const mode = req.query.mode || 'WIN_GO_1_MIN'
+
+    // Validate mode
+    const validModes = ['WIN_GO_30S', 'WIN_GO_1_MIN', 'WIN_GO_3_MIN', 'WIN_GO_5_MIN']
+    if (!validModes.includes(mode)) {
+      return res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(', ')}` })
+    }
+
+    const round = await getCurrentRound(mode)
+
+    if (!round) {
+      return res.status(404).json({ error: 'No active round found' })
+    }
+
+    // Calculate time remaining
+    const now = Date.now()
+    const endTime = round.roundEndAt.toMillis()
+    const timeRemaining = Math.max(0, Math.floor((endTime - now) / 1000))
+
+    res.json({
+      ...round,
+      timeRemaining
+    })
+  } catch (error) {
+    console.error('Get current round error:', error)
+    res.status(500).json({ error: 'Failed to get current round' })
+  }
+})
+
+/**
+ * POST /api/predict/place-bet
+ * Place a bet for current round
+ */
+router.post('/place-bet', async (req, res) => {
+  try {
+    const { userId, mode, betType, betValue, betAmount } = req.body
 
     // Validation
-    if (!userId || typeof userId !== 'string') {
-      return res.status(400).json({ error: 'Invalid userId' })
-    }
-    if (!color || !['red', 'green', 'violet'].includes(color)) {
-      return res.status(400).json({ error: 'Invalid color selection. Must be red, green, or violet' })
-    }
-    if (!amount || typeof amount !== 'number' || amount <= 0) {
-      return res.status(400).json({ error: 'Invalid amount. Must be a positive number' })
-    }
-    if (amount < 10) {
-      return res.status(400).json({ error: 'Minimum bet amount is ₹10' })
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID required' })
     }
 
-    // Security: Verify user ownership
-    if (req.user.uid !== userId) {
-      console.warn(`Unauthorized prediction attempt: ${req.user.uid} tried to access ${userId}`)
-      return res.status(403).json({ error: 'Unauthorized: Cannot play for another user' })
+    // Validate mode
+    const validModes = ['WIN_GO_30S', 'WIN_GO_1_MIN', 'WIN_GO_3_MIN', 'WIN_GO_5_MIN']
+    if (!mode || !validModes.includes(mode)) {
+      return res.status(400).json({ error: `Invalid mode. Must be one of: ${validModes.join(', ')}` })
     }
 
-    const walletRef = db.collection('wallets').doc(userId)
-    let resultData, newBalance, won, winnings
+    if (!betType || !['COLOR', 'NUMBER', 'SIZE'].includes(betType)) {
+      return res.status(400).json({ error: 'Invalid bet type' })
+    }
 
-    // Use Firestore transaction for atomicity
+    if (!betValue) {
+      return res.status(400).json({ error: 'Bet value required' })
+    }
+
+    if (!betAmount || betAmount < 10) {
+      return res.status(400).json({ error: 'Minimum bet is 10 Espo Coins' })
+    }
+
+    // Check if betting is allowed for this mode
+    const bettingAllowed = await isBettingAllowed(mode)
+    if (!bettingAllowed) {
+      return res.status(400).json({ error: 'Betting is currently closed' })
+    }
+
+    // Get current round for this mode
+    const round = await getCurrentRound(mode)
+    if (!round) {
+      return res.status(400).json({ error: 'No active round' })
+    }
+
+    // Check wallet balance
+    const walletRef = db.collection('prediction_wallets').doc(userId)
+
     await db.runTransaction(async (transaction) => {
       const walletDoc = await transaction.get(walletRef)
 
@@ -52,67 +119,37 @@ router.post('/play', async (req, res) => {
         throw new Error('Wallet not found')
       }
 
-      const currentBalance = walletDoc.data().balance || 0
+      const balance = walletDoc.data().balance || 0
 
-      if (currentBalance < amount) {
+      if (balance < betAmount) {
         throw new Error('Insufficient balance')
       }
 
-      // Generate result (server-side only - cannot be manipulated)
-      const result = generateResult()
-      won = result.color === color
-      winnings = won ? amount * result.multiplier : 0
-      newBalance = won ? currentBalance + winnings - amount : currentBalance - amount
-
-      // Update wallet balance atomically
+      // Deduct from wallet
       transaction.update(walletRef, {
-        balance: newBalance,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        balance: balance - betAmount,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
       })
 
-      // Create transaction record
-      const transactionRef = db.collection('transactions').doc()
-      transaction.set(transactionRef, {
+      // Create bet
+      const betRef = db.collection('prediction_bets').doc()
+      transaction.set(betRef, {
         userId,
-        type: won ? 'add' : 'deduct',
-        amount: won ? winnings - amount : amount,
-        balanceBefore: currentBalance,
-        balanceAfter: newBalance,
-        description: won
-          ? `Won ₹${winnings - amount} from color prediction (${color})`
-          : `Lost ₹${amount} from color prediction (${color})`,
-        status: 'completed',
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-        ipAddress: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+        mode: round.mode,
+        periodId: round.periodId,
+        betType,
+        betValue,
+        betAmount,
+        status: 'pending',
+        payout: 0,
+        createdAt: admin.firestore.FieldValue.serverTimestamp()
       })
-
-      // Save prediction result
-      const resultRef = db.collection('colorPredictions').doc()
-      transaction.set(resultRef, {
-        userId,
-        selectedColor: color,
-        resultColor: result.color,
-        amount,
-        winnings: won ? winnings - amount : 0,
-        won,
-        multiplier: result.multiplier,
-        timestamp: admin.firestore.FieldValue.serverTimestamp(),
-      })
-
-      resultData = {
-        id: resultRef.id,
-        color: result.color,
-        multiplier: result.multiplier,
-        timestamp: new Date(),
-      }
     })
 
     res.json({
       success: true,
-      result: resultData,
-      won,
-      winnings: won ? winnings - amount : 0,
-      balance: newBalance,
+      message: 'Bet placed successfully',
+      periodId: round.periodId
     })
   } catch (error) {
     if (error.message === 'Wallet not found') {
@@ -121,36 +158,188 @@ router.post('/play', async (req, res) => {
     if (error.message === 'Insufficient balance') {
       return res.status(400).json({ error: error.message })
     }
-    console.error('Prediction play error:', error)
-    res.status(500).json({ error: 'Failed to process prediction. Please try again.' })
+    console.error('Place bet error:', error)
+    res.status(500).json({ error: 'Failed to place bet' })
   }
 })
 
-// Get recent results
-router.get('/results', async (req, res) => {
+/**
+ * GET /api/predict/history
+ * Get prediction history
+ */
+router.get('/history', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 10
+    const mode = req.query.mode || 'WIN_GO_1_MIN'
+    const limit = parseInt(req.query.limit) || 20
 
-    const snapshot = await db
-      .collection('colorPredictions')
-      .orderBy('timestamp', 'desc')
+    const snapshot = await db.collection('prediction_history')
+      .where('mode', '==', mode)
+      .orderBy('periodId', 'desc')
       .limit(limit)
       .get()
 
-    const results = snapshot.docs.map((doc) => {
-      const data = doc.data()
-      return {
-        id: doc.id,
-        color: data.resultColor,
-        multiplier: data.multiplier,
-        timestamp: data.timestamp?.toDate() || new Date(),
+    const history = snapshot.docs.map(doc => doc.data())
+
+    res.json(history)
+  } catch (error) {
+    console.error('Get history error:', error)
+    res.status(500).json({ error: 'Failed to get history' })
+  }
+})
+
+/**
+ * GET /api/predict/my-bets
+ * Get user's bet history
+ */
+router.get('/my-bets', async (req, res) => {
+  try {
+    const { userId } = req.query
+    const limit = parseInt(req.query.limit) || 50
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID required' })
+    }
+
+    const snapshot = await db.collection('prediction_bets')
+      .where('userId', '==', userId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+      .get()
+
+    const bets = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }))
+
+    res.json(bets)
+  } catch (error) {
+    console.error('Get my bets error:', error)
+    res.status(500).json({ error: 'Failed to get bet history' })
+  }
+})
+
+/**
+ * GET /api/predict/chart/:gameMode
+ * Get chart data (number frequency) for a game mode
+ */
+router.get('/chart/:gameMode', async (req, res) => {
+  try {
+    const { gameMode } = req.params
+
+    if (!isValidGameMode(gameMode)) {
+      return res.status(400).json({ error: 'Invalid game mode' })
+    }
+
+    // Get last 100 periods
+    const history = await getPeriodHistory(gameMode, 100)
+
+    // Calculate frequency
+    const frequency = {}
+    for (let i = 0; i <= 9; i++) {
+      frequency[i] = 0
+    }
+
+    history.forEach(period => {
+      if (period.result !== null) {
+        frequency[period.result]++
       }
     })
 
-    res.json(results)
+    // Calculate color frequency
+    const colorFrequency = {
+      Red: 0,
+      Green: 0,
+      Violet: 0
+    }
+
+    history.forEach(period => {
+      if (period.resultColors) {
+        period.resultColors.forEach(color => {
+          colorFrequency[color]++
+        })
+      }
+    })
+
+    res.json({
+      numberFrequency: frequency,
+      colorFrequency,
+      totalPeriods: history.length,
+      recentResults: history.slice(0, 20).map(p => ({
+        periodId: p.periodId,
+        result: p.result,
+        colors: p.resultColors,
+        bigSmall: p.resultBigSmall
+      }))
+    })
   } catch (error) {
-    console.error('Get results error:', error)
-    res.status(500).json({ error: 'Failed to get results' })
+    console.error('Get chart data error:', error)
+    res.status(500).json({ error: 'Failed to get chart data' })
+  }
+})
+
+/**
+ * POST /api/predict/guest/create
+ * Create a new guest wallet
+ */
+router.post('/guest/create', async (req, res) => {
+  try {
+    const { guestId } = req.body
+
+    if (!guestId) {
+      return res.status(400).json({ error: 'Guest ID required' })
+    }
+
+    // Create guest wallet
+    const wallet = await getOrCreateWallet(guestId, true)
+
+    res.json({
+      success: true,
+      guestId,
+      balance: wallet.balance
+    })
+  } catch (error) {
+    console.error('Create guest error:', error)
+    res.status(500).json({ error: 'Failed to create guest wallet' })
+  }
+})
+
+/**
+ * GET /api/predict/balance
+ * Get user/guest balance
+ */
+router.get('/balance', async (req, res) => {
+  try {
+    const isGuest = req.query.isGuest === 'true'
+    const userId = isGuest ? req.query.guestId : req.user.uid
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID required' })
+    }
+
+    const balance = await getBalance(userId, isGuest)
+
+    res.json({ balance })
+  } catch (error) {
+    console.error('Get balance error:', error)
+    res.status(500).json({ error: 'Failed to get balance' })
+  }
+})
+
+/**
+ * POST /api/predict/admin/init
+ * Initialize prediction system (admin only, run once)
+ */
+router.post('/admin/init', async (req, res) => {
+  try {
+    await initializePeriodCounters()
+
+    res.json({
+      success: true,
+      message: 'Prediction system initialized'
+    })
+  } catch (error) {
+    console.error('Init error:', error)
+    res.status(500).json({ error: 'Failed to initialize system' })
   }
 })
 
