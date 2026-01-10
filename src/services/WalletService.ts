@@ -89,7 +89,7 @@ class WalletService {
   // Placeholders for legacy interface compatibility
   async withdrawFunds(_amount: number, _userId: string, _accountDetails: any): Promise<void> { console.warn("Withdraw API not integrated"); }
   async addEspoCoins(_amount: number, _userId: string, _description: string): Promise<void> { }
-  async deductEspoCoins(_amount: number, _userId: string, _description: string): Promise<void> { }
+  async deductEspoCoins(_amount: number, _userId: string, _description: string, _metadata?: any): Promise<void> { }
   async convertINRToEspoCoins(_inrAmount: number, _userId: string): Promise<void> { }
 
   // Helper for manual subscription if needed
