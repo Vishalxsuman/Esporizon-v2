@@ -23,8 +23,7 @@ const TimerBoard: React.FC<TimerBoardProps> = ({
     periodId,
     isLocked,
     lastResult,
-    onShowHowToPlay,
-    modeLabel
+    onShowHowToPlay
 }) => {
     const formatTime = (seconds: number) => {
         const mins = Math.floor(seconds / 60);
