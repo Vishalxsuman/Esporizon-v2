@@ -1,14 +1,14 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 import { generatePeriodId, getNumberColors, getBigSmall } from '../config/gameModes.js'
 
-const db = admin.firestore()
+// Lazy-loaded db
 
 /**
  * Initialize period counters for all game modes
  * Should be run once during setup
  */
 export const initializePeriodCounters = async () => {
-    const counterRef = db.collection('prediction-system').doc('counters')
+    const counterRef = getDb().collection('prediction-system').doc('counters')
 
     try {
         const counterDoc = await counterRef.get()
@@ -36,10 +36,10 @@ export const initializePeriodCounters = async () => {
  * @returns {Promise<string>} - New period ID
  */
 export const getNextPeriodId = async (modeId) => {
-    const counterRef = db.collection('prediction-system').doc('counters')
+    const counterRef = getDb().collection('prediction-system').doc('counters')
 
     try {
-        const newPeriodId = await db.runTransaction(async (transaction) => {
+        const newPeriodId = await getDb().runTransaction(async (transaction) => {
             const counterDoc = await transaction.get(counterRef)
 
             if (!counterDoc.exists) {
@@ -90,7 +90,7 @@ export const getNextPeriodId = async (modeId) => {
  */
 export const createPeriod = async (modeId, result = null) => {
     const periodId = await getNextPeriodId(modeId)
-    const periodRef = db.collection(`prediction-games-${modeId}`).doc(periodId)
+    const periodRef = getDb().collection(`prediction-games-${modeId}`).doc(periodId)
 
     const periodData = {
         periodId,
@@ -120,7 +120,7 @@ export const createPeriod = async (modeId, result = null) => {
  * @returns {Promise<object|null>} - Current period data or null
  */
 export const getCurrentPeriod = async (modeId) => {
-    const snapshot = await db.collection(`prediction-games-${modeId}`)
+    const snapshot = await getDb().collection(`prediction-games-${modeId}`)
         .where('status', '==', 'active')
         .orderBy('createdAt', 'desc')
         .limit(1)
@@ -144,7 +144,7 @@ export const getCurrentPeriod = async (modeId) => {
  * @param {number} result - Result number (0-9)
  */
 export const settlePeriod = async (modeId, periodId, result) => {
-    const periodRef = db.collection(`prediction-games-${modeId}`).doc(periodId)
+    const periodRef = getDb().collection(`prediction-games-${modeId}`).doc(periodId)
 
     await periodRef.update({
         result,
@@ -162,7 +162,7 @@ export const settlePeriod = async (modeId, periodId, result) => {
  * @returns {Promise<array>} - Array of period data
  */
 export const getPeriodHistory = async (modeId, limit = 100) => {
-    const snapshot = await db.collection(`prediction-games-${modeId}`)
+    const snapshot = await getDb().collection(`prediction-games-${modeId}`)
         .where('status', '==', 'settled')
         .orderBy('createdAt', 'desc')
         .limit(limit)

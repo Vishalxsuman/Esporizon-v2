@@ -92,7 +92,14 @@ esporizon/
 - **Bot Integration:** Play against AI engine.
 - **Standard Rules:** Checkmate, stalemate, and move validation.
 
+### 🎨 Color Prediction
+- **Real-Time Betting:** Fast-paced color prediction game with 3-minute rounds.
+- **Server-Synced Timer:** Backend authority ensures fair round cycles (Betting -> Result -> New Round).
+- **Automated Payouts:** Winners paid instantly based on color/number rules (2x for colors, 9x for numbers, 1.5x for Violet).
+- **History Tracking:** Previous outcomes displayed for pattern analysis.
+
 ### 🏆 Tournaments & Matchmaking
+- **Guest Access:** instant play with simple room codes—no login required for casual matches.
 - **Public Lobbies:** Browse and join open games.
 - **Private Rooms:** Invite friends via 6-digit codes.
 - **Spectator Mode:** (Planned) Watch live high-stakes matches.

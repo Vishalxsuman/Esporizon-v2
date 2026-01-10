@@ -1,16 +1,16 @@
 import express from 'express';
-import admin from 'firebase-admin';
+import { admin, getDb } from '../utils/firebase.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
-const db = admin.firestore();
+// Lazy-loaded db (do not initialize at module level);
 
 // GET /api/posts - Get posts filtered by date
 router.get('/', async (req, res) => {
     try {
         const { startDate, limit: queryLimit } = req.query;
 
-        let query = db.collection('posts');
+        let query = getDb().collection('posts');
 
         // Filter by date if provided
         if (startDate) {
@@ -46,7 +46,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const doc = await db.collection('posts').doc(id).get();
+        const doc = await getDb().collection('posts').doc(id).get();
 
         if (!doc.exists) {
             return res.status(404).json({ error: 'Post not found' });
@@ -68,9 +68,9 @@ router.post('/:id/like', authenticateToken, async (req, res) => {
         const { uid, name } = req.user;
         const { id } = req.params;
 
-        const postRef = db.collection('posts').doc(id);
+        const postRef = getDb().collection('posts').doc(id);
 
-        await db.runTransaction(async (transaction) => {
+        await getDb().runTransaction(async (transaction) => {
             const postDoc = await transaction.get(postRef);
 
             if (!postDoc.exists) {
@@ -118,9 +118,9 @@ router.post('/:id/comment', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Comment is too long (max 500 characters)' });
         }
 
-        const postRef = db.collection('posts').doc(id);
+        const postRef = getDb().collection('posts').doc(id);
 
-        await db.runTransaction(async (transaction) => {
+        await getDb().runTransaction(async (transaction) => {
             const postDoc = await transaction.get(postRef);
 
             if (!postDoc.exists) {
@@ -156,9 +156,9 @@ router.post('/:id/share', authenticateToken, async (req, res) => {
         const { uid } = req.user;
         const { id } = req.params;
 
-        const postRef = db.collection('posts').doc(id);
+        const postRef = getDb().collection('posts').doc(id);
 
-        await db.runTransaction(async (transaction) => {
+        await getDb().runTransaction(async (transaction) => {
             const postDoc = await transaction.get(postRef);
 
             if (!postDoc.exists) {
@@ -212,7 +212,7 @@ router.post('/create', authenticateToken, async (req, res) => {
             updatedAt: admin.firestore.FieldValue.serverTimestamp()
         };
 
-        const postRef = await db.collection('posts').add(postData);
+        const postRef = await getDb().collection('posts').add(postData);
 
         res.status(201).json({
             postId: postRef.id,

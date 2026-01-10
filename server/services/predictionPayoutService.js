@@ -1,7 +1,7 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 import { checkWin } from './predictionResultService.js'
 
-const db = admin.firestore()
+// Lazy-loaded db (do not initialize at module level)
 
 /**
  * Payout multipliers (on ₹1 equivalent)
@@ -58,7 +58,7 @@ export const distributePayouts = async (mode, periodId, result) => {
 
     try {
         // Get all bets for this period
-        const betsSnapshot = await db.collection('prediction_bets')
+        const betsSnapshot = await getDb().collection('prediction_bets')
             .where('mode', '==', mode)
             .where('periodId', '==', periodId)
             .where('status', '==', 'pending')
@@ -75,7 +75,7 @@ export const distributePayouts = async (mode, periodId, result) => {
 
         let winners = 0
         let totalPayout = 0
-        const batch = db.batch()
+        const batch = getDb().batch()
 
         // Process each bet
         for (const betDoc of betsSnapshot.docs) {
@@ -97,7 +97,7 @@ export const distributePayouts = async (mode, periodId, result) => {
                 })
 
                 // Credit wallet
-                const walletRef = db.collection('prediction_wallets').doc(bet.userId)
+                const walletRef = getDb().collection('prediction_wallets').doc(bet.userId)
                 batch.update(walletRef, {
                     balance: admin.firestore.FieldValue.increment(payout),
                     totalWon: admin.firestore.FieldValue.increment(payout),

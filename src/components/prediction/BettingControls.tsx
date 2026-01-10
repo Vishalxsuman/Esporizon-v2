@@ -121,7 +121,6 @@ const BettingControls: React.FC<BettingControlsProps> = ({ isLocked, balance, on
                                 >
                                     <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
                                     <span className="text-white font-black text-sm relative z-10 uppercase tracking-widest">{item.name}</span>
-                                    <span className="text-white/90 text-[10px] font-black bg-black/20 px-2 py-1 rounded-lg relative z-10">{item.multi}</span>
 
                                     {selectedPrediction === item.name && (
                                         <div className="absolute top-2 right-2 bg-[var(--accent)] text-black w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold shadow-sm z-20">✓</div>

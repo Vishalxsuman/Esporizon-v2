@@ -81,7 +81,12 @@ const GameHistory: React.FC<GameHistoryProps> = ({ gameHistory, userHistory }) =
                                         key={i}
                                         className="grid grid-cols-4 items-center p-4 text-center hover:bg-[var(--glass)] transition-colors"
                                     >
-                                        <div className="text-left pl-2 text-[var(--text-secondary)] font-mono text-xs">{item.periodId.slice(-4)}</div>
+                                        <div className="text-left pl-2 text-[var(--text-secondary)] font-mono text-xs">
+                                            {(() => {
+                                                const parts = item.periodId.split('-');
+                                                return parts.length === 3 ? `${parts[0]}-${parts[2]}` : item.periodId;
+                                            })()}
+                                        </div>
                                         <div className="font-black text-lg italic" style={{ color: getNumberColor(item.number)[0] }}>
                                             {item.number}
                                         </div>

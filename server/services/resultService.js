@@ -1,6 +1,6 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 
-const db = admin.firestore()
+// Lazy-loaded db
 
 /**
  * Weighted random number generator with house edge
@@ -28,7 +28,7 @@ const BASE_WEIGHTS = {
  * @returns {Promise<array>} - Array of recent result numbers
  */
 const getRecentResults = async (modeId, limit = 10) => {
-    const snapshot = await db.collection(`prediction-games-${modeId}`)
+    const snapshot = await getDb().collection(`prediction-games-${modeId}`)
         .where('status', '==', 'settled')
         .orderBy('createdAt', 'desc')
         .limit(limit)

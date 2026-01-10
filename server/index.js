@@ -65,9 +65,7 @@ app.get('/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Esporizon Server running on port ${PORT}`)
 
-  // Start prediction game scheduler
-  startScheduler()
-
   // Start Color Prediction round scheduler
+  console.log('🔄 Initializing Prediction Scheduler...')
   startPredictionScheduler()
 })

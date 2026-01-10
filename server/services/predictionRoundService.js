@@ -1,9 +1,9 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 import { getNextPeriodId } from './predictionPeriodService.js'
 import { generateResult } from './predictionResultService.js'
 import { distributePayouts } from './predictionPayoutService.js'
 
-const db = admin.firestore()
+// Lazy-loaded db (do not initialize at module level)
 
 /**
  * Game mode configuration
@@ -28,7 +28,7 @@ export const checkAndAdvanceRound = async (mode) => {
     }
 
     // Use mode-specific document instead of shared 'current'
-    const roundRef = db.collection('prediction_rounds').doc(mode)
+    const roundRef = getDb().collection('prediction_rounds').doc(mode)
 
     try {
         const roundDoc = await roundRef.get()
@@ -42,35 +42,52 @@ export const checkAndAdvanceRound = async (mode) => {
 
         const round = roundDoc.data()
 
+        // IF STATUS OR PERIOD ID IS MISSING, REPAIR IT (Manual creation error safety)
+        if (!round.status || !round.periodId) {
+            console.log(`[${mode}] ⚠️ Missing status or periodId! Repairing by creating new round...`)
+            await createNewRound(mode, modeConfig)
+            return
+        }
+
         const now = admin.firestore.Timestamp.now().toMillis()
         const roundEndTime = round.roundEndAt.toMillis()
         const timeRemaining = Math.floor((roundEndTime - now) / 1000)
 
-        // State machine logic
+        console.log(`[${mode}] Status: ${round.status}, Time Remaining: ${timeRemaining}s, Period: ${round.periodId}`)
+
+        // BETTING → LOCKED (when time <= 5 seconds)
         if (round.status === 'BETTING') {
-            // Check if we should lock (last 5 seconds)
             if (timeRemaining <= modeConfig.lockSeconds) {
-                console.log(`🔒 Locking round ${round.periodId}`)
+                console.log(`[${mode}] 🔒 TRANSITION: BETTING → LOCKED (period ${round.periodId})`)
                 await roundRef.update({
                     status: 'LOCKED',
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 })
             }
-        } else if (round.status === 'LOCKED') {
-            // Check if round time is up
+        }
+        // LOCKED → RESULT (when time <= 0)
+        else if (round.status === 'LOCKED') {
             if (timeRemaining <= 0) {
-                console.log(`🎲 Generating result for round ${round.periodId}`)
+                console.log(`[${mode}] 🎲 TRANSITION: LOCKED → RESULT (period ${round.periodId})`)
                 await generateResultAndPayout(mode, round.periodId, modeConfig)
             }
-        } else if (round.status === 'RESULT') {
-            // Payout should be done, create new round after 2 second delay
-            if (round.payoutDone && timeRemaining <= -2) {
-                console.log(`🔄 Creating new round after ${round.periodId}`)
+        }
+        // SAFETY: If stuck in LOCKED for too long (> 10s past deadline), force result
+        else if (round.status === 'LOCKED' && timeRemaining <= -10) {
+            console.log(`[${mode}] ⚠️ STUCK in LOCKED. Forcing result generation...`)
+            await generateResultAndPayout(mode, round.periodId, modeConfig)
+        }
+        // RESULT → NEW ROUND (immediately when payout done)
+        else if (round.status === 'RESULT') {
+            if (round.payoutDone) {
+                console.log(`[${mode}] 🔄 TRANSITION: RESULT → NEW ROUND (after ${round.periodId})`)
                 await createNewRound(mode, modeConfig)
+            } else {
+                console.log(`[${mode}] ⏳ Waiting for payout to complete...`)
             }
         }
     } catch (error) {
-        console.error(`Error in checkAndAdvanceRound for ${mode}:`, error)
+        console.error(`[${mode}] ❌ ERROR in checkAndAdvanceRound:`, error)
     }
 }
 
@@ -81,7 +98,7 @@ export const checkAndAdvanceRound = async (mode) => {
  */
 const createNewRound = async (mode, modeConfig) => {
     // Use mode-specific document
-    const roundRef = db.collection('prediction_rounds').doc(mode)
+    const roundRef = getDb().collection('prediction_rounds').doc(mode)
 
     try {
         // Check if a round already exists to prevent duplicates
@@ -111,6 +128,8 @@ const createNewRound = async (mode, modeConfig) => {
             resultColor: 'PENDING',
             resultSize: 'PENDING',
             payoutDone: false,
+            // Robust IST Date for queries
+            date: new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).slice(0, 10),
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         })
 
@@ -129,7 +148,7 @@ const createNewRound = async (mode, modeConfig) => {
  */
 const generateResultAndPayout = async (mode, periodId, modeConfig) => {
     // Use mode-specific document
-    const roundRef = db.collection('prediction_rounds').doc(mode)
+    const roundRef = getDb().collection('prediction_rounds').doc(mode)
 
     try {
         // Double-check payoutDone flag to prevent duplicate payout
@@ -143,7 +162,7 @@ const generateResultAndPayout = async (mode, periodId, modeConfig) => {
         const result = generateResult()
 
         // Update round with result using transaction to prevent race conditions
-        await db.runTransaction(async (transaction) => {
+        await getDb().runTransaction(async (transaction) => {
             const roundDoc = await transaction.get(roundRef)
 
             if (roundDoc.data().payoutDone) {
@@ -192,15 +211,17 @@ const generateResultAndPayout = async (mode, periodId, modeConfig) => {
  */
 const writeToHistory = async (mode, periodId, result, payoutStats) => {
     try {
-        await db.collection('prediction_history').doc(periodId).set({
+
+        await getDb().collection('prediction_history').doc(`${mode}_${periodId}`).set({
             mode,
             periodId,
             resultNumber: result.resultNumber,
             resultColor: result.resultColor,
             resultSize: result.resultSize,
-            totalBets: payoutStats.totalBets,
-            winners: payoutStats.winners,
-            totalPayout: payoutStats.totalPayout,
+            totalBets: payoutStats?.totalBets || 0,
+            winners: payoutStats?.winners || 0,
+            totalPayout: payoutStats?.totalPayout || 0,
+            date: new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).slice(0, 10),
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         })
 
@@ -221,7 +242,7 @@ export const getCurrentRound = async (mode) => {
         throw new Error(`Invalid mode: ${mode}`)
     }
 
-    const roundDoc = await db.collection('prediction_rounds').doc(mode).get()
+    const roundDoc = await getDb().collection('prediction_rounds').doc(mode).get()
 
     if (!roundDoc.exists) {
         return null

@@ -1,6 +1,6 @@
-import admin from 'firebase-admin'
+import { admin, getDb } from '../utils/firebase.js'
 
-const db = admin.firestore()
+// Lazy-loaded db (do not initialize at module level)
 
 /**
  * Mode code mapping for period ID generation
@@ -13,6 +13,22 @@ const MODE_CODES = {
 }
 
 /**
+ * Get current date in IST (YYYY-MM-DD)
+ * @returns {string} Date string
+ */
+const getISTDate = () => {
+    return new Date().toLocaleString('en-CA', { timeZone: 'Asia/Kolkata' }).slice(0, 10)
+}
+
+/**
+ * Get current date string for period ID (YYYYMMDD) in IST
+ * @returns {string} Date string
+ */
+const getISTDateStr = () => {
+    return getISTDate().replace(/-/g, '')
+}
+
+/**
  * Initialize period counter for a specific mode (run once per mode)
  * @param {string} mode - Game mode (e.g., "WIN_GO_1_MIN")
  */
@@ -20,12 +36,12 @@ export const initializePeriodCounter = async (mode = null) => {
     try {
         if (mode) {
             // Initialize specific mode
-            const counterRef = db.collection('prediction_system').doc(`period_counter_${mode}`)
+            const counterRef = getDb().collection('prediction_system').doc(`period_counter_${mode}`)
             const doc = await counterRef.get()
             if (!doc.exists) {
                 await counterRef.set({
                     mode,
-                    lastDate: new Date().toISOString().slice(0, 10),
+                    lastDate: getISTDate(),
                     counter: 0,
                     updatedAt: admin.firestore.FieldValue.serverTimestamp()
                 })
@@ -57,18 +73,28 @@ export const getNextPeriodId = async (mode) => {
         throw new Error(`Invalid mode: ${mode}. Must be one of: ${Object.keys(MODE_CODES).join(', ')}`)
     }
 
-    const counterRef = db.collection('prediction_system').doc(`period_counter_${mode}`)
+    const counterRef = getDb().collection('prediction_system').doc(`period_counter_${mode}`)
 
     try {
-        const newPeriodId = await db.runTransaction(async (transaction) => {
+        const newPeriodId = await getDb().runTransaction(async (transaction) => {
             const doc = await transaction.get(counterRef)
-
+            let data;
             if (!doc.exists) {
-                throw new Error(`Period counter for ${mode} not initialized. Run initializePeriodCounter() first.`)
+                console.log(`⚠️ Period counter for ${mode} not found. Initializing...`)
+                data = {
+                    lastDate: getISTDate(),
+                    counter: 0
+                }
+                transaction.set(counterRef, {
+                    ...data,
+                    mode,
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                })
+            } else {
+                data = doc.data()
             }
 
-            const data = doc.data()
-            const currentDate = new Date().toISOString().slice(0, 10) // YYYY-MM-DD
+            const currentDate = getISTDate() // YYYY-MM-DD in IST
             const lastDate = data.lastDate
 
             let counter = data.counter || 0
@@ -112,7 +138,7 @@ export const getNextPeriodId = async (mode) => {
  * @returns {Promise<object>} Counter data
  */
 export const getCurrentCounter = async (mode) => {
-    const counterRef = db.collection('prediction_system').doc(`period_counter_${mode}`)
+    const counterRef = getDb().collection('prediction_system').doc(`period_counter_${mode}`)
     const doc = await counterRef.get()
 
     if (!doc.exists) {

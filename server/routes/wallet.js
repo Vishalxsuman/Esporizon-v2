@@ -2,7 +2,8 @@ import express from 'express'
 import admin from 'firebase-admin'
 
 const router = express.Router()
-const db = admin.firestore()
+// Lazy load db to ensure Firebase Admin is initialized first
+const getDb = () => admin.firestore()
 
 // Add funds to wallet
 router.post('/add', async (req, res) => {
@@ -26,10 +27,10 @@ router.post('/add', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized: Cannot modify another user\'s wallet' })
     }
 
-    const walletRef = db.collection('wallets').doc(userId)
+    const walletRef = getDb().collection('wallets').doc(userId)
 
     // Use Firestore transaction for atomicity
-    await db.runTransaction(async (transaction) => {
+    await getDb().runTransaction(async (transaction) => {
       const walletDoc = await transaction.get(walletRef)
       const currentBalance = walletDoc.exists ? (walletDoc.data().balance || 0) : 0
       const newBalance = currentBalance + amount
@@ -49,7 +50,7 @@ router.post('/add', async (req, res) => {
       )
 
       // Create transaction record
-      const transactionRef = db.collection('transactions').doc()
+      const transactionRef = getDb().collection('transactions').doc()
       transaction.set(transactionRef, {
         userId,
         type: 'add',
@@ -97,11 +98,11 @@ router.post('/deduct', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized: Cannot modify another user\'s wallet' })
     }
 
-    const walletRef = db.collection('wallets').doc(userId)
+    const walletRef = getDb().collection('wallets').doc(userId)
 
     // Use Firestore transaction for atomicity
     let newBalance
-    await db.runTransaction(async (transaction) => {
+    await getDb().runTransaction(async (transaction) => {
       const walletDoc = await transaction.get(walletRef)
 
       if (!walletDoc.exists) {
@@ -123,7 +124,7 @@ router.post('/deduct', async (req, res) => {
       })
 
       // Create transaction record
-      const transactionRef = db.collection('transactions').doc()
+      const transactionRef = getDb().collection('transactions').doc()
       transaction.set(transactionRef, {
         userId,
         type: 'deduct',
@@ -182,11 +183,11 @@ router.post('/withdraw', async (req, res) => {
       return res.status(403).json({ error: 'Unauthorized: Cannot modify another user\'s wallet' })
     }
 
-    const walletRef = db.collection('wallets').doc(userId)
+    const walletRef = getDb().collection('wallets').doc(userId)
 
     // Use Firestore transaction for atomicity
     let newBalance
-    await db.runTransaction(async (transaction) => {
+    await getDb().runTransaction(async (transaction) => {
       const walletDoc = await transaction.get(walletRef)
 
       if (!walletDoc.exists) {
@@ -208,7 +209,7 @@ router.post('/withdraw', async (req, res) => {
       })
 
       // Create withdrawal transaction
-      const transactionRef = db.collection('transactions').doc()
+      const transactionRef = getDb().collection('transactions').doc()
       transaction.set(transactionRef, {
         userId,
         type: 'withdraw',
@@ -249,7 +250,7 @@ router.get('/balance', async (req, res) => {
   try {
     const userId = req.user.uid
 
-    const walletDoc = await db.collection('wallets').doc(userId).get()
+    const walletDoc = await getDb().collection('wallets').doc(userId).get()
 
     if (!walletDoc.exists) {
       return res.json({ balance: 0 })
