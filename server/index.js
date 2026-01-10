@@ -7,7 +7,7 @@ import predictionRoutes from './routes/prediction.js'
 import tournamentRoutes from './routes/tournaments.js'
 import postRoutes from './routes/posts.js'
 import { startScheduler } from './jobs/scheduler.js'
-import { startPredictionScheduler } from './jobs/predictionScheduler.js'
+import { startPredictionScheduler, initializePredictionSystem } from './jobs/predictionScheduler.js'
 
 dotenv.config()
 
@@ -53,7 +53,7 @@ const authenticateToken = async (req, res, next) => {
 
 // Routes
 app.use('/api/wallet', authenticateToken, walletRoutes)
-app.use('/api/predict', authenticateToken, predictionRoutes)
+app.use('/api/predict', predictionRoutes)
 app.use('/api/tournaments', tournamentRoutes)  // Some routes need auth, some don't
 app.use('/api/posts', postRoutes)  // Some routes need auth, some don't
 
@@ -62,10 +62,13 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`🚀 Esporizon Server running on port ${PORT}`)
 
-  // Start Color Prediction round scheduler
-  console.log('🔄 Initializing Prediction Scheduler...')
+  // Initialize and start Color Prediction system
+  console.log('🔄 Initializing Prediction System...')
+  await initializePredictionSystem()
+
+  // Start the scheduler after initialization
   startPredictionScheduler()
 })

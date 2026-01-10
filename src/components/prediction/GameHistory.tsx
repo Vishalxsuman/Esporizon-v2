@@ -10,11 +10,13 @@ export interface GameHistoryItem {
 }
 
 export interface UserHistoryItem {
+    id?: string;
     periodId: string;
     selection: string;
     amount: number;
     result: 'Win' | 'Lose' | 'Pending';
     payout: number;
+    createdAt?: any;
 }
 
 interface GameHistoryProps {
@@ -84,7 +86,7 @@ const GameHistory: React.FC<GameHistoryProps> = ({ gameHistory, userHistory }) =
                                         <div className="text-left pl-2 text-[var(--text-secondary)] font-mono text-xs">
                                             {(() => {
                                                 const parts = item.periodId.split('-');
-                                                return parts.length === 3 ? `${parts[0]}-${parts[2]}` : item.periodId;
+                                                return parts.length === 3 ? `${parts[1]}${parts[2]}` : item.periodId;
                                             })()}
                                         </div>
                                         <div className="font-black text-lg italic" style={{ color: getNumberColor(item.number)[0] }}>

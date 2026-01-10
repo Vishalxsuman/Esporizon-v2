@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-// walletService removed (unused)
 import PredictionHeader from '@/components/prediction/PredictionHeader';
 import GameModeSelector, { GameMode } from '@/components/prediction/GameModeSelector';
 import TimerBoard from '@/components/prediction/TimerBoard';
 import BettingControls from '@/components/prediction/BettingControls';
 import GameHistory, { GameHistoryItem, UserHistoryItem } from '@/components/prediction/GameHistory';
 import { toast, Toaster } from 'react-hot-toast';
-import { ChevronRight, ShieldCheck } from 'lucide-react';
+import { ChevronRight, ShieldCheck, X, PartyPopper, TrendingDown, BookOpen } from 'lucide-react';
 import { db } from '@/services/firebase';
-import { doc, onSnapshot, collection, query, where, orderBy, limit } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, where, limit } from 'firebase/firestore';
+import axios from 'axios';
 
 // Helper for IST date (YYYY-MM-DD)
 const getTodayIST = () => {
@@ -62,7 +62,7 @@ interface RoundData {
 }
 
 const ColorPrediction = () => {
-  const { user } = useAuth();
+  const { user, getToken } = useAuth();
 
   // Mode State (CRITICAL: drives Firestore listener)
   const [mode, setMode] = useState<string>('WIN_GO_1_MIN'); // Firestore mode name
@@ -80,8 +80,15 @@ const ColorPrediction = () => {
   const [userHistory, setUserHistory] = useState<UserHistoryItem[]>([]);
   const [pendingBets, setPendingBets] = useState<UserHistoryItem[]>([]);
 
+  // Modal States
+  const [showResultModal, setShowResultModal] = useState(false);
+  const [resultModalType, setResultModalType] = useState<'win' | 'lose'>('win');
+  const [resultAmount, setResultAmount] = useState(0);
+  const [showGuideModal, setShowGuideModal] = useState(false);
+
   // Refs for tracking state inside intervals
   const pendingBetsRef = useRef(pendingBets);
+  const lastProcessedPeriodRef = useRef<string>('');
 
   useEffect(() => {
     pendingBetsRef.current = pendingBets;
@@ -113,7 +120,6 @@ const ColorPrediction = () => {
     const q = query(
       collection(db, 'prediction_bets'),
       where('userId', '==', user.id),
-      orderBy('createdAt', 'desc'),
       limit(50)
     );
 
@@ -125,11 +131,17 @@ const ColorPrediction = () => {
           periodId: data.periodId,
           selection: data.betValue, // Map betValue to selection
           amount: data.betAmount,
-          result: data.status === 'won' ? 'Win' : data.status === 'lost' ? 'Lose' : 'Pending',
+          result: (data.status === 'won' ? 'Win' : data.status === 'lost' ? 'Lose' : 'Pending') as 'Win' | 'Lose' | 'Pending',
           payout: data.payout || 0,
           createdAt: data.createdAt
         };
-      });
+      })
+        // Sort locally to avoid index requirement
+        .sort((a, b) => {
+          const timeA = a.createdAt?.toMillis() || 0;
+          const timeB = b.createdAt?.toMillis() || 0;
+          return timeB - timeA;
+        });
 
       setUserHistory(bets);
       setPendingBets(bets.filter(b => b.result === 'Pending'));
@@ -143,6 +155,11 @@ const ColorPrediction = () => {
           }
         }
       });
+    }, (error) => {
+      console.error('❌ User bets listener error:', error);
+      if (error.message.includes('index')) {
+        console.warn('⚠️ Firestore index missing for prediction_bets query. Check console for setup link.');
+      }
     });
 
     return () => unsubscribe();
@@ -150,7 +167,7 @@ const ColorPrediction = () => {
 
   // 1️⃣ MODE-BASED FIRESTORE LISTENER (CRITICAL)
   useEffect(() => {
-    console.log(`🔥 Subscribing to Firestore: prediction_rounds/${mode}`);
+    // console.log(`🔥 Subscribing to Firestore: prediction_rounds/${mode}`);
 
     const roundRef = doc(db, 'prediction_rounds', mode);
 
@@ -159,7 +176,7 @@ const ColorPrediction = () => {
       (snap) => {
         if (snap.exists()) {
           const data = snap.data() as RoundData;
-          console.log(`✅ Firestore snapshot for ${mode}:`, data);
+          // console.log(`🔄 [Firestore Update] Mode: ${mode}, Period: ${data.periodId}, Status: ${data.status}`);
 
           setRoundData(data);
           setPeriodId(data.periodId);
@@ -170,10 +187,11 @@ const ColorPrediction = () => {
           }
 
           // Process bets when result is available and payout is done
-          if (data.status === 'RESULT' && data.payoutDone) {
-            console.log(`💰 [${mode}] Payout detected for ${data.periodId}. Processing UI updates...`);
-            // processBets removed. Listener handles updates.
-
+          if (data.status === 'RESULT' && data.payoutDone && data.periodId !== lastProcessedPeriodRef.current) {
+            // console.log(`💰 [${mode}] Payout detected for ${data.periodId}. Processing UI updates...`);
+            lastProcessedPeriodRef.current = data.periodId;
+            // Check if user had pending bets that just settled
+            setTimeout(() => checkForResultPopup(data.periodId), 500);
           }
 
         } else {
@@ -187,7 +205,7 @@ const ColorPrediction = () => {
 
     // Cleanup: unsubscribe when mode changes
     return () => {
-      console.log(`🛑 Unsubscribing from ${mode}`);
+      // console.log(`🛑 Unsubscribing from ${mode}`);
       unsubscribe();
     };
   }, [mode]); // Re-run when mode changes
@@ -195,13 +213,12 @@ const ColorPrediction = () => {
   // 1.5️⃣ PERSISTENT HISTORY LISTENER (NEW)
   useEffect(() => {
     const today = getTodayIST();
-    console.log(`📜 Loading history for ${mode} on ${today}`);
+    // console.log(`📜 Loading history for ${mode} on ${today}`);
 
     const q = query(
       collection(db, 'prediction_history'),
       where('mode', '==', mode),
       where('date', '==', today),
-      orderBy('createdAt', 'desc'), // Fix: Order by latest
       limit(20)
     );
 
@@ -236,30 +253,36 @@ const ColorPrediction = () => {
     return () => unsubscribe();
   }, [mode]);
 
-  // 2️⃣ TIMER CALCULATION (VISUAL ONLY - NOT FOR LOGIC)
+  // 2️⃣ TIMER CALCULATION (STRICT SERVER-DRIVEN)
   useEffect(() => {
     if (!roundData || !roundData.roundEndAt) return;
 
     const updateTimer = () => {
-      const now = Date.now();
-      const roundEndMs = roundData.roundEndAt.seconds * 1000 + roundData.roundEndAt.nanoseconds / 1000000;
-      const remainingMs = roundEndMs - now;
-      const remainingSec = Math.max(0, Math.floor(remainingMs / 1000));
-
-      setTimeLeft(remainingSec);
-
-      // Debug log (visual timer only)
-      if (remainingSec % 10 === 0 || remainingSec <= 5) {
-        console.log(`⏱️ [${mode}] Timer: ${remainingSec}s, Status: ${roundData.status}`);
+      // 🛑 CRITICAL: If NOT Betting, Timer is 0
+      if (roundData.status !== 'BETTING') {
+        setTimeLeft(0);
+        return;
       }
+
+      // 🕒 STRICT Time Calculation: max(0, floor((roundEndAt - Date.now()) / 1000))
+      // Use Firestore Timestamp .toMillis()
+      const roundEndMs = roundData.roundEndAt.seconds * 1000 + (roundData.roundEndAt.nanoseconds || 0) / 1000000;
+      const now = Date.now();
+      const remainingArg = (roundEndMs - now) / 1000;
+
+      const remainingSec = Math.max(0, Math.floor(remainingArg));
+
+      // Debug log occasionally if needed, strict logic simply applies it
+      setTimeLeft(remainingSec);
     };
 
-    // Update every 500ms for smooth countdown
-    const interval = setInterval(updateTimer, 500);
     updateTimer(); // Initial call
 
+    // Update every 100ms for responsiveness (UI only, logic is robust)
+    const interval = setInterval(updateTimer, 100);
+
     return () => clearInterval(interval);
-  }, [roundData, mode]);
+  }, [roundData]);
 
   // 3️⃣ MODE SWITCH HANDLER (Clean switch, no Firestore calls)
   const handleModeChange = (newMode: GameMode) => {
@@ -273,13 +296,31 @@ const ColorPrediction = () => {
     setPendingBets([]); // Clear pending bets when switching modes
   };
 
-  // 3.5 REMOVED: processBets (Client-side logic removed. Relying on Backend Listener)
-  // Logic moved to server/services/predictionPayoutService.js
+  // 3.5 CHECK FOR RESULT POPUP
+  const checkForResultPopup = async (completedPeriodId: string) => {
+    if (!user?.id) return;
 
+    // Get user's bets for this period from userHistory (already loaded via listener)
+    const userBetsForPeriod = userHistory.filter(bet => bet.periodId === completedPeriodId);
 
+    if (userBetsForPeriod.length === 0) return; // No bets placed
 
-  // 4️⃣ BETTING HANDLER (STATUS-BASED - SERVERAUTHORITATIVE)
-  const handlePlaceBet = (selection: string, amount: number) => {
+    // Check if any bet won
+    const wonBets = userBetsForPeriod.filter(bet => bet.result === 'Win');
+
+    if (wonBets.length > 0) {
+      const totalWinnings = wonBets.reduce((sum, bet) => sum + bet.payout, 0);
+      setResultAmount(totalWinnings);
+      setResultModalType('win');
+      setShowResultModal(true);
+    } else if (userBetsForPeriod.every(bet => bet.result === 'Lose')) {
+      setResultModalType('lose');
+      setShowResultModal(true);
+    }
+  };
+
+  // 4️⃣ BETTING HANDLER (BACKEND API INTEGRATION)
+  const handlePlaceBet = async (selection: string, amount: number) => {
     // ⚠️ CRITICAL: Betting allowed ONLY when server says status=BETTING
     if (!roundData || roundData.status !== 'BETTING') {
       toast.error('Betting is currently closed!');
@@ -292,24 +333,52 @@ const ColorPrediction = () => {
       return;
     }
 
-    console.log(`✅ Bet placed: ${selection} for ${amount} coins (period: ${periodId})`);
+    // Validate bet amount
+    if (amount < 5) {
+      toast.error('Minimum bet is ₹5');
+      return;
+    }
+    if (amount > 100000) {
+      toast.error('Maximum bet is ₹100,000');
+      return;
+    }
 
-    setBalance(prev => prev - amount);
-    // Backend will update true balance via listener, but we update optimistic immediately
-    // Note: Removed walletService.deductFunds calls because Backend validates and deducts
+    // Determine bet type and value
+    let betType: 'COLOR' | 'NUMBER' | 'SIZE';
+    let betValue = selection.toUpperCase();
 
+    if (['RED', 'GREEN', 'VIOLET'].includes(betValue)) {
+      betType = 'COLOR';
+    } else if (['BIG', 'SMALL'].includes(betValue)) {
+      betType = 'SIZE';
+    } else {
+      betType = 'NUMBER';
+    }
 
-    const newBet: UserHistoryItem = {
-      periodId: periodId,
-      selection,
-      amount,
-      result: 'Pending',
-      payout: 0
-    };
+    try {
+      // Call backend API with Auth Token
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const token = await getToken({ template: "firebase" });
+      if (!token) throw new Error("JWT token missing");
 
-    setPendingBets(prev => [...prev, newBet]);
-    setUserHistory(prev => [newBet, ...prev]);
-    toast.success(`Bet placed: ${selection} - ${amount} coins`);
+      await axios.post(`${API_URL}/predict/place-bet`, {
+        userId: user?.id,
+        mode,
+        betType,
+        betValue,
+        betAmount: amount
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      console.log(`✅ Bet placed via API: ${selection} for ${amount} coins (period: ${periodId})`);
+      toast.success(`Bet placed: ${selection} - ${amount} coins`);
+    } catch (error: any) {
+      console.error('Bet placement error:', error);
+      toast.error(error.response?.data?.error || 'Failed to place bet');
+    }
   };
 
 
@@ -338,9 +407,32 @@ const ColorPrediction = () => {
         {/* Header Component (Balance) */}
         <PredictionHeader
           balance={balance}
-          onDeposit={() => {
-            setBalance(b => b + 1000);
-            toast.success('Mock Deposit: +1000');
+          onDeposit={async () => {
+            try {
+              const token = await getToken({ template: "firebase" });
+
+              if (!token) {
+                throw new Error("JWT token missing in deposit");
+              }
+
+              const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+              const response = await axios.post(`${API_URL}/predict/wallet/deposit`, {
+                amount: 500
+              }, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+
+              if (response.data.success) {
+                setBalance(response.data.balance);
+                toast.success(`Deposited: +₹500`);
+              }
+            } catch (error: any) {
+              console.error('Deposit error:', error);
+              toast.error(error.response?.data?.error || 'Failed to deposit');
+            }
           }}
           onWithdraw={() => toast('Withdrawal coming soon')}
         />
@@ -362,7 +454,7 @@ const ColorPrediction = () => {
             isLocked={roundData?.status === 'LOCKED'}
             lastResult={lastResult}
             modeLabel={selectedMode.label}
-            onShowHowToPlay={() => toast('Select a color or number or Big/Small to bet!')}
+            onShowHowToPlay={() => setShowGuideModal(true)}
           />
 
           {/* Betting Interface */}
@@ -379,6 +471,119 @@ const ColorPrediction = () => {
         </div>
 
       </div>
+
+      {/* Result Modal */}
+      {showResultModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowResultModal(false)}>
+          <div className="bg-[var(--glass)] border border-[var(--border)] rounded-3xl p-8 max-w-sm w-full text-center relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowResultModal(false)} className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+              <X size={20} />
+            </button>
+
+            {resultModalType === 'win' ? (
+              <>
+                <div className="w-20 h-20 mx-auto mb-4 bg-[var(--accent)]/20 rounded-full flex items-center justify-center">
+                  <PartyPopper size={40} className="text-[var(--accent)]" />
+                </div>
+                <h2 className="text-2xl font-black text-[var(--text-primary)] mb-2">Congratulations! 🎉</h2>
+                <p className="text-[var(--text-secondary)] mb-4">You won this round!</p>
+                <div className="bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-2xl p-4">
+                  <div className="text-sm text-[var(--text-secondary)] mb-1">Total Winnings</div>
+                  <div className="text-3xl font-black text-[var(--accent)]">+₹{resultAmount}</div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-20 h-20 mx-auto mb-4 bg-red-500/20 rounded-full flex items-center justify-center">
+                  <TrendingDown size={40} className="text-red-500" />
+                </div>
+                <h2 className="text-2xl font-black text-[var(--text-primary)] mb-2">Better Luck Next Time</h2>
+                <p className="text-[var(--text-secondary)] mb-4">Keep trying, fortune favors the brave!</p>
+              </>
+            )}
+
+            <button
+              onClick={() => setShowResultModal(false)}
+              className="w-full mt-6 bg-[var(--accent)] text-[var(--bg-primary)] py-3 rounded-xl font-black uppercase tracking-wider hover:brightness-110 transition-all"
+            >
+              Continue Playing
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Guide Modal */}
+      {showGuideModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowGuideModal(false)}>
+          <div className="bg-[var(--glass)] border border-[var(--border)] rounded-3xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto relative" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setShowGuideModal(false)} className="absolute top-4 right-4 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-[var(--accent)]/20 rounded-xl flex items-center justify-center">
+                <BookOpen size={24} className="text-[var(--accent)]" />
+              </div>
+              <h2 className="text-2xl font-black text-[var(--text-primary)]">How to Play</h2>
+            </div>
+
+            <div className="space-y-6 text-[var(--text-secondary)]">
+              <section>
+                <h3 className="text-lg font-black text-[var(--text-primary)] mb-2">🎯 Objective</h3>
+                <p>Predict the winning number (0-9) by selecting a color, specific number, or size (Big/Small).</p>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-black text-[var(--text-primary)] mb-2">🎨 Color Rules</h3>
+                <ul className="space-y-1 ml-4 list-disc">
+                  <li><span className="font-bold text-green-500">Green:</span> Numbers 1, 3, 7, 9 (Also 0 and 5)</li>
+                  <li><span className="font-bold text-red-500">Red:</span> Numbers 2, 4, 6, 8 (Also 0 and 5)</li>
+                  <li><span className="font-bold text-violet-500">Violet:</span> Numbers 0 and 5 only</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-black text-[var(--text-primary)] mb-2">📏 Size Rules</h3>
+                <ul className="space-y-1 ml-4 list-disc">
+                  <li><span className="font-bold text-orange-400">Big:</span> Numbers 5-9</li>
+                  <li><span className="font-bold text-blue-400">Small:</span> Numbers 0-4</li>
+                </ul>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-black text-[var(--text-primary)] mb-2">💰 Payout Multipliers</h3>
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div>Red: <span className="font-bold text-[var(--accent)]">1.9x</span></div>
+                    <div>Green: <span className="font-bold text-[var(--accent)]">1.9x</span></div>
+                    <div>Violet: <span className="font-bold text-[var(--accent)]">1.5x</span></div>
+                    <div>Big: <span className="font-bold text-[var(--accent)]">1.9x</span></div>
+                    <div>Small: <span className="font-bold text-[var(--accent)]">1.9x</span></div>
+                    <div>Any Number (0-9): <span className="font-bold text-[var(--accent)]">8x</span></div>
+                  </div>
+                </div>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-black text-[var(--text-primary)] mb-2">⚖️ Bet Limits</h3>
+                <p>Minimum: <span className="font-bold">₹5</span> | Maximum: <span className="font-bold">₹100,000</span></p>
+              </section>
+
+              <section>
+                <h3 className="text-lg font-black text-[var(--text-primary)] mb-2">⏱️ Timing</h3>
+                <p>Betting closes in the <span className="font-bold text-red-500">last 5 seconds</span> of each round. Place your bets early!</p>
+              </section>
+            </div>
+
+            <button
+              onClick={() => setShowGuideModal(false)}
+              className="w-full mt-6 bg-[var(--accent)] text-[var(--bg-primary)] py-3 rounded-xl font-black uppercase tracking-wider hover:brightness-110 transition-all"
+            >
+              Got It!
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

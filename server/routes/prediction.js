@@ -2,8 +2,10 @@ import express from 'express'
 import { admin, getDb } from '../utils/firebase.js'
 import { initializePeriodCounter } from '../services/predictionPeriodService.js'
 import { getCurrentRound, isBettingAllowed } from '../services/predictionRoundService.js'
-import { getPeriodHistory } from '../services/periodService.js' // This import seems to be for the old history endpoint, but is kept as per instruction.
-import { getOrCreateWallet, getBalance } from '../services/walletService.js' // These imports seem to be for the old wallet endpoints, but are kept as per instruction.
+import { getPeriodHistory } from '../services/periodService.js'
+import { getOrCreateWallet, getBalance } from '../services/walletService.js'
+import { authenticateToken } from '../middleware/auth.js'
+
 
 const router = express.Router()
 // Lazy-loaded db (do not initialize at module level)
@@ -70,14 +72,14 @@ router.get('/current-round', async (req, res) => {
  * POST /api/predict/place-bet
  * Place a bet for current round
  */
-router.post('/place-bet', async (req, res) => {
+router.post('/place-bet', authenticateToken, async (req, res) => {
   try {
-    const { userId, mode, betType, betValue, betAmount } = req.body
-
-    // Validation
+    const userId = req.user.user_id || req.user.uid;
     if (!userId) {
-      return res.status(400).json({ error: 'User ID required' })
+      return res.status(401).json({ error: "User ID missing in token" });
     }
+
+    const { mode, betType, betValue, betAmount } = req.body
 
     // Validate mode
     const validModes = ['WIN_GO_30S', 'WIN_GO_1_MIN', 'WIN_GO_3_MIN', 'WIN_GO_5_MIN']
@@ -113,27 +115,51 @@ router.post('/place-bet', async (req, res) => {
       return res.status(400).json({ error: 'No active round' })
     }
 
-    // Check wallet balance
+    // Check if bet is placed in last 5 seconds (should be blocked)
+    const now = Date.now()
+    const endTime = round.roundEndAt.toMillis()
+    const timeRemaining = Math.floor((endTime - now) / 1000)
+
+    if (timeRemaining <= 5) {
+      return res.status(400).json({ error: 'Betting closes in the last 5 seconds' })
+    }
+
+    // Check wallet balance and auto-create if needed
     const walletRef = getDb().collection('prediction_wallets').doc(userId)
+    const mainWalletRef = getDb().collection('wallets').doc(userId)
+    const userWalletRef = getDb().collection('users').doc(userId).collection('wallet').doc('data')
 
     await getDb().runTransaction(async (transaction) => {
       const walletDoc = await transaction.get(walletRef)
+      let balance = 0
 
       if (!walletDoc.exists) {
-        throw new Error('Wallet not found')
+        // Auto-create wallet with ₹500
+        balance = 500
+        transaction.set(walletRef, {
+          balance: 500,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        })
+        // Initialize other wallets with 500 too if they don't exist
+        transaction.set(mainWalletRef, { balance: 500, userId, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
+        transaction.set(userWalletRef, { balance: 500, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
+      } else {
+        balance = walletDoc.data().balance || 0
       }
-
-      const balance = walletDoc.data().balance || 0
 
       if (balance < betAmount) {
         throw new Error('Insufficient balance')
       }
 
-      // Deduct from wallet
+      const newBalance = balance - betAmount
+
+      // Deduct from ALL wallets
       transaction.update(walletRef, {
-        balance: admin.firestore.FieldValue.increment(-betAmount),
+        balance: newBalance,
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
       })
+      transaction.set(mainWalletRef, { balance: newBalance, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
+      transaction.set(userWalletRef, { balance: newBalance, updatedAt: admin.firestore.FieldValue.serverTimestamp() }, { merge: true })
 
       // Create bet
       const betRef = getDb().collection('prediction_bets').doc()
@@ -156,9 +182,6 @@ router.post('/place-bet', async (req, res) => {
       periodId: round.periodId
     })
   } catch (error) {
-    if (error.message === 'Wallet not found') {
-      return res.status(404).json({ error: error.message })
-    }
     if (error.message === 'Insufficient balance') {
       return res.status(400).json({ error: error.message })
     }
@@ -195,13 +218,15 @@ router.get('/history', async (req, res) => {
  * GET /api/predict/my-bets
  * Get user's bet history
  */
-router.get('/my-bets', async (req, res) => {
+router.get('/my-bets', authenticateToken, async (req, res) => {
   try {
+    const userIdFromToken = req.user.user_id || req.user.uid;
+
     const { userId } = req.query
     const limit = parseInt(req.query.limit) || 50
 
-    if (!userId) {
-      return res.status(400).json({ error: 'User ID required' })
+    if (!userId || userId !== userIdFromToken) {
+      return res.status(403).json({ error: 'Unauthorized' })
     }
 
     const snapshot = await getDb().collection('prediction_bets')
@@ -314,10 +339,41 @@ router.post('/guest/create', async (req, res) => {
 router.get('/balance', async (req, res) => {
   try {
     const isGuest = req.query.isGuest === 'true'
-    const userId = isGuest ? req.query.guestId : req.user.uid
+    let userId;
+
+    if (isGuest) {
+      userId = req.query.guestId;
+    } else {
+      // Authenticated user request needs middleware manually applied or logic here
+      // For simplicity in this hybrid route, we'll use a local helper or assume auth was handled if this was split.
+      // BUT: This route wraps guest logic too. Let's do a quick inline check using the same logic or just error.
+      // BETTER: Require Authenticated Token if not guest.
+      const authHeader = req.headers.authorization;
+      if (!authHeader?.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Missing token" });
+      }
+
+      // We need to verify here because this route isn't wrapped in middleware due to optional guest param
+      // Re-importing verify logic inline is messy. 
+      // Strategy: Use the same library flow or assume the main router structure handles it.
+      // However, since we just installed 'jose', we should use it here too if we want full consistency.
+      // For now, let's keep it simple: The user asked to replace admin.auth().verifyIdToken.
+
+      // NOTE: This specific block is tricky because we can't easily reuse the middleware *inside* the function 
+      // without refactoring. 
+      // Let's assume the user calls this from a context where they have a token.
+
+      // Quick fix for this hybrid route:
+      const { jwtVerify, createRemoteJWKSet } = await import("jose");
+      const CLERK_JWKS = createRemoteJWKSet(new URL("https://funky-asp-9.clerk.accounts.dev/.well-known/jwks.json"));
+
+      const token = authHeader.split(" ")[1];
+      const { payload } = await jwtVerify(token, CLERK_JWKS, { issuer: "https://funky-asp-9.clerk.accounts.dev" });
+      userId = payload.sub;
+    }
 
     if (!userId) {
-      return res.status(400).json({ error: 'User ID required' })
+      return res.status(401).json({ error: 'User ID required' })
     }
 
     const balance = await getBalance(userId, isGuest)
@@ -330,20 +386,53 @@ router.get('/balance', async (req, res) => {
 })
 
 /**
- * POST /api/predict/admin/init
- * Initialize prediction system (admin only, run once)
+ * POST /api/wallet/deposit
+ * Add 500 to wallet (Temp logic)
  */
-router.post('/admin/init', async (req, res) => {
+router.post('/wallet/deposit', authenticateToken, async (req, res) => {
   try {
-    await initializePeriodCounters()
+    const userId = req.user.user_id || req.user.uid;
+
+    if (!userId) {
+      return res.status(401).json({ error: "User ID missing in token" });
+    }
+
+    const { amount } = req.body;
+    const depositAmount = amount || 500; // Use provided amount or default to 500
+
+    const walletRef = getDb().collection('prediction_wallets').doc(userId)
+    const mainWalletRef = getDb().collection('wallets').doc(userId)
+    const userWalletRef = getDb().collection('users').doc(userId).collection('wallet').doc('data')
+
+    let newBalance = 0;
+    await getDb().runTransaction(async (transaction) => {
+      const walletDoc = await transaction.get(walletRef)
+      if (!walletDoc.exists) {
+        newBalance = 500 + depositAmount; // Auto-create with 500 (initial) + deposit
+      } else {
+        newBalance = (walletDoc.data().balance || 0) + depositAmount
+      }
+
+      // Update ALL wallets to keep system in sync
+      const updateData = {
+        balance: newBalance,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
+      };
+
+      transaction.set(walletRef, updateData, { merge: true });
+      transaction.set(mainWalletRef, { ...updateData, userId }, { merge: true });
+      transaction.set(userWalletRef, updateData, { merge: true });
+    })
+
+    console.log(`✅ Deposit successful for ${userId}: +₹${depositAmount}. New Balance: ₹${newBalance}`);
 
     res.json({
       success: true,
-      message: 'Prediction system initialized'
+      balance: newBalance
     })
   } catch (error) {
-    console.error('Init error:', error)
-    res.status(500).json({ error: 'Failed to initialize system' })
+    console.error('Deposit error:', error)
+    res.status(500).json({ error: 'Internal server error during deposit' })
   }
 })
 
