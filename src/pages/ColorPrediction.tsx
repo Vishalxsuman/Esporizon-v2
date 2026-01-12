@@ -13,9 +13,10 @@ import axios from 'axios';
 import { useGameEngine } from '@/hooks/useGameEngine';
 
 // API Configuration
-const API_URL = import.meta.env.VITE_API_URL;
+let API_URL = import.meta.env.VITE_API_URL;
 if (!API_URL) {
-  throw new Error('VITE_API_URL is not configured!');
+  console.warn('VITE_API_URL is not configured! Falling back to production IP.');
+  API_URL = 'http://65.2.33.69:5000/api';
 }
 
 

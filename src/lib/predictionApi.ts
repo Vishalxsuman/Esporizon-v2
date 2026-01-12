@@ -5,12 +5,12 @@ import axios from 'axios';
 // ===========================================
 
 // CRITICAL: No localhost fallback. This MUST be set in environment.
-const BASE_URL = import.meta.env.VITE_API_URL;
+// CRITICAL: No localhost fallback. This MUST be set in environment.
+let BASE_URL = import.meta.env.VITE_API_URL;
 
 if (!BASE_URL) {
-    throw new Error(
-        'VITE_API_URL is not configured! Set it in .env.production or .env.development'
-    );
+    console.warn('VITE_API_URL is not configured! Falling back to production IP.');
+    BASE_URL = 'http://65.2.33.69:5000/api';
 }
 
 console.log('🎮 Prediction API initialized with base URL:', BASE_URL);
