@@ -9,8 +9,8 @@ import axios from 'axios';
 let BASE_URL = import.meta.env.VITE_API_URL;
 
 if (!BASE_URL) {
-    console.warn('VITE_API_URL is not configured! Falling back to production IP.');
-    BASE_URL = 'http://65.2.33.69:5000/api';
+    console.warn('VITE_API_URL is not configured! Falling back to secure domain.');
+    BASE_URL = 'https://api.esporizon.in/api';
 }
 
 console.log('🎮 Prediction API initialized with base URL:', BASE_URL);
