@@ -92,11 +92,14 @@ esporizon/
 - **Bot Integration:** Play against AI engine.
 - **Standard Rules:** Checkmate, stalemate, and move validation.
 
-### 🎨 Color Prediction
-- **Real-Time Betting:** Fast-paced color prediction game with 3-minute rounds.
-- **Server-Synced Timer:** Backend authority ensures fair round cycles (Betting -> Result -> New Round).
-- **Automated Payouts:** Winners paid instantly based on color/number rules (2x for colors, 9x for numbers, 1.5x for Violet).
-- **History Tracking:** Previous outcomes displayed for pattern analysis.
+### 🎨 Color Prediction (Win Go)
+- **Multiple Game Modes:** 30s, 1 Min, 3 Min, and 5 Min rounds.
+- **Backend Engine:** Standalone Express.js server with period management and result generation.
+- **Real-Time Betting:** Place bets on colors (Red/Green/Violet), numbers (0-9), or size (Big/Small).
+- **Server-Synced Timer:** Backend authority ensures fair round cycles (Betting → Locked → Result → New Round).
+- **Automated Payouts:** 1.95x for colors/size, 9x for exact numbers, special rates for 0/5.
+- **History & Chart:** Browse up to 100 past results with pagination (10 per page).
+- **Mobile Optimized:** Compact Game Balance card and responsive UI for all screen sizes.
 
 ### 🏆 Tournaments & Matchmaking
 - **Guest Access:** instant play with simple room codes—no login required for casual matches.

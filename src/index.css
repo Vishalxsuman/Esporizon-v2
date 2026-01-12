@@ -172,10 +172,9 @@
 }
 
 /* Performance optimizations for LCP < 1.2s */
+/* Note: loading="lazy" and decoding="async" should be applied as HTML attributes, not CSS */
 img {
   content-visibility: auto;
-  loading: lazy;
-  decoding: async;
 }
 
 /* Preload critical fonts */

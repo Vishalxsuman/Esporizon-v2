@@ -1,88 +1,99 @@
 
 import { Wallet } from '@/types'
-import { db } from '@/services/firebase'
-import { doc, getDoc, onSnapshot } from 'firebase/firestore'
 import axios from 'axios'
-import { getAuth } from "firebase/auth";
 
 class WalletService {
-  private activeListenerUnsubscribe: (() => void) | null = null;
+  private pollingInterval: NodeJS.Timeout | null = null;
   private currentUserId: string | null = null;
 
-  // Helper to get token
-  private async getToken(): Promise<string | null> {
-    const auth = getAuth();
-    if (!auth.currentUser) return null;
-    return auth.currentUser.getIdToken();
-  }
-
   async getWallet(userId: string): Promise<Wallet> {
-    // 1. Return initial data via single fetch (fast)
-    // 2. Setup background listener to keep app in sync via events
+    // Setup real-time polling if not already running
     this.setupRealtimeSync(userId);
 
     try {
-      const walletRef = doc(db, 'prediction_wallets', userId);
-      const snapshot = await getDoc(walletRef);
-      if (snapshot.exists()) {
-        const data = snapshot.data();
-        return {
-          balance: data.balance || 0,
-          espoCoins: data.espoCoins || 0,
-          transactions: []
-        };
+      const API_URL = import.meta.env.VITE_API_URL;
+      if (!API_URL) {
+        throw new Error('VITE_API_URL is not configured!');
       }
-      return { balance: 0, espoCoins: 0, transactions: [] };
+
+      const response = await axios.get(`${API_URL}/wallet`, {
+        headers: {
+          'user-id': userId
+        }
+      });
+
+      return {
+        balance: response.data.balance || 0,
+        espoCoins: response.data.balance || 0, // ESPO coins = balance
+        transactions: []
+      };
     } catch (err) {
-      console.error("Error fetching wallet:", err);
+      console.error("Error fetching wallet from backend:", err);
       return { balance: 0, espoCoins: 0, transactions: [] };
     }
   }
 
   private setupRealtimeSync(userId: string) {
-    // Prevent multiple listeners for same user
-    if (this.currentUserId === userId && this.activeListenerUnsubscribe) return;
+    // Prevent multiple poll loops for same user
+    if (this.currentUserId === userId && this.pollingInterval) return;
 
     // Cleanup previous
-    if (this.activeListenerUnsubscribe) {
-      this.activeListenerUnsubscribe();
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
     }
 
     this.currentUserId = userId;
-    const walletRef = doc(db, 'prediction_wallets', userId);
 
-    // Start listening
-    this.activeListenerUnsubscribe = onSnapshot(walletRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
+    // Poll backend every 5 seconds
+    this.pollingInterval = setInterval(async () => {
+      try {
+        const API_URL = import.meta.env.VITE_API_URL;
+        const response = await axios.get(`${API_URL}/wallet`, {
+          headers: { 'user-id': userId }
+        });
+
         const wallet = {
-          balance: data.balance || 0,
-          espoCoins: data.espoCoins || 0,
+          balance: response.data.balance || 0,
+          espoCoins: response.data.balance || 0,
           transactions: []
         };
-        // DISPATCH EVENT so Dashboard.tsx updates automatically
+
+        // DISPATCH EVENT so Dashboard/other components update automatically
         window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }));
+      } catch (error) {
+        console.error('Wallet polling error:', error);
       }
-    });
+    }, 5000);
   }
 
   async addFunds(amount: number, _userId: string): Promise<void> {
     try {
-      const token = await this.getToken();
-      if (!token) throw new Error("Authentication required");
+      // Get Clerk token
+      const token = await (window as any).Clerk?.session?.getToken({ template: "firebase" });
+      if (!token) throw new Error("Authentication required - please login");
 
       const API_URL = import.meta.env.VITE_API_URL;
       if (!API_URL) {
         throw new Error('VITE_API_URL is not configured!');
       }
 
-      await axios.post(`${API_URL}/predict/wallet/deposit`, {
+      const response = await axios.post(`${API_URL}/predict/wallet/deposit`, {
         amount: amount
       }, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       });
+
+      // Update balance immediately if response includes it
+      if (response.data.success && response.data.balance !== undefined) {
+        const wallet = {
+          balance: response.data.balance,
+          espoCoins: response.data.balance,
+          transactions: []
+        };
+        window.dispatchEvent(new CustomEvent('walletUpdate', { detail: wallet }));
+      }
     } catch (error) {
       console.error('Error adding funds:', error);
       throw new Error('Failed to deposit funds');
@@ -97,13 +108,27 @@ class WalletService {
 
   // Helper for manual subscription if needed
   subscribeToWallet(userId: string, callback: (wallet: Wallet) => void): () => void {
-    const walletRef = doc(db, 'prediction_wallets', userId);
-    return onSnapshot(walletRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        callback({ balance: data.balance || 0, espoCoins: data.espoCoins || 0, transactions: [] });
+    const API_URL = import.meta.env.VITE_API_URL;
+
+    const pollWallet = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/wallet`, {
+          headers: { 'user-id': userId }
+        });
+        callback({
+          balance: response.data.balance || 0,
+          espoCoins: response.data.balance || 0,
+          transactions: []
+        });
+      } catch (error) {
+        console.error('Wallet subscription error:', error);
       }
-    });
+    };
+
+    pollWallet(); // Initial fetch
+    const interval = setInterval(pollWallet, 5000);
+
+    return () => clearInterval(interval);
   }
 }
 

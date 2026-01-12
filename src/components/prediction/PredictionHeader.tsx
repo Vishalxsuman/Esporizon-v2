@@ -10,45 +10,45 @@ interface PredictionHeaderProps {
 
 const PredictionHeader: React.FC<PredictionHeaderProps> = ({ balance, onDeposit, onWithdraw }) => {
     return (
-        <div className="relative overflow-hidden bg-gradient-to-br from-[var(--surface)] to-[var(--bg-secondary)] p-8 rounded-[2.5rem] border border-[var(--border)] shadow-2xl">
+        <div className="relative overflow-hidden bg-gradient-to-br from-[var(--surface)] to-[var(--bg-secondary)] p-4 sm:p-5 rounded-2xl border border-[var(--border)] shadow-xl">
             <div className="relative z-10">
-                <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--text-secondary)] mb-4 block">
+                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[var(--text-secondary)] mb-2 block">
                     Game Balance
                 </span>
 
-                <div className="flex items-center gap-4 mb-8">
-                    <div className="w-14 h-14 rounded-2xl bg-[#fbbf24]/20 p-2 border border-[#fbbf24]/20">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-[#fbbf24]/20 p-1.5 border border-[#fbbf24]/20">
                         <img src="/Images/espo.png" alt="ESPO" className="w-full h-full object-contain" />
                     </div>
-                    <div className="flex items-baseline gap-2">
-                        <span className="text-5xl font-black tracking-tighter italic text-[var(--text-primary)]">
+                    <div className="flex items-baseline gap-1">
+                        <span className="text-3xl sm:text-4xl font-black tracking-tighter italic text-[var(--text-primary)]">
                             ₹{balance.toLocaleString()}
                         </span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 gap-2">
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={onDeposit}
-                        className="flex items-center justify-center gap-2 py-3 px-4 bg-[var(--accent)] text-[var(--bg-primary)] rounded-xl font-black uppercase tracking-wider text-xs shadow-lg shadow-[var(--accent)]/20 hover:brightness-110 transition-all"
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[var(--accent)] text-[var(--bg-primary)] rounded-xl font-black uppercase tracking-wider text-[10px] shadow-lg shadow-[var(--accent)]/20 hover:brightness-110 transition-all"
                     >
-                        <Plus size={14} strokeWidth={4} />
+                        <Plus size={12} strokeWidth={4} />
                         Deposit
                     </motion.button>
                     <motion.button
                         whileTap={{ scale: 0.95 }}
                         onClick={onWithdraw}
-                        className="flex items-center justify-center gap-2 py-3 px-4 bg-[var(--glass)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl font-black uppercase tracking-wider text-xs hover:bg-[var(--surface-hover)] transition-all"
+                        className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[var(--glass)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl font-black uppercase tracking-wider text-[10px] hover:bg-[var(--surface-hover)] transition-all"
                     >
-                        <ArrowUpRight size={14} strokeWidth={3} />
+                        <ArrowUpRight size={12} strokeWidth={3} />
                         Withdraw
                     </motion.button>
                 </div>
             </div>
 
             {/* Decorative Glow match Wallet */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-[#00ffc2]/5 blur-[100px] -mr-32 -mt-32 rounded-full" />
+            <div className="absolute top-0 right-0 w-48 h-48 bg-[#00ffc2]/5 blur-[80px] -mr-24 -mt-24 rounded-full" />
         </div>
     );
 };
