@@ -11,10 +11,12 @@ class WalletService {
     this.setupRealtimeSync(userId);
 
     try {
-      const API_URL = import.meta.env.VITE_API_URL;
+      let API_URL = import.meta.env.VITE_API_URL;
       if (!API_URL) {
-        throw new Error('VITE_API_URL is not configured!');
+        console.warn('VITE_API_URL missing in WalletService, using fallback');
+        API_URL = 'https://api.esporizon.in/api';
       }
+      console.log('💰 WalletService fetching from:', `${API_URL}/wallet`);
 
       const response = await axios.get(`${API_URL}/wallet`, {
         headers: {
@@ -47,7 +49,8 @@ class WalletService {
     // Poll backend every 5 seconds
     this.pollingInterval = setInterval(async () => {
       try {
-        const API_URL = import.meta.env.VITE_API_URL;
+        let API_URL = import.meta.env.VITE_API_URL;
+        if (!API_URL) API_URL = 'https://api.esporizon.in/api';
         const response = await axios.get(`${API_URL}/wallet`, {
           headers: { 'user-id': userId }
         });
@@ -72,10 +75,8 @@ class WalletService {
       const token = await (window as any).Clerk?.session?.getToken({ template: "firebase" });
       if (!token) throw new Error("Authentication required - please login");
 
-      const API_URL = import.meta.env.VITE_API_URL;
-      if (!API_URL) {
-        throw new Error('VITE_API_URL is not configured!');
-      }
+      let API_URL = import.meta.env.VITE_API_URL;
+      if (!API_URL) API_URL = 'https://api.esporizon.in/api';
 
       const response = await axios.post(`${API_URL}/predict/wallet/deposit`, {
         amount: amount
@@ -108,7 +109,8 @@ class WalletService {
 
   // Helper for manual subscription if needed
   subscribeToWallet(userId: string, callback: (wallet: Wallet) => void): () => void {
-    const API_URL = import.meta.env.VITE_API_URL;
+    let API_URL = import.meta.env.VITE_API_URL;
+    if (!API_URL) API_URL = 'https://api.esporizon.in/api';
 
     const pollWallet = async () => {
       try {
