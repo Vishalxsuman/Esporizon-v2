@@ -1,0 +1,6 @@
+import{c as r}from"./index--b10zKEF.js";/**
+ * @license lucide-react v0.562.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const n=[["rect",{width:"18",height:"18",x:"3",y:"3",rx:"2",ry:"2",key:"1m3agn"}],["circle",{cx:"9",cy:"9",r:"2",key:"af1f0g"}],["path",{d:"m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21",key:"1xmnt7"}]],w=r("image",n),i="dzpdypyxq",c="esporizon_uploads",s=`https://api.cloudinary.com/v1_1/${i}/image/upload`,d=5*1024*1024,p=["image/jpeg","image/jpg","image/png","image/gif","image/webp"];function m(a){if(!p.includes(a.type))throw new Error("Invalid file type. Only JPEG, PNG, GIF, and WEBP images are allowed.");if(a.size>d){const t=(a.size/1048576).toFixed(2);throw new Error(`File size (${t}MB) exceeds the maximum limit of 5MB.`)}}async function y(a){m(a);const t=new FormData;t.append("file",a),t.append("upload_preset",c);try{const e=await fetch(s,{method:"POST",body:t});if(!e.ok){const o=await e.json().catch(()=>({}));throw new Error(o.error?.message||`Upload failed with status ${e.status}`)}return(await e.json()).secure_url}catch(e){throw e instanceof TypeError?new Error("Network error. Please check your internet connection and try again."):e}}export{w as I,y as u};
