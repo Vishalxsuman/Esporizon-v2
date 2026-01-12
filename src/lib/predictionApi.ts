@@ -21,7 +21,7 @@ console.log('🎮 Prediction API initialized with base URL:', BASE_URL);
 
 const api = axios.create({
     baseURL: BASE_URL,
-    timeout: 5000, // 5 second timeout
+    timeout: 15000, // 15 second timeout
     headers: {
         'Content-Type': 'application/json',
     },
