@@ -13,8 +13,8 @@ import { useGameEngine } from '@/hooks/useGameEngine';
 // API Configuration
 let API_URL = import.meta.env.VITE_API_URL;
 if (!API_URL) {
-  console.warn('VITE_API_URL is not configured! Falling back to production IP.');
-  API_URL = 'http://65.2.33.69:5000/api';
+  console.warn('VITE_API_URL is not configured! Falling back to secure domain.');
+  API_URL = 'https://api.esporizon.in/api';
 }
 
 
