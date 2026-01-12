@@ -7,8 +7,6 @@ import BettingControls from '@/components/prediction/BettingControls';
 import GameHistory, { GameHistoryItem, UserHistoryItem } from '@/components/prediction/GameHistory';
 import { toast, Toaster } from 'react-hot-toast';
 import { ChevronRight, ShieldCheck, X, PartyPopper, TrendingDown, BookOpen } from 'lucide-react';
-import { db } from '@/services/firebase';
-import { doc, onSnapshot, collection, query, where, limit } from 'firebase/firestore';
 import axios from 'axios';
 import { useGameEngine } from '@/hooks/useGameEngine';
 
@@ -81,89 +79,105 @@ const ColorPrediction = () => {
   // Refs for tracking state inside intervals
   const lastProcessedResultRef = useRef<string>('');
 
-  // 0️⃣ WALLET LISTENER (Backend Authority)
+  // 0️⃣ WALLET BALANCE FROM BACKEND (Server Authority)
   useEffect(() => {
     if (!user?.id) return;
-    const walletRef = doc(db, 'prediction_wallets', user.id);
-    const unsubscribe = onSnapshot(walletRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        setBalance(data.balance || 0);
-      } else {
-        setBalance(0); // Default if no wallet yet
+
+    const fetchBalance = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/wallet`, {
+          headers: {
+            'user-id': user.id  // Temporary until JWT is fully enforced
+          }
+        });
+        setBalance(response.data.balance);
+      } catch (error) {
+        console.error('Failed to fetch balance from backend:', error);
       }
-    });
-    return () => unsubscribe();
+    };
+
+    // Fetch immediately
+    fetchBalance();
+
+    // Poll balance every 2 seconds for real-time updates (like real BDG game)
+    const interval = setInterval(fetchBalance, 2000);
+    return () => clearInterval(interval);
   }, [user]);
 
-  // 0.5️⃣ USER BETS LISTENER (Real-time updates for "My Bets")
+  // 0.5️⃣ USER BETS FROM BACKEND (Real-time updates for "My Bets")
   useEffect(() => {
     if (!user?.id) return;
-    const q = query(
-      collection(db, 'prediction_bets'),
-      where('userId', '==', user.id),
-      limit(50)
-    );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const bets: UserHistoryItem[] = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          id: doc.id,
-          periodId: data.periodId,
-          selection: data.betValue,
-          amount: data.betAmount,
-          result: (data.status === 'won' ? 'Win' : data.status === 'lost' ? 'Lose' : 'Pending') as 'Win' | 'Lose' | 'Pending',
-          payout: data.payout || 0,
-          createdAt: data.createdAt
-        };
-      })
-        .sort((a, b) => {
-          const timeA = a.createdAt?.toMillis() || 0;
-          const timeB = b.createdAt?.toMillis() || 0;
-          return timeB - timeA;
+    const fetchUserBets = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/user-bets`, {
+          params: { limit: 50 },
+          headers: { 'user-id': user.id }
         });
 
-      setUserHistory(bets);
-    }, (error) => {
-      console.error('❌ User bets listener error:', error);
-    });
+        if (response.data.success) {
+          const bets: UserHistoryItem[] = response.data.bets.map((bet: any) => ({
+            id: bet.periodId + '-' + bet.timestamp,
+            periodId: bet.periodId,
+            selection: bet.value,
+            amount: bet.amount,
+            result: (bet.status === 'WON' ? 'Win' : bet.status === 'LOST' ? 'Lose' : 'Pending') as 'Win' | 'Lose' | 'Pending',
+            payout: bet.payout || 0,
+            createdAt: { toMillis: () => new Date(bet.timestamp).getTime() }
+          }));
 
-    return () => unsubscribe();
+          setUserHistory(bets);
+        }
+      } catch (error) {
+        console.error('Failed to fetch user bets from backend:', error);
+      }
+    };
+
+    // Fetch immediately
+    fetchUserBets();
+
+    // Poll every 5 seconds for real-time bet history updates
+    const interval = setInterval(fetchUserBets, 5000);
+    return () => clearInterval(interval);
   }, [user]);
 
-  // 1️⃣ HISTORY LISTENER (Kept for instant updates on history list)
+  // 1️⃣ HISTORY FROM BACKEND (Server Authority)
   useEffect(() => {
-    const q = query(
-      collection(db, 'prediction_history'),
-      where('mode', '==', currentModeId),
-      // Optional: filter by date if getTodayIST() is used for indexing
-      limit(20)
-    );
-
-    const unsubscribe = onSnapshot(q, (snap) => {
-      const historyItems: GameHistoryItem[] = snap.docs.map(doc => {
-        const data = doc.data();
-        return {
-          periodId: data.periodId,
-          number: data.resultNumber,
-          bigSmall: (data.resultSize === 'BIG' ? 'Big' : 'Small') as 'Big' | 'Small',
-          colors: getNumberColor(data.resultNumber),
-          createdAt: data.createdAt
+    const fetchHistory = async () => {
+      try {
+        // Map frontend mode to backend gameType
+        const gameTypeMap: Record<string, string> = {
+          'WIN_GO_30S': '30s',
+          'WIN_GO_1_MIN': '1m',
+          'WIN_GO_3_MIN': '3m',
+          'WIN_GO_5_MIN': '5m'
         };
-      })
-        .sort((a, b) => {
-          const timeA = a.createdAt?.toMillis() || 0;
-          const timeB = b.createdAt?.toMillis() || 0;
-          return timeB - timeA;
+        const gameType = gameTypeMap[currentModeId] || '1m';
+
+        const response = await axios.get(`${API_URL}/history`, {
+          params: { gameType, limit: 100 }
         });
 
-      setGameHistory(historyItems);
-    }, (err) => {
-      console.error("History listener error:", err);
-    });
+        const historyItems: GameHistoryItem[] = response.data.map((item: any) => ({
+          periodId: item.periodId,
+          number: item.number,
+          bigSmall: (item.bigSmall === 'BIG' ? 'Big' : 'Small') as 'Big' | 'Small',
+          colors: getNumberColor(item.number),
+          createdAt: { toMillis: () => new Date(item.time).getTime() }
+        }));
 
-    return () => unsubscribe();
+        setGameHistory(historyItems);
+      } catch (error) {
+        console.error("Failed to fetch history from backend:", error);
+      }
+    };
+
+    // Fetch immediately
+    fetchHistory();
+
+    // Refresh history every 10 seconds
+    const interval = setInterval(fetchHistory, 10000);
+    return () => clearInterval(interval);
   }, [currentModeId]);
 
   // 3️⃣ RESULT POPUP HANDLER
@@ -233,17 +247,33 @@ const ColorPrediction = () => {
       const token = await getToken({ template: "firebase" });
       if (!token) throw new Error("JWT token missing");
 
-      await axios.post(`${API_URL}/predict/place-bet`, {
-        userId: user?.id,
-        mode: currentModeId,
-        betType,
-        betValue,
-        betAmount: amount
+      // Map frontend mode to backend gameType
+      const gameTypeMap: Record<string, string> = {
+        'WIN_GO_30S': '30s',
+        'WIN_GO_1_MIN': '1m',
+        'WIN_GO_3_MIN': '3m',
+        'WIN_GO_5_MIN': '5m'
+      };
+      const gameType = gameTypeMap[currentModeId] || '1m';
+
+      const response = await axios.post(`${API_URL}/predict/place-bet`, {
+        gameType,           // Backend expects 'gameType' not 'mode'
+        periodId,           // Add missing periodId
+        betType,            // Same
+        value: betValue,    // Backend expects 'value' not 'betValue'
+        amount              // Backend expects 'amount' not 'betAmount'
       }, {
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`,
+          'user-id': user?.id || 'anonymous'  // ✅ Add user-id header for backend
         }
       });
+
+      // ✅ Update balance from server response immediately
+      if (response.data.success && response.data.balance !== undefined) {
+        setBalance(response.data.balance);
+        console.log('✅ Balance updated after bet:', response.data.balance);
+      }
 
       toast.success(`Bet placed: ${selection} - ${amount} coins`, { id: 'bet-success' });
     } catch (error: any) {
@@ -258,16 +288,19 @@ const ColorPrediction = () => {
 
       {/* Premium Sticky Header */}
       <div className="sticky top-0 z-30 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border)] p-4 flex items-center justify-between">
+        {/* Optimized Back Button - ESPORIZON Theme */}
         <button
           onClick={() => window.history.back()}
-          className="p-2 hover:bg-[var(--glass)] rounded-xl transition-all"
+          className="px-3 py-2.5 hover:bg-[var(--accent)]/10 active:bg-[var(--accent)]/20 rounded-xl transition-all duration-200 border border-[var(--border)] hover:border-[var(--accent)]/30 group"
         >
-          <ChevronRight className="rotate-180" size={24} />
+          <ChevronRight className="rotate-180 text-[var(--text-secondary)] group-hover:text-[var(--accent)] transition-colors" size={22} />
         </button>
-        <h1 className="text-sm font-black uppercase tracking-widest italic flex items-center gap-2">
-          <ShieldCheck size={18} className="text-[var(--accent)]" />
-          Combat Prediction
-        </h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-black uppercase tracking-widest italic flex items-center gap-1.5">
+            <ShieldCheck size={16} className="text-[var(--accent)]" />
+            ESPO WIN GO
+          </h1>
+        </div>
         <div className="w-10 h-10" />
       </div>
 
@@ -289,7 +322,8 @@ const ColorPrediction = () => {
               }, {
                 headers: {
                   Authorization: `Bearer ${token}`,
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  'user-id': user?.id || 'anonymous'  // ✅ Add user-id header for backend
                 }
               });
 
@@ -422,12 +456,12 @@ const ColorPrediction = () => {
                 <h3 className="text-lg font-black text-[var(--text-primary)] mb-2">💰 Payout Multipliers</h3>
                 <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div>Red: <span className="font-bold text-[var(--accent)]">1.9x</span></div>
-                    <div>Green: <span className="font-bold text-[var(--accent)]">1.9x</span></div>
+                    <div>Red: <span className="font-bold text-[var(--accent)]">1.95x</span></div>
+                    <div>Green: <span className="font-bold text-[var(--accent)]">1.95x</span></div>
                     <div>Violet: <span className="font-bold text-[var(--accent)]">1.5x</span></div>
-                    <div>Big: <span className="font-bold text-[var(--accent)]">1.9x</span></div>
-                    <div>Small: <span className="font-bold text-[var(--accent)]">1.9x</span></div>
-                    <div>Any Number (0-9): <span className="font-bold text-[var(--accent)]">8x</span></div>
+                    <div>Big: <span className="font-bold text-[var(--accent)]">1.95x</span></div>
+                    <div>Small: <span className="font-bold text-[var(--accent)]">1.95x</span></div>
+                    <div>Any Number (0-9): <span className="font-bold text-[var(--accent)]">9x</span></div>
                   </div>
                 </div>
               </section>
