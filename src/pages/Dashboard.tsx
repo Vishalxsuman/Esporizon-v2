@@ -112,7 +112,7 @@ const Dashboard = () => {
       className="h-[100dvh] overflow-hidden flex flex-col lg:flex-row bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans selection:bg-[var(--accent)]/30 selection:text-[var(--accent)] transition-colors duration-300"
     >
       <Toaster position="top-right" />
-      {/* <ParticlesBackground /> Removed for performance optimization */}
+      <ParticlesBackground />
 
       {/* Mobile Header */}
       <div className="lg:hidden p-4 flex justify-between items-center bg-[var(--bg-primary)]/90 backdrop-blur-xl border-b border-[var(--border)] z-20 sticky top-0">

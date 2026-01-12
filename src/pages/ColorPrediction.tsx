@@ -11,10 +11,19 @@ import axios from 'axios';
 import { useGameEngine } from '@/hooks/useGameEngine';
 
 // API Configuration
+// API Configuration
+// Logic:
+// 1. Prioritize VITE_API_URL if set (e.g. .env.development for local)
+// 2. Fallback to production URL 'https://api.esporizon.in/api' if missing
+// 3. This ensures production builds (where .env might be missing) still connect to the right place
 let API_URL = import.meta.env.VITE_API_URL;
+
 if (!API_URL) {
-  console.warn('VITE_API_URL is not configured! Falling back to secure domain.');
+  // Production fallback
   API_URL = 'https://api.esporizon.in/api';
+  console.log('Using production API URL:', API_URL);
+} else {
+  console.log('Using configured API URL:', API_URL);
 }
 
 
