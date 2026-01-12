@@ -19,6 +19,7 @@ const PAYOUT_MULTIPLIERS = {
     COLOR: 2,       // Green/Red/Violet wins pay 2x
     NUMBER: 9,      // Specific number wins pay 9x
     BIG_SMALL: 2,   // Big/Small wins pay 2x
+    SIZE: 2,        // Alias for BIG_SMALL
 };
 
 // Color mapping based on number
@@ -54,6 +55,7 @@ const BET_TYPES = {
     COLOR: 'COLOR',
     NUMBER: 'NUMBER',
     BIG_SMALL: 'BIG_SMALL',
+    SIZE: 'SIZE', // Alias for BIG_SMALL (frontend compatibility)
 };
 
 // Valid bet values for each type
@@ -61,6 +63,7 @@ const VALID_BET_VALUES = {
     COLOR: ['GREEN', 'RED', 'VIOLET'],
     NUMBER: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
     BIG_SMALL: ['BIG', 'SMALL'],
+    SIZE: ['BIG', 'SMALL'], // Alias for BIG_SMALL
 };
 
 /**

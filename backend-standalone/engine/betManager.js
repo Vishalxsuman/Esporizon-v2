@@ -22,9 +22,19 @@ function validateBet(betType, value, amount) {
         throw new Error(`Invalid bet type: ${betType}`);
     }
 
-    // Check bet value
-    const validValues = VALID_BET_VALUES[betType];
-    if (!validValues.includes(value)) {
+    // Check bet value - handle NUMBER type conversion
+    let validValues = VALID_BET_VALUES[betType];
+    let checkValue = value;
+
+    // Convert NUMBER bet values from string to integer for proper comparison
+    if (betType === BET_TYPES.NUMBER) {
+        checkValue = parseInt(value, 10);
+        if (isNaN(checkValue)) {
+            throw new Error(`Invalid number format: ${value}`);
+        }
+    }
+
+    if (!validValues.includes(checkValue)) {
         throw new Error(`Invalid bet value ${value} for type ${betType}`);
     }
 
@@ -109,9 +119,12 @@ function isBetWinner(bet, result) {
             return bet.value === result.color;
 
         case BET_TYPES.NUMBER:
-            return bet.value === result.number;
+            // Convert bet value to number for comparison
+            const betNumber = typeof bet.value === 'string' ? parseInt(bet.value, 10) : bet.value;
+            return betNumber === result.number;
 
         case BET_TYPES.BIG_SMALL:
+        case BET_TYPES.SIZE: // Treat SIZE same as BIG_SMALL
             return bet.value === result.bigSmall;
 
         default:
@@ -120,13 +133,29 @@ function isBetWinner(bet, result) {
 }
 
 /**
- * Calculate payout for a winning bet
+ * Calculate payout for a winning bet using fee-based profit system
  * @param {Object} bet - Bet object
- * @returns {number} Payout amount
+ * @returns {number} Payout amount (original bet + profit)
  */
 function calculatePayout(bet) {
-    const multiplier = PAYOUT_MULTIPLIERS[bet.betType];
-    return bet.amount * multiplier;
+    let profit = 0;
+
+    // Fee-based profit calculation based on bet type and value
+    if (bet.betType === BET_TYPES.NUMBER) {
+        // Number (0-9): 20% house fee → profit = bet * 8
+        profit = bet.amount * 8;
+    } else if (bet.betType === BET_TYPES.COLOR && bet.value === 'VIOLET') {
+        // Violet color: 10% house fee → profit = bet * 0.50
+        profit = bet.amount * 0.50;
+    } else {
+        // Red/Green colors, Big/Small: 5% house fee → profit = bet * 0.95
+        profit = bet.amount * 0.95;
+    }
+
+    // Payout = original bet amount + profit
+    const payout = bet.amount + profit;
+
+    return payout;
 }
 
 /**

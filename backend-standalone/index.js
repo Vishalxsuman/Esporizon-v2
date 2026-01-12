@@ -175,7 +175,7 @@ app.post('/api/predict/place-bet', (req, res) => {
         res.json({
             success: true,
             bet,
-            remainingBalance: wallet.getBalance(userId),
+            balance: wallet.getBalance(userId),  // Frontend expects 'balance' not 'remainingBalance'
         });
     } catch (error) {
         console.error('Error in /api/predict/place-bet:', error);
@@ -226,6 +226,79 @@ app.post('/api/wallet/deposit', (req, res) => {
     } catch (error) {
         console.error('Error in /api/wallet/deposit:', error);
         res.status(400).json({ error: error.message });
+    }
+});
+
+/**
+ * POST /api/predict/wallet/deposit
+ * Frontend-compatible alias for wallet deposit
+ * Delegates to the same wallet deposit logic
+ * Body: { amount }
+ */
+app.post('/api/predict/wallet/deposit', (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { amount } = req.body;
+
+        if (!amount || amount <= 0) {
+            return res.status(400).json({ error: 'Invalid deposit amount' });
+        }
+
+        const newBalance = wallet.deposit(userId, amount);
+
+        res.json({
+            success: true,
+            balance: newBalance,
+        });
+    } catch (error) {
+        console.error('Error in /api/predict/wallet/deposit:', error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+/**
+ * GET /api/user-bets
+ * Get all bets for the current user across all game types
+ * Returns array of bets sorted by timestamp (newest first)
+ */
+app.get('/api/user-bets', (req, res) => {
+    try {
+        const userId = getUserId(req);
+        const { gameType, limit = 50 } = req.query;
+
+        let allBets = [];
+
+        if (gameType) {
+            // Get bets for specific game type
+            const gameBets = betManager.getAllUserBets(userId, gameType);
+            allBets = gameBets;
+        } else {
+            // Get bets across all game types
+            const gameTypes = ['30s', '1m', '3m', '5m'];
+            for (const gt of gameTypes) {
+                const gameBets = betManager.getAllUserBets(userId, gt);
+                allBets.push(...gameBets);
+            }
+        }
+
+        // Sort by timestamp descending (newest first)
+        allBets.sort((a, b) => {
+            const timeA = new Date(a.timestamp).getTime();
+            const timeB = new Date(b.timestamp).getTime();
+            return timeB - timeA;
+        });
+
+        // Apply limit
+        const limitedBets = allBets.slice(0, parseInt(limit));
+
+        res.json({
+            success: true,
+            bets: limitedBets,
+            total: allBets.length
+        });
+    } catch (error) {
+        console.error('Error in /api/user-bets:', error);
+        res.status(500).json({ error: error.message });
     }
 });
 
