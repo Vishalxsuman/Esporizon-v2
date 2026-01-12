@@ -1,0 +1,24 @@
+{
+    "name": "color-prediction-backend",
+    "version": "1.0.0",
+    "description": "BDG-like Color Prediction Game Backend",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js",
+        "dev": "nodemon index.js"
+    },
+    "keywords": [
+        "color-prediction",
+        "game",
+        "betting"
+    ],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "cors": "^2.8.5",
+        "express": "^4.18.2"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.1"
+    }
+}

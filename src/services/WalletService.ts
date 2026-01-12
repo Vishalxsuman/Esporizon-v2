@@ -71,7 +71,10 @@ class WalletService {
       const token = await this.getToken();
       if (!token) throw new Error("Authentication required");
 
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const API_URL = import.meta.env.VITE_API_URL;
+      if (!API_URL) {
+        throw new Error('VITE_API_URL is not configured!');
+      }
 
       await axios.post(`${API_URL}/predict/wallet/deposit`, {
         amount: amount

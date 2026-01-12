@@ -2,7 +2,12 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore, doc, onSnapshot } from 'firebase/firestore';
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+// CRITICAL: No localhost fallback
+const API_URL = import.meta.env.VITE_API_URL;
+if (!API_URL) {
+    throw new Error('VITE_API_URL is not configured!');
+}
+
 
 // Guest ID management
 const GUEST_ID_KEY = 'prediction_guest_id';

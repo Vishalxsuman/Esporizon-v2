@@ -10,6 +10,13 @@ import { ChevronRight, ShieldCheck, X, PartyPopper, TrendingDown, BookOpen } fro
 import { db } from '@/services/firebase';
 import { doc, onSnapshot, collection, query, where, limit } from 'firebase/firestore';
 import axios from 'axios';
+import { useGameEngine } from '@/hooks/useGameEngine';
+
+// API Configuration
+const API_URL = import.meta.env.VITE_API_URL;
+if (!API_URL) {
+  throw new Error('VITE_API_URL is not configured!');
+}
 
 // Helper for IST date (YYYY-MM-DD)
 const getTodayIST = () => {
@@ -42,43 +49,30 @@ const getNumberColor = (num: number) => {
 // Simplify period ID for display (WG1-20260110-001 -> 20260110001) for concise UI
 const simplifyPeriodId = (periodId: string) => {
   if (!periodId) return 'Loading...';
-  const parts = periodId.split('-');
-  if (parts.length === 3) {
-    return `${parts[1]}${parts[2]}`; // 20260110001
+  // If format is like "1m-1768174742991" (Timestamp based) or "WG1-2026..."
+  // Just show the last 9-10 digits if it's long
+  if (periodId.includes('-')) {
+    const parts = periodId.split('-');
+    return parts[parts.length - 1];
   }
   return periodId;
 };
 
-interface RoundData {
-  mode: string;
-  periodId: string;
-  status: 'BETTING' | 'LOCKED' | 'RESULT';
-  roundStartAt: { seconds: number; nanoseconds: number };
-  roundEndAt: { seconds: number; nanoseconds: number };
-  resultNumber: number;
-  resultColor: string;
-  resultSize: string;
-  payoutDone: boolean;
-}
-
 const ColorPrediction = () => {
   const { user, getToken } = useAuth();
 
-  // Mode State (CRITICAL: drives Firestore listener)
-  const [mode, setMode] = useState<string>('WIN_GO_1_MIN'); // Firestore mode name
+  // Mode State
   const [selectedMode, setSelectedMode] = useState<GameMode>(GAME_MODES[1]); // UI mode
+  const currentModeId = MODE_MAP[selectedMode.id]; // Map to Firestore name (WIN_GO_1_MIN, etc.)
 
-  // Round Data from Firestore
-  const [roundData, setRoundData] = useState<RoundData | null>(null);
-  const [timeLeft, setTimeLeft] = useState(0);
-  const [periodId, setPeriodId] = useState('');
-  const [lastResult, setLastResult] = useState(-1);
+  // 🔄 Use the New Game Engine Hook (Replaces Firestore Round Logic)
+  // CRITICAL: Must pass Firestore mode name (WIN_GO_1_MIN) not UI id ('1min')
+  const { periodId, remainingSeconds, status, lastResult } = useGameEngine(currentModeId);
 
   // User State
   const [balance, setBalance] = useState(6950);
   const [gameHistory, setGameHistory] = useState<GameHistoryItem[]>([]);
   const [userHistory, setUserHistory] = useState<UserHistoryItem[]>([]);
-  const [pendingBets, setPendingBets] = useState<UserHistoryItem[]>([]);
 
   // Modal States
   const [showResultModal, setShowResultModal] = useState(false);
@@ -87,18 +81,11 @@ const ColorPrediction = () => {
   const [showGuideModal, setShowGuideModal] = useState(false);
 
   // Refs for tracking state inside intervals
-  const pendingBetsRef = useRef(pendingBets);
-  const lastProcessedPeriodRef = useRef<string>('');
-
-  useEffect(() => {
-    pendingBetsRef.current = pendingBets;
-  }, [pendingBets]);
+  const lastProcessedResultRef = useRef<string>('');
 
   // 0️⃣ WALLET LISTENER (Backend Authority)
   useEffect(() => {
     if (!user?.id) return;
-
-    // Listen to prediction_wallets (Backend is source of truth)
     const walletRef = doc(db, 'prediction_wallets', user.id);
     const unsubscribe = onSnapshot(walletRef, (doc) => {
       if (doc.exists()) {
@@ -108,15 +95,12 @@ const ColorPrediction = () => {
         setBalance(0); // Default if no wallet yet
       }
     });
-
     return () => unsubscribe();
   }, [user]);
 
-  // 0.5️⃣ USER BETS LISTENER (Real-time updates)
+  // 0.5️⃣ USER BETS LISTENER (Real-time updates for "My Bets")
   useEffect(() => {
     if (!user?.id) return;
-
-    // Listen to MY bets (ordered by newest)
     const q = query(
       collection(db, 'prediction_bets'),
       where('userId', '==', user.id),
@@ -129,14 +113,13 @@ const ColorPrediction = () => {
         return {
           id: doc.id,
           periodId: data.periodId,
-          selection: data.betValue, // Map betValue to selection
+          selection: data.betValue,
           amount: data.betAmount,
           result: (data.status === 'won' ? 'Win' : data.status === 'lost' ? 'Lose' : 'Pending') as 'Win' | 'Lose' | 'Pending',
           payout: data.payout || 0,
           createdAt: data.createdAt
         };
       })
-        // Sort locally to avoid index requirement
         .sort((a, b) => {
           const timeA = a.createdAt?.toMillis() || 0;
           const timeB = b.createdAt?.toMillis() || 0;
@@ -145,80 +128,19 @@ const ColorPrediction = () => {
 
       setUserHistory(bets);
       setPendingBets(bets.filter(b => b.result === 'Pending'));
-
-      // Check for recent wins (Toast Notification)
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'modified') {
-          const data = change.doc.data();
-          if (data.status === 'won') {
-            toast.success(`You won! +${data.payout}`, { icon: '💰' });
-          }
-        }
-      });
     }, (error) => {
       console.error('❌ User bets listener error:', error);
-      if (error.message.includes('index')) {
-        console.warn('⚠️ Firestore index missing for prediction_bets query. Check console for setup link.');
-      }
     });
 
     return () => unsubscribe();
   }, [user]);
 
-  // 1️⃣ MODE-BASED FIRESTORE LISTENER (CRITICAL)
+  // 1️⃣ HISTORY LISTENER (Kept for instant updates on history list)
   useEffect(() => {
-    // console.log(`🔥 Subscribing to Firestore: prediction_rounds/${mode}`);
-
-    const roundRef = doc(db, 'prediction_rounds', mode);
-
-    const unsubscribe = onSnapshot(
-      roundRef,
-      (snap) => {
-        if (snap.exists()) {
-          const data = snap.data() as RoundData;
-          // console.log(`🔄 [Firestore Update] Mode: ${mode}, Period: ${data.periodId}, Status: ${data.status}`);
-
-          setRoundData(data);
-          setPeriodId(data.periodId);
-
-          // Update result for timer board display
-          if (data.resultNumber >= 0) {
-            setLastResult(data.resultNumber);
-          }
-
-          // Process bets when result is available and payout is done
-          if (data.status === 'RESULT' && data.payoutDone && data.periodId !== lastProcessedPeriodRef.current) {
-            // console.log(`💰 [${mode}] Payout detected for ${data.periodId}. Processing UI updates...`);
-            lastProcessedPeriodRef.current = data.periodId;
-            // Check if user had pending bets that just settled
-            setTimeout(() => checkForResultPopup(data.periodId), 500);
-          }
-
-        } else {
-          console.warn(`⚠️ No document found for ${mode}`);
-        }
-      },
-      (error) => {
-        console.error(`❌ Firestore error for ${mode}:`, error);
-      }
-    );
-
-    // Cleanup: unsubscribe when mode changes
-    return () => {
-      // console.log(`🛑 Unsubscribing from ${mode}`);
-      unsubscribe();
-    };
-  }, [mode]); // Re-run when mode changes
-
-  // 1.5️⃣ PERSISTENT HISTORY LISTENER (NEW)
-  useEffect(() => {
-    const today = getTodayIST();
-    // console.log(`📜 Loading history for ${mode} on ${today}`);
-
     const q = query(
       collection(db, 'prediction_history'),
-      where('mode', '==', mode),
-      where('date', '==', today),
+      where('mode', '==', currentModeId),
+      // Optional: filter by date if getTodayIST() is used for indexing
       limit(20)
     );
 
@@ -233,7 +155,6 @@ const ColorPrediction = () => {
           createdAt: data.createdAt
         };
       })
-        // Sort locally to avoid index requirement
         .sort((a, b) => {
           const timeA = a.createdAt?.toMillis() || 0;
           const timeB = b.createdAt?.toMillis() || 0;
@@ -241,105 +162,61 @@ const ColorPrediction = () => {
         });
 
       setGameHistory(historyItems);
-
-      // Set initial lastResult from most recent history item if exists
-      if (historyItems.length > 0) {
-        setLastResult(historyItems[0].number);
-      }
     }, (err) => {
       console.error("History listener error:", err);
     });
 
     return () => unsubscribe();
-  }, [mode]);
+  }, [currentModeId]);
 
-  // 2️⃣ TIMER CALCULATION (STRICT SERVER-DRIVEN)
+  // 3️⃣ RESULT POPUP HANDLER
   useEffect(() => {
-    if (!roundData || !roundData.roundEndAt) return;
-
-    const updateTimer = () => {
-      // 🛑 CRITICAL: If NOT Betting, Timer is 0
-      if (roundData.status !== 'BETTING') {
-        setTimeLeft(0);
-        return;
-      }
-
-      // 🕒 STRICT Time Calculation: max(0, floor((roundEndAt - Date.now()) / 1000))
-      // Use Firestore Timestamp .toMillis()
-      const roundEndMs = roundData.roundEndAt.seconds * 1000 + (roundData.roundEndAt.nanoseconds || 0) / 1000000;
-      const now = Date.now();
-      const remainingArg = (roundEndMs - now) / 1000;
-
-      const remainingSec = Math.max(0, Math.floor(remainingArg));
-
-      // Debug log occasionally if needed, strict logic simply applies it
-      setTimeLeft(remainingSec);
-    };
-
-    updateTimer(); // Initial call
-
-    // Update every 100ms for responsiveness (UI only, logic is robust)
-    const interval = setInterval(updateTimer, 100);
-
-    return () => clearInterval(interval);
-  }, [roundData]);
-
-  // 3️⃣ MODE SWITCH HANDLER (Clean switch, no Firestore calls)
-  const handleModeChange = (newMode: GameMode) => {
-    setSelectedMode(newMode);
-    setMode(MODE_MAP[newMode.id]); // Update Firestore listener
-
-    // Reset local state for clean switch
-    setTimeLeft(0);
-    setPeriodId('');
-    setLastResult(-1);
-    setPendingBets([]); // Clear pending bets when switching modes
-  };
-
-  // 3.5 CHECK FOR RESULT POPUP
-  const checkForResultPopup = async (completedPeriodId: string) => {
-    if (!user?.id) return;
-
-    // Get user's bets for this period from userHistory (already loaded via listener)
-    const userBetsForPeriod = userHistory.filter(bet => bet.periodId === completedPeriodId);
-
-    if (userBetsForPeriod.length === 0) return; // No bets placed
-
-    // Check if any bet won
-    const wonBets = userBetsForPeriod.filter(bet => bet.result === 'Win');
-
-    if (wonBets.length > 0) {
-      const totalWinnings = wonBets.reduce((sum, bet) => sum + bet.payout, 0);
-      setResultAmount(totalWinnings);
-      setResultModalType('win');
-      setShowResultModal(true);
-    } else if (userBetsForPeriod.every(bet => bet.result === 'Lose')) {
-      setResultModalType('lose');
-      setShowResultModal(true);
+    if (lastResult && lastResult.periodId !== lastProcessedResultRef.current) {
+      lastProcessedResultRef.current = lastResult.periodId;
+      // Check if we battled in this period
+      checkForResultPopup(lastResult.periodId);
     }
+  }, [lastResult]);
+
+  const checkMonitorRef = useRef(userHistory);
+  useEffect(() => { checkMonitorRef.current = userHistory; }, [userHistory]);
+
+  const checkForResultPopup = (completedPeriodId: string) => {
+    // We need to wait a sec to ensure 'userHistory' is updated via Firestore listener
+    // Or we rely on the fact that result generation (backend) happens -> Firestore update -> Client listener -> Then we check.
+
+    // A slight delay to ensure the "won/lost" status has propagated to the bets collection
+    setTimeout(() => {
+      const bets = checkMonitorRef.current;
+      const userBetsForPeriod = bets.filter(bet => bet.periodId === completedPeriodId);
+
+      if (userBetsForPeriod.length === 0) return;
+
+      const wonBets = userBetsForPeriod.filter(bet => bet.result === 'Win');
+
+      if (wonBets.length > 0) {
+        const totalWinnings = wonBets.reduce((sum, bet) => sum + bet.payout, 0);
+        setResultAmount(totalWinnings);
+        setResultModalType('win');
+        setShowResultModal(true);
+        toast.success(`You won! +${totalWinnings}`, { icon: '💰' });
+      } else if (userBetsForPeriod.some(bet => bet.result === 'Lose')) {
+        setResultModalType('lose');
+        setShowResultModal(true);
+      }
+    }, 1500);
   };
 
   // 4️⃣ BETTING HANDLER (BACKEND API INTEGRATION)
   const handlePlaceBet = async (selection: string, amount: number) => {
-    // ⚠️ CRITICAL: Betting allowed ONLY when server says status=BETTING
-    if (!roundData || roundData.status !== 'BETTING') {
-      toast.error('Betting is currently closed!');
-      console.log(`🚫 Bet blocked: status=${roundData?.status}, required=BETTING`);
+    // ⚠️ CRITICAL: Betting allowed ONLY when Engine says status=BETTING
+    if (status !== 'BETTING') {
+      toast.error('Betting is stopped!');
       return;
     }
 
     if (balance < amount) {
       toast.error('Insufficient balance!');
-      return;
-    }
-
-    // Validate bet amount
-    if (amount < 5) {
-      toast.error('Minimum bet is ₹5');
-      return;
-    }
-    if (amount > 100000) {
-      toast.error('Maximum bet is ₹100,000');
       return;
     }
 
@@ -356,14 +233,12 @@ const ColorPrediction = () => {
     }
 
     try {
-      // Call backend API with Auth Token
-      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       const token = await getToken({ template: "firebase" });
       if (!token) throw new Error("JWT token missing");
 
       await axios.post(`${API_URL}/predict/place-bet`, {
         userId: user?.id,
-        mode,
+        mode: currentModeId,
         betType,
         betValue,
         betAmount: amount
@@ -373,15 +248,12 @@ const ColorPrediction = () => {
         }
       });
 
-      console.log(`✅ Bet placed via API: ${selection} for ${amount} coins (period: ${periodId})`);
-      toast.success(`Bet placed: ${selection} - ${amount} coins`);
+      toast.success(`Bet placed: ${selection} - ${amount} coins`, { id: 'bet-success' });
     } catch (error: any) {
       console.error('Bet placement error:', error);
       toast.error(error.response?.data?.error || 'Failed to place bet');
     }
   };
-
-
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] pb-24 transition-colors duration-300 font-sans">
@@ -415,7 +287,6 @@ const ColorPrediction = () => {
                 throw new Error("JWT token missing in deposit");
               }
 
-              const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
               const response = await axios.post(`${API_URL}/predict/wallet/deposit`, {
                 amount: 500
               }, {
@@ -441,25 +312,25 @@ const ColorPrediction = () => {
         <GameModeSelector
           modes={GAME_MODES}
           selectedMode={selectedMode}
-          onSelectMode={handleModeChange}
-          disabled={roundData?.status === 'LOCKED'}
+          onSelectMode={setSelectedMode}
+          disabled={status === 'LOCKED' || status === 'RESULT_PENDING'}
         />
 
         {/* Main Game Board */}
         <div className="space-y-6">
           {/* Timer & Recent Result */}
           <TimerBoard
-            timeLeft={timeLeft}
+            timeLeft={remainingSeconds}
             periodId={simplifyPeriodId(periodId)}
-            isLocked={roundData?.status === 'LOCKED'}
-            lastResult={lastResult}
+            isLocked={status === 'LOCKED' || status === 'RESULT_PENDING'}
+            lastResult={lastResult ? lastResult.number : (gameHistory[0]?.number ?? -1)}
             modeLabel={selectedMode.label}
             onShowHowToPlay={() => setShowGuideModal(true)}
           />
 
           {/* Betting Interface */}
           <BettingControls
-            isLocked={roundData?.status !== 'BETTING'}
+            isLocked={status !== 'BETTING'}
             balance={balance}
             onPlaceBet={handlePlaceBet}
           />
@@ -589,4 +460,3 @@ const ColorPrediction = () => {
 };
 
 export default ColorPrediction;
-
