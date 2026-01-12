@@ -18,10 +18,7 @@ if (!API_URL) {
   throw new Error('VITE_API_URL is not configured!');
 }
 
-// Helper for IST date (YYYY-MM-DD)
-const getTodayIST = () => {
-  return new Date(new Date().getTime() + (5.5 * 60 * 60 * 1000)).toISOString().slice(0, 10);
-};
+
 
 // Constants
 const GAME_MODES: GameMode[] = [
@@ -127,7 +124,6 @@ const ColorPrediction = () => {
         });
 
       setUserHistory(bets);
-      setPendingBets(bets.filter(b => b.result === 'Pending'));
     }, (error) => {
       console.error('❌ User bets listener error:', error);
     });
