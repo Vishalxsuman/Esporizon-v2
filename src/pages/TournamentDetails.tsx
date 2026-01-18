@@ -240,13 +240,13 @@ const TournamentDetails = () => {
                     <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
                         <div className="flex-1">
                             <div className="flex items-center gap-3 mb-3">
-                                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[9px] font-black tracking-widest uppercase border ${tournament.status === 'ongoing'
+                                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[9px] font-black tracking-widest uppercase border ${tournament.status === 'live'
                                     ? 'bg-red-500/10 text-red-500 border-red-500/20 animate-pulse'
                                     : tournament.status === 'upcoming'
                                         ? 'bg-teal-500/10 text-teal-500 border-teal-500/20'
                                         : 'bg-zinc-800 text-zinc-500 border-white/10'
                                     }`}>
-                                    <div className={`w-1 h-1 rounded-full ${tournament.status === 'ongoing' ? 'bg-red-500' : 'bg-current'}`} />
+                                    <div className={`w-1 h-1 rounded-full ${tournament.status === 'live' ? 'bg-red-500' : 'bg-current'}`} />
                                     {tournament.status}
                                 </div>
                                 <div className="text-[9px] font-black text-teal-500 uppercase tracking-[0.3em]">

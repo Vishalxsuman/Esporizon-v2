@@ -10,7 +10,7 @@ const TournamentList = () => {
     const { gameId } = useParams<{ gameId: string }>()
     const navigate = useNavigate()
     const [tournaments, setTournaments] = useState<Tournament[]>([])
-    const [filter, setFilter] = useState<'upcoming' | 'ongoing' | 'completed'>('upcoming')
+    const [filter, setFilter] = useState<'upcoming' | 'live' | 'completed'>('upcoming')
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -137,7 +137,7 @@ const TournamentList = () => {
             <div className="max-w-7xl mx-auto px-4 -mt-10 relative z-20">
                 {/* Filter Tabs */}
                 <div className="flex gap-2 mb-8 bg-[#18181b]/80 backdrop-blur-xl p-1.5 rounded-2xl border border-white/5 w-fit">
-                    {(['upcoming', 'ongoing', 'completed'] as const).map((status) => (
+                    {(['upcoming', 'live', 'completed'] as const).map((status) => (
                         <button
                             key={status}
                             onClick={() => setFilter(status)}

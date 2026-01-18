@@ -53,7 +53,7 @@ const TournamentGrid = () => {
 
     // Status filter (based on active tab)
     if (activeTab === 'live') {
-      filtered = filtered.filter((t) => t.status === 'ongoing')
+      filtered = filtered.filter((t) => t.status === 'live')
     } else if (activeTab === 'upcoming') {
       filtered = filtered.filter((t) => t.status === 'upcoming')
     } else if (activeTab === 'completed') {
@@ -96,7 +96,7 @@ const TournamentGrid = () => {
   }
 
   const filteredTournaments = getFilteredTournaments()
-  const liveTournaments = tournaments.filter((t) => t.status === 'ongoing')
+  const liveTournaments = tournaments.filter((t) => t.status === 'live')
 
   const gameFilters: { id: GameFilter; name: string; icon: string }[] = [
     { id: 'all', name: 'All Games', icon: '🎮' },

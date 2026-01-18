@@ -24,7 +24,7 @@ const HostProfile = () => {
     const [tournaments, setTournaments] = useState<Tournament[]>([])
     const [ratings, setRatings] = useState<HostRating[]>([])
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'upcoming' | 'ongoing' | 'completed'>('upcoming')
+    const [activeTab, setActiveTab] = useState<'upcoming' | 'live' | 'completed'>('upcoming')
     const [showRatingModal, setShowRatingModal] = useState(false)
 
     useEffect(() => {
@@ -147,7 +147,7 @@ const HostProfile = () => {
 
     const filteredTournaments = tournaments.filter((t) => {
         if (activeTab === 'upcoming') return t.status === 'upcoming'
-        if (activeTab === 'ongoing') return t.status === 'ongoing'
+        if (activeTab === 'live') return t.status === 'live'
         if (activeTab === 'completed') return t.status === 'completed'
         return true
     })
@@ -364,7 +364,7 @@ const HostProfile = () => {
 
                     {/* Tabs */}
                     <div className="flex gap-8 border-b border-zinc-800/50 mb-6">
-                        {['upcoming', 'ongoing', 'completed'].map((tab) => (
+                        {['upcoming', 'live', 'completed'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab as any)}

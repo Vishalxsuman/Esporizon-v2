@@ -207,36 +207,9 @@ const Dashboard = () => {
         <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar scroll-smooth">
           <div className="max-w-7xl mx-auto p-4 pb-24 lg:p-10 w-full">
 
-            {/* Hero: Featured Tournament */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileHover={{ scale: 1.005 }}
-              className="w-full h-64 lg:h-[22rem] rounded-3xl relative overflow-hidden mb-12 group cursor-pointer border border-[var(--border)] shadow-2xl bg-[var(--bg-primary)]"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-[#000] via-transparent to-[#7c3aed]/20 z-10"></div>
-              <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2670&auto=format&fit=crop')] bg-cover bg-center group-hover:scale-105 transition-transform duration-1000 ease-out"></div>
 
-              <div className="absolute bottom-0 left-0 p-8 lg:p-12 z-20 w-full">
-                <div className="flex flex-col lg:flex-row justify-between items-end gap-6">
-                  <div className="max-w-2xl">
-                    <span className="px-4 py-1.5 rounded-full bg-[var(--accent)]/10 backdrop-blur-md border border-[var(--accent)]/30 text-xs font-black mb-4 inline-block text-[var(--accent)] uppercase tracking-wider shadow-[0_0_10px_rgba(0,255,194,0.2)]">
-                      Featured Event
-                    </span>
-                    <h2 className="text-3xl lg:text-5xl font-black mb-3 text-white drop-shadow-lg uppercase italic tracking-tight">Summer Championship</h2>
-                    <p className="text-gray-300 text-base lg:text-lg mb-4 line-clamp-2 max-w-xl">Join the ultimate battle royale experience. Compete with the best and win from a prize pool of ₹1,00,000.</p>
-                    <div className="flex items-center gap-4 text-sm font-bold text-[var(--accent)]">
-                      <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-[var(--accent)] animate-pulse"></span> Registration Open</span>
-                      <span className="w-1 h-1 rounded-full bg-gray-500"></span>
-                      <span>Starts in 2d 14h</span>
-                    </div>
-                  </div>
-                  <button className="w-full lg:w-auto px-8 py-3 bg-[var(--accent)] text-black font-black uppercase tracking-wider rounded-xl hover:bg-white hover:scale-105 transition-all shadow-[0_0_20px_rgba(0,255,194,0.4)]">
-                    Join Tournament
-                  </button>
-                </div>
-              </div>
-            </motion.div>
+            {/* TODO: Fetch featured tournament from backend API - GET /api/tournaments/featured */}
+            {/* Featured tournament section temporarily hidden until backend integration */}
 
             {/* Game Grid */}
             <div className="mb-12">

@@ -58,14 +58,7 @@ function App() {
                 <Route path="/auth" element={<AuthPage />} />
 
                 {/* Protected Routes */}
-                <Route
-                  path="/host/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <HostDashboard />
-                    </ProtectedRoute>
-                  }
-                />
+
                 <Route
                   path="/host/reports"
                   element={
@@ -146,14 +139,7 @@ function App() {
                     <SubscriptionPurchase />
                   </ProtectedRoute>
                 } />
-                <Route
-                  path="/arena/manage"
-                  element={
-                    <ProtectedRoute>
-                      <TournamentManage />
-                    </ProtectedRoute>
-                  }
-                />
+
                 <Route
                   path="/host/manage"
                   element={

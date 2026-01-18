@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, GoogleAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
-import { getAnalytics } from 'firebase/analytics'
 
 // Firebase configuration using environment variables
 const firebaseConfig = {
@@ -11,31 +10,24 @@ const firebaseConfig = {
     storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
     messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 }
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig)
 
-// Initialize Firebase Authentication and get a reference to the service
+// Auth
 export const auth = getAuth(app)
-import { GoogleAuthProvider } from 'firebase/auth'
-
 export const googleProvider = new GoogleAuthProvider()
 
-// Defensive logging
+// Firestore
+export const db = getFirestore(app)
+
+// Defensive logging (DEV only)
 if (import.meta.env.DEV) {
     console.log('Firebase Initialized:', {
         authDomain: firebaseConfig.authDomain,
-        projectId: firebaseConfig.projectId
+        projectId: firebaseConfig.projectId,
     })
 }
-
-// Initialize Firestore
-export const db = getFirestore(app)
-
-// Initialize Analytics (optional)
-export const analytics =
-    typeof window !== 'undefined' ? getAnalytics(app) : null
 
 export default app
