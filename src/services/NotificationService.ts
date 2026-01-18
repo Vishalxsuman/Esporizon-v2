@@ -1,4 +1,4 @@
-import { db } from '@/config/firebaseConfig'
+import { getFirebaseDb } from '@/config/firebaseConfig'
 import {
     collection,
     doc,
@@ -15,7 +15,7 @@ import {
 import type { Notification } from '@/types/match'
 
 class NotificationService {
-    private notificationsCollection = collection(db, 'notifications')
+    private notificationsCollection = collection(getFirebaseDb(), 'notifications')
 
     // Get user notifications (paginated)
     async getNotifications(userId: string, pageSize = 20, lastDoc?: DocumentSnapshot): Promise<{

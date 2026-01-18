@@ -1,4 +1,4 @@
-import { db } from '@/config/firebaseConfig'
+import { getFirebaseDb } from '@/config/firebaseConfig'
 import {
     collection,
     doc,
@@ -21,7 +21,7 @@ export interface CreateMatchDtoExtended extends CreateMatchDto {
 }
 
 class MatchService {
-    private matchesCollection = collection(db, 'matches')
+    private matchesCollection = collection(getFirebaseDb(), 'matches')
 
     // Create a new match
     async createMatch(dto: CreateMatchDtoExtended, userId: string, userName: string, userAvatar?: string): Promise<Match> {
@@ -212,7 +212,7 @@ class MatchService {
 
             if (newHighestBid) {
                 if (amount < newHighestBid.amount) {
-                    throw new Error(`Bid must be at least ${newHighestBid.amount}`)
+                    throw new Error(`Bid must be at least ${newHighestBid.amount} `)
                 }
             }
 
@@ -223,7 +223,7 @@ class MatchService {
                 const originalWinnerId = newHighestBid.playerId
                 const matcherId = userId
 
-                console.log(`[MatchService] ${matcherId} matched ${originalWinnerId} at ${amount}`)
+                console.log(`[MatchService] ${matcherId} matched ${originalWinnerId} at ${amount} `)
 
                 // Set currentBidder to original winner
                 newCurrentBidder = players.findIndex(p => p.userId === originalWinnerId)
@@ -518,8 +518,8 @@ class MatchService {
 
             const botNumber = match.players.filter(p => p.isBot).length + 1
             const botPlayer = {
-                userId: `bot-${Date.now()}`,
-                userName: `Bot Player ${botNumber}`,
+                userId: `bot - ${Date.now()} `,
+                userName: `Bot Player ${botNumber} `,
                 userAvatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${Date.now()}`,
                 joinedAt: new Date().toISOString(),
                 coinsLocked: 0,

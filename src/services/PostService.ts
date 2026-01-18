@@ -1,4 +1,4 @@
-import { db } from '@/config/firebaseConfig'
+import { getFirebaseDb } from '@/config/firebaseConfig'
 import {
     collection,
     addDoc,
@@ -19,7 +19,7 @@ const POSTS_COLLECTION = 'posts'
 class PostService {
     async getTodaysPosts(maxPosts: number = 20): Promise<Post[]> {
         try {
-            const postsRef = collection(db, POSTS_COLLECTION)
+            const postsRef = collection(getFirebaseDb(), POSTS_COLLECTION)
             const q = query(postsRef, orderBy('createdAt', 'desc'), limit(maxPosts))
             const snapshot = await getDocs(q)
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
@@ -33,7 +33,7 @@ class PostService {
         maxPosts: number = 20,
         callback: (posts: Post[]) => void
     ): () => void {
-        const postsRef = collection(db, POSTS_COLLECTION)
+        const postsRef = collection(getFirebaseDb(), POSTS_COLLECTION)
         // Simplify query to avoid composite index requirement (visibility + createdAt)
         const q = query(
             postsRef,
@@ -60,7 +60,7 @@ class PostService {
         maxPosts: number = 20,
         callback: (posts: Post[]) => void
     ): () => void {
-        const postsRef = collection(db, POSTS_COLLECTION)
+        const postsRef = collection(getFirebaseDb(), POSTS_COLLECTION)
         const q = query(
             postsRef,
             where('userId', '==', userId),
@@ -103,9 +103,9 @@ class PostService {
         if (!userId) throw new Error("Authentication Required")
 
         try {
-            const postRef = doc(db, POSTS_COLLECTION, postId)
+            const postRef = doc(getFirebaseDb(), POSTS_COLLECTION, postId)
 
-            await runTransaction(db, async (transaction) => {
+            await runTransaction(getFirebaseDb(), async (transaction) => {
                 const postDoc = await transaction.get(postRef)
                 if (!postDoc.exists()) throw new Error("Post does not exist")
 
@@ -161,7 +161,7 @@ class PostService {
     }
 
     async deletePost(postId: string): Promise<void> {
-        const postRef = doc(db, POSTS_COLLECTION, postId)
+        const postRef = doc(getFirebaseDb(), POSTS_COLLECTION, postId)
         // Note: Comments subcollection is not deleted automatically.
         // In a production app, we would use a Cloud Function or recursive loop.
         // For this task, we delete the main doc as requested.
@@ -171,7 +171,7 @@ class PostService {
     async addComment(postId: string, userId: string, userName: string, content: string, userAvatar?: string): Promise<void> {
         if (!userId || !content.trim()) return
 
-        const postRef = doc(db, POSTS_COLLECTION, postId)
+        const postRef = doc(getFirebaseDb(), POSTS_COLLECTION, postId)
         const commentsRef = collection(postRef, 'comments')
 
         const newComment = {
@@ -187,7 +187,7 @@ class PostService {
         // without knowing the ID. We can pre-generate a doc ref.
         const newCommentRef = doc(commentsRef)
 
-        await runTransaction(db, async (transaction) => {
+        await runTransaction(getFirebaseDb(), async (transaction) => {
             const postDoc = await transaction.get(postRef)
             if (!postDoc.exists()) throw new Error("Post does not exist")
 
@@ -203,7 +203,7 @@ class PostService {
 
     // Real-time comments for a specific post
     subscribeToComments(postId: string, callback: (comments: Comment[]) => void): () => void {
-        const commentsRef = collection(db, POSTS_COLLECTION, postId, 'comments')
+        const commentsRef = collection(getFirebaseDb(), POSTS_COLLECTION, postId, 'comments')
         const q = query(commentsRef, orderBy('createdAt', 'desc'))
 
         return onSnapshot(q, (snapshot) => {
@@ -216,7 +216,7 @@ class PostService {
     }
 
     async getComments(postId: string): Promise<Comment[]> {
-        const commentsRef = collection(db, POSTS_COLLECTION, postId, 'comments')
+        const commentsRef = collection(getFirebaseDb(), POSTS_COLLECTION, postId, 'comments')
         const q = query(commentsRef, orderBy('createdAt', 'desc'))
         const snapshot = await getDocs(q)
         return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment))
@@ -231,7 +231,7 @@ class PostService {
         visibility: 'public' | 'private' = 'public'
     ): Promise<void> {
         try {
-            const postsRef = collection(db, POSTS_COLLECTION)
+            const postsRef = collection(getFirebaseDb(), POSTS_COLLECTION)
             const newPost = {
                 userId,
                 userName,
@@ -254,3 +254,4 @@ class PostService {
 }
 
 export const postService = new PostService()
+
