@@ -75,8 +75,8 @@ const CreateMatch = () => {
                     timeControl
                 },
                 user.id,
-                user.fullName || user.firstName || 'Player',
-                user.imageUrl
+                user.displayName || 'Player',
+                user.photoURL || ''
             )
 
             toast.success('Match created!')

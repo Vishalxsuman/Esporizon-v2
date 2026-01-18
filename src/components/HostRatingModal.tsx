@@ -10,7 +10,7 @@ interface HostRatingModalProps {
     onSubmit: (rating: number, feedback: string) => void
 }
 
-const HostRatingModal = ({ isOpen, onClose, hostName, hostId, onSubmit }: HostRatingModalProps) => {
+const HostRatingModal = ({ isOpen, onClose, hostName, hostId: _hostId, onSubmit }: HostRatingModalProps) => {
     const [rating, setRating] = useState(0)
     const [hoverRating, setHoverRating] = useState(0)
     const [feedback, setFeedback] = useState('')
@@ -91,8 +91,8 @@ const HostRatingModal = ({ isOpen, onClose, hostName, hostId, onSubmit }: HostRa
                                         >
                                             <Star
                                                 className={`w-10 h-10 transition-colors ${star <= (hoverRating || rating)
-                                                        ? 'fill-yellow-500 text-yellow-500'
-                                                        : 'text-zinc-700'
+                                                    ? 'fill-yellow-500 text-yellow-500'
+                                                    : 'text-zinc-700'
                                                     }`}
                                             />
                                         </button>

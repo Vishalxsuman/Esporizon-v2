@@ -7,7 +7,6 @@ import {
   updateProfile,
   signInWithPopup,
   GoogleAuthProvider,
-  User as FirebaseUser,
 } from 'firebase/auth'
 import { auth } from '@/config/firebaseConfig'
 import { User } from '@/types'
