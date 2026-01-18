@@ -31,10 +31,7 @@ class WalletService {
       };
     } catch (err) {
       console.error("Error fetching wallet from backend:", err);
-      // Fallback to local storage if available
-      const storedBalance = localStorage.getItem('wallet_balance');
-      const balance = storedBalance ? parseFloat(storedBalance) : 0;
-      return { balance: balance, espoCoins: balance, transactions: [] };
+      throw new Error("Failed to fetch wallet. Please ensure the backend is running.");
     }
   }
 
@@ -95,23 +92,11 @@ class WalletService {
             return;
           }
         } else {
-          throw new Error("No token");
+          throw new Error("No authentication token available");
         }
       } catch (apiError) {
-        console.warn("Backend deposit failed, using generic fallback for testing:", apiError);
-        // Fallback: Just update local view for testing
-        // In a real app we wouldn't do this, but for "verify flow without backend" request:
-        // blocked by: we don't know current balance easily without storing it locally in service or context.
-        // But WalletContext stores it. 
-        // Actually, let's just dispatch an event that forces a balance update if we can't hit API.
-        // Better yet, let's READ the local storage 'wallet_balance' if available (set by Context) and increment it.
-
-        const current_local_balance = parseFloat(localStorage.getItem('wallet_balance') || '0');
-        const new_balance = current_local_balance + amount;
-        localStorage.setItem('wallet_balance', new_balance.toString());
-
-        this.broadcastBalance(new_balance);
-        return;
+        console.error("Backend deposit failed:", apiError);
+        throw new Error("Failed to deposit funds. Please ensure the backend is running.");
       }
 
     } catch (error) {

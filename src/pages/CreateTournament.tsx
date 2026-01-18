@@ -120,7 +120,7 @@ const CreateTournament = () => {
             })
 
             setTimeout(() => {
-                navigate(`/arena/host-dashboard`)
+                navigate(`/arena/${gameId}`)
             }, 1500)
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Broadcast Failed', {
@@ -318,7 +318,7 @@ const CreateTournament = () => {
                                             value={formData.entryFee}
                                             onChange={(e) => setFormData({ ...formData, entryFee: parseInt(e.target.value) })}
                                             min="0"
-                                            step="50"
+                                            step="1"
                                             className={inputClasses}
                                             required
                                         />

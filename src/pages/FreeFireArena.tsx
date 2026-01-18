@@ -20,7 +20,7 @@ const FreeFireArena = () => {
     // Sync tab with URL param if it changes
     useEffect(() => {
         const status = searchParams.get('status')
-        if (status && ['upcoming', 'ongoing', 'completed'].includes(status)) {
+        if (status && ['upcoming', 'live', 'completed'].includes(status)) {
             setActiveTab(status)
         }
     }, [searchParams])
@@ -65,7 +65,7 @@ const FreeFireArena = () => {
 
     const tabs = [
         { id: 'upcoming', label: 'Upcoming', icon: Calendar },
-        { id: 'ongoing', label: 'Live Now', icon: Flame },
+        { id: 'live', label: 'Live Now', icon: Flame },
         { id: 'completed', label: 'Completed', icon: CheckCircle },
     ]
 

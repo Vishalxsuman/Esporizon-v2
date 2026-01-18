@@ -12,7 +12,7 @@ const MyTournaments = () => {
     const navigate = useNavigate()
     const [tournaments, setTournaments] = useState<Tournament[]>([])
     const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'upcoming' | 'ongoing' | 'completed'>('upcoming')
+    const [activeTab, setActiveTab] = useState<'upcoming' | 'live' | 'completed'>('upcoming')
 
     useEffect(() => {
         if (!user) {
@@ -40,14 +40,14 @@ const MyTournaments = () => {
 
     const filteredTournaments = tournaments.filter((t) => {
         if (activeTab === 'upcoming') return t.status === 'upcoming'
-        if (activeTab === 'ongoing') return t.status === 'ongoing'
+        if (activeTab === 'live') return t.status === 'live'
         if (activeTab === 'completed') return t.status === 'completed'
         return true
     })
 
     const stats = {
         upcoming: tournaments.filter(t => t.status === 'upcoming').length,
-        ongoing: tournaments.filter(t => t.status === 'ongoing').length,
+        live: tournaments.filter(t => t.status === 'live').length,
         completed: tournaments.filter(t => t.status === 'completed').length,
         total: tournaments.length
     }
@@ -90,7 +90,7 @@ const MyTournaments = () => {
                 >
                     <StatsCard icon={<Trophy className="w-5 h-5" />} label="Total" value={stats.total} color="teal" />
                     <StatsCard icon={<Calendar className="w-5 h-5" />} label="Upcoming" value={stats.upcoming} color="teal" />
-                    <StatsCard icon={<Target className="w-5 h-5" />} label="Ongoing" value={stats.ongoing} color="red" />
+                    <StatsCard icon={<Target className="w-5 h-5" />} label="Live" value={stats.live} color="red" />
                     <StatsCard icon={<Award className="w-5 h-5" />} label="Completed" value={stats.completed} color="zinc" />
                 </motion.div>
 
@@ -102,7 +102,7 @@ const MyTournaments = () => {
                     className="mb-8"
                 >
                     <div className="flex justify-center gap-8 border-b border-zinc-800/50 max-w-md mx-auto">
-                        {['upcoming', 'ongoing', 'completed'].map((tab) => (
+                        {['upcoming', 'live', 'completed'].map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab as any)}
@@ -165,7 +165,7 @@ const MyTournaments = () => {
                             <h3 className="text-zinc-400 font-bold mb-2">No {activeTab} tournaments</h3>
                             <p className="text-zinc-600 text-sm mb-6">
                                 {activeTab === 'upcoming' && "You haven't joined any upcoming tournaments yet"}
-                                {activeTab === 'ongoing' && "You don't have any active tournaments right now"}
+                                {activeTab === 'live' && "You don't have any active tournaments right now"}
                                 {activeTab === 'completed' && "You haven't completed any tournaments yet"}
                             </p>
                             <button

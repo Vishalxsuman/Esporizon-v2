@@ -28,7 +28,7 @@ export interface Tournament {
     }
 
     // Status
-    status: 'upcoming' | 'ongoing' | 'completed' | 'cancelled'
+    status: 'upcoming' | 'live' | 'completed' | 'cancelled'
 
     // Meta
     createdAt: string
@@ -155,7 +155,7 @@ export interface ResultEntry {
 // Advanced Filtering
 export interface TournamentFilters {
     gameId?: string[]
-    status?: ('upcoming' | 'ongoing' | 'completed')[]
+    status?: ('upcoming' | 'live' | 'completed')[]
     mode?: ('solo' | 'duo' | 'squad')[]
     entryType?: 'free' | 'paid' | 'all'
     minPrize?: number

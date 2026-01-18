@@ -30,7 +30,7 @@ const TournamentCard = ({ tournament, index = 0 }: TournamentCardProps) => {
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'ongoing':
+            case 'live':
                 return {
                     bg: 'bg-red-500/10',
                     text: 'text-red-500',
@@ -102,8 +102,8 @@ const TournamentCard = ({ tournament, index = 0 }: TournamentCardProps) => {
             }
         }
 
-        // Ongoing tournament - can still join
-        if (tournament.status === 'ongoing') {
+        // Live tournament - can still join
+        if (tournament.status === 'live') {
             return {
                 text: 'Join Match',
                 color: 'bg-red-500 hover:bg-red-400',

@@ -43,7 +43,7 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 ```
 
-2. **Backend (backend-standalone/.env)**
+2. **Backend (backend/.env)**
 ```env
 PORT=5000
 MONGODB_URI=mongodb://localhost:27017/esporizon
@@ -60,8 +60,8 @@ NODE_ENV=development
 mongod
 
 # Terminal 2: Start Backend
-cd backend-standalone
-npm start
+cd backend
+npm run dev
 
 # Terminal 3: Start Frontend
 npm run dev
@@ -123,11 +123,12 @@ esporizon/
 │   ├── contexts/          # React context providers
 │   ├── types/             # TypeScript type definitions
 │   └── config/            # Configuration files
-├── backend-standalone/
+├── backend/
 │   ├── src/
-│   │   ├── models/        #  MongoDB schemas
+│   │   ├── models/        # MongoDB schemas
 │   │   ├── controllers/   # Request handlers
 │   │   ├── routes/        # API routes
+│   │   ├── services/      # Business logic
 │   │   ├── middleware/    # Authentication, validation
 │   │   └── utils/         # Helper functions
 │   └── server.js          # Express server entry
@@ -187,15 +188,18 @@ esporizon/
 
 ## 🔄 API Endpoints
 
-See [Backend README](./backend-standalone/README.md) for complete API documentation.
+See [Backend README](./backend/README.md) for complete API documentation.
 
 ### Key Endpoints
-- `POST /api/tournaments` - Create tournament
-- `POST /api/tournaments/:id/register` - Register for tournament
-- `POST /api/results/publish` - Publish results (auto-credits wallets)
-- `GET /api/wallet` - Get wallet balance
-- `POST /api/reports` - Create dispute report
-- `GET /api/host/reports` - View player reports
+- `GET /wallet` - Get user wallet balance
+- `POST /wallet/deposit` - Deposit funds to wallet
+- `POST /wallet/withdraw` - Request withdrawal from wallet
+- `GET /wallet/transactions` - Get transaction history
+- `POST /tournaments` - Create tournament
+- `POST /tournaments/:id/register` - Register for tournament
+- `POST /results/publish` - Publish results (auto-credits wallets)
+- `POST /reports` - Create dispute report
+- `GET /host/reports` - View player reports
 
 ## 🧪 Testing
 
@@ -223,7 +227,7 @@ npm run build
 npm run preview
 
 # Build backend
-cd backend-standalone
+cd backend
 npm run build
 ```
 

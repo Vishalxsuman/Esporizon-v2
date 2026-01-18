@@ -25,6 +25,7 @@ app.use((req, res, next) => {
 });
 
 // Routes
+app.use('/wallet', require('./routes/wallet.routes'));
 app.use('/tournaments', require('./routes/tournament.routes'));
 app.use('/host', require('./routes/host.routes'));
 app.use('/player', require('./routes/player.routes'));

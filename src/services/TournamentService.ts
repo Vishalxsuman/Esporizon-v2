@@ -26,7 +26,7 @@ class TournamentService {
         })
     }
 
-    async getTournaments(gameId?: string, filter: 'upcoming' | 'ongoing' | 'completed' = 'upcoming'): Promise<Tournament[]> {
+    async getTournaments(gameId?: string, filter: 'upcoming' | 'live' | 'completed' = 'upcoming'): Promise<Tournament[]> {
         await new Promise((resolve) => setTimeout(resolve, 300))
         return this.getMockTournaments(gameId, filter)
     }
@@ -98,7 +98,7 @@ class TournamentService {
             entryFee: 500,
             prizePool: 50000,
             prizeDistribution: { first: 25000, second: 15000, third: 10000 },
-            status: 'ongoing',
+            status: 'live',
             createdAt: now.toISOString(),
             updatedAt: now.toISOString(),
             format: 'squad',
@@ -169,7 +169,7 @@ class TournamentService {
             entryFee: 0,
             prizePool: 2000,
             prizeDistribution: { first: 1000, second: 600, third: 400 },
-            status: 'ongoing',
+            status: 'live',
             createdAt: now.toISOString(),
             updatedAt: now.toISOString(),
             format: 'squad',
