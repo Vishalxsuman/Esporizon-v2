@@ -73,8 +73,10 @@ const WalletPage = () => {
 
         try {
             if (modalType === 'add') {
-                await walletService.addFunds(amount, userId)
-                toast.success(`₹${amount} Added to Deployment Fund`)
+                // Temporary: Directly add 500 as requested
+                const amountToAdd = 500;
+                await walletService.addFunds(amountToAdd, userId)
+                toast.success(`₹${amountToAdd} Added to Deployment Fund`)
             } else {
                 await walletService.withdrawFunds(amount, userId, { method: 'default' })
                 toast.success(`Withdrawal Request of ₹${amount} Submitted`)

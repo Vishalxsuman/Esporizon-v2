@@ -1,0 +1,29 @@
+const mongoose = require('mongoose');
+
+const userSchema = new mongoose.Schema({
+    id: {
+        type: String,
+        required: true,
+        unique: true
+    },
+    username: {
+        type: String,
+        required: true,
+        trim: true,
+        minlength: 3,
+        maxlength: 30
+    },
+    role: {
+        type: String,
+        enum: ['player', 'host', 'admin'],
+        default: 'player'
+    },
+    subscriptionActive: {
+        type: Boolean,
+        default: false
+    }
+}, {
+    timestamps: true
+});
+
+module.exports = mongoose.model('User', userSchema);

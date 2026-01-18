@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, X } from 'lucide-react'
-import { useUser } from '@clerk/clerk-react'
+import { useAuth } from '@/contexts/AuthContext'
 import { notificationService } from '@/services/NotificationService'
 import type { Notification } from '@/types/match'
 import { useNavigate } from 'react-router-dom'
 
 const NotificationBell = () => {
-    const { user } = useUser()
+    const { user } = useAuth()
     const navigate = useNavigate()
     const [unreadCount, setUnreadCount] = useState(0)
     const [notifications, setNotifications] = useState<Notification[]>([])

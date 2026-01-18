@@ -1,22 +1,22 @@
 import { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn } from '@clerk/clerk-react'
 import { ThemeProvider } from './contexts/ThemeContext'
 import { AuthProvider } from './contexts/AuthContext'
+import { WalletProvider } from './contexts/WalletContext'
 import Navigation from './components/Navigation'
+import ProtectedRoute from './components/ProtectedRoute'
 
-const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY
 
-// Lazy load pages for code splitting (improves LCP)
+// lazy load pages for code splitting (improves LCP)
 const LandingPage = lazy(() => import('./pages/LandingPage'))
 const AuthPage = lazy(() => import('./pages/AuthPage'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const TournamentGrid = lazy(() => import('./pages/TournamentGrid'))
-const ColorPrediction = lazy(() => import('./pages/ColorPrediction'))
 const TournamentList = lazy(() => import('./pages/TournamentList'))
 const CreateTournament = lazy(() => import('./pages/CreateTournament'))
 const TournamentDetails = lazy(() => import('./pages/TournamentDetails'))
-const SocialPage = lazy(() => import('./pages/SocialPage'))
+// const SocialPage = lazy(() => import('./pages/SocialPage'))
+const WarRoomPage = lazy(() => import('./pages/WarRoomPage'))
 const WalletPage = lazy(() => import('./pages/WalletPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
 const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'))
@@ -25,6 +25,19 @@ const CreateMatch = lazy(() => import('./pages/CreateMatch'))
 const MatchLobby = lazy(() => import('./pages/MatchLobby'))
 const GameRouter = lazy(() => import('./pages/GameRouter'))
 const PublicLobbies = lazy(() => import('./pages/PublicLobbies'))
+const FreeFireArena = lazy(() => import('./pages/FreeFireArena'))
+const BGMIArena = lazy(() => import('./pages/BGMIArena'))
+const ValorantArena = lazy(() => import('./pages/ValorantArena'))
+const MinecraftArena = lazy(() => import('./pages/MinecraftArena'))
+const HostDashboard = lazy(() => import('./pages/HostDashboard'))
+const SubscriptionBenefits = lazy(() => import('./pages/SubscriptionBenefits'))
+const SubscriptionPurchase = lazy(() => import('./pages/HostSubscriptionPurchase'))
+const TournamentManage = lazy(() => import('./pages/TournamentManage'))
+const HostProfile = lazy(() => import('./pages/HostProfile'))
+const TournamentResultsPage = lazy(() => import('./pages/TournamentResultsPage'))
+const MyTournaments = lazy(() => import('./pages/MyTournaments'))
+const HostReports = lazy(() => import('./pages/HostReports'))
+const HostWallet = lazy(() => import('./pages/HostWallet'))
 
 // Loading component for suspense
 const PageLoader = () => (
@@ -34,116 +47,196 @@ const PageLoader = () => (
 )
 
 function App() {
-  if (!PUBLISHABLE_KEY) {
-    return (
-      <div className="min-h-screen bg-neutral-950 flex items-center justify-center p-4">
-        <div className="bg-red-500/10 border border-red-500/50 rounded-2xl p-8 max-w-md text-center">
-          <h1 className="text-2xl font-bold text-red-500 mb-4">Configuration Error</h1>
-          <p className="text-gray-300 mb-6">The Clerk Publishable Key is missing from the environment variables.</p>
-          <div className="bg-black/50 p-4 rounded-lg text-left text-sm font-mono text-gray-400 overflow-x-auto">
-            VITE_CLERK_PUBLISHABLE_KEY is undefined
-          </div>
-          <p className="text-gray-500 text-sm mt-6">Please add this secret to your GitHub Repository Settings.</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      <ThemeProvider>
-        <AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <WalletProvider>
           <Router basename={import.meta.env.BASE_URL}>
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<LandingPage />} />
-                <Route path="/auth" element={
-                  <>
-                    <SignedIn>
-                      <Navigate to="/dashboard" replace />
-                    </SignedIn>
-                    <SignedOut>
-                      <AuthPage />
-                    </SignedOut>
-                  </>
-                } />
+                <Route path="/auth" element={<AuthPage />} />
 
                 {/* Protected Routes */}
                 <Route
+                  path="/host/dashboard"
+                  element={
+                    <ProtectedRoute>
+                      <HostDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/host/reports"
+                  element={
+                    <ProtectedRoute>
+                      <HostReports />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/host/wallet"
+                  element={
+                    <ProtectedRoute>
+                      <HostWallet />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
                   path="/dashboard"
                   element={
-                    <>
-                      <SignedIn><Dashboard /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <Dashboard />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/tournaments"
                   element={
-                    <>
-                      <SignedIn><TournamentGrid /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <TournamentGrid />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/arena/freefire"
+                  element={
+                    <ProtectedRoute>
+                      <FreeFireArena />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
-                  path="/predict"
+                  path="/arena/bgmi"
                   element={
-                    <>
-                      <SignedIn><ColorPrediction /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <BGMIArena />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/arena/valorant"
+                  element={
+                    <ProtectedRoute>
+                      <ValorantArena />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/arena/minecraft"
+                  element={
+                    <ProtectedRoute>
+                      <MinecraftArena />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route path="/host/dashboard" element={
+                  <ProtectedRoute>
+                    <HostDashboard />
+                  </ProtectedRoute>
+                } />
+                <Route path="/host/benefits" element={
+                  <ProtectedRoute>
+                    <SubscriptionBenefits />
+                  </ProtectedRoute>
+                } />
+                <Route path="/host/subscribe" element={
+                  <ProtectedRoute>
+                    <SubscriptionPurchase />
+                  </ProtectedRoute>
+                } />
+                <Route
+                  path="/arena/manage"
+                  element={
+                    <ProtectedRoute>
+                      <TournamentManage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/host/manage"
+                  element={
+                    <ProtectedRoute>
+                      <TournamentManage />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/tournaments/:gameId"
                   element={
-                    <>
-                      <SignedIn><TournamentList /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <TournamentList />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
-                  path="/tournaments/:gameId/create"
+                  path="/host/create/:gameId"
                   element={
-                    <>
-                      <SignedIn><CreateTournament /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <CreateTournament />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/tournament/:id"
                   element={
-                    <>
-                      <SignedIn><TournamentDetails /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <TournamentDetails />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/tournament/:id/results"
+                  element={
+                    <ProtectedRoute>
+                      <TournamentResultsPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/host/:id"
+                  element={
+                    <ProtectedRoute>
+                      <HostProfile />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/my-tournaments"
+                  element={
+                    <ProtectedRoute>
+                      <MyTournaments />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/social"
                   element={
-                    <>
-                      <SignedIn><SocialPage /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <WarRoomPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/war-room"
+                  element={
+                    <ProtectedRoute>
+                      <WarRoomPage />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/wallet"
                   element={
-                    <>
-                      <SignedIn><WalletPage /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <WalletPage />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/create-post"
-                  element={<Navigate to="/social" replace />}
+                  element={<Navigate to="/war-room" replace />}
                 />
                 <Route
                   path="/play"
@@ -152,10 +245,9 @@ function App() {
                 <Route
                   path="/play/create"
                   element={
-                    <>
-                      <SignedIn><CreateMatch /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <CreateMatch />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
@@ -174,55 +266,49 @@ function App() {
                 <Route
                   path="/notifications"
                   element={
-                    <>
-                      <SignedIn><PlaceholderPage title="Notifications" /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <PlaceholderPage title="Notifications" />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/earnings"
                   element={
-                    <>
-                      <SignedIn><PlaceholderPage title="Earnings" /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <PlaceholderPage title="Earnings" />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/support"
                   element={
-                    <>
-                      <SignedIn><PlaceholderPage title="Support" /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <PlaceholderPage title="Support" />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/profile"
                   element={
-                    <>
-                      <SignedIn><ProfilePage /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/profile/:userId"
                   element={
-                    <>
-                      <SignedIn><ProfilePage /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
                   }
                 />
                 <Route
                   path="/settings"
                   element={
-                    <>
-                      <SignedIn><ProfilePage /></SignedIn>
-                      <SignedOut><RedirectToSignIn /></SignedOut>
-                    </>
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
                   }
                 />
                 <Route path="*" element={<Navigate to="/" replace />} />
@@ -230,9 +316,10 @@ function App() {
             </Suspense>
             <Navigation />
           </Router>
-        </AuthProvider>
-      </ThemeProvider>
-    </ClerkProvider>
+        </WalletProvider>
+      </AuthProvider>
+    </ThemeProvider>
+
   )
 }
 

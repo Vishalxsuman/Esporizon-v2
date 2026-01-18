@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useUser } from '@clerk/clerk-react'
+import { useAuth } from '@/contexts/AuthContext'
 import { Users, Copy, Crown, Clock, ArrowLeft, Share2, Trash2 } from 'lucide-react'
 import { matchService } from '@/services/MatchService'
 import { formatEspoCoins } from '@/utils/espoCoin'
@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 
 const MatchLobby = () => {
     const { id } = useParams<{ id: string }>()
-    const { user } = useUser()
+    const { user } = useAuth()
     const navigate = useNavigate()
 
     // Resolve User Identity (Auth or Guest)

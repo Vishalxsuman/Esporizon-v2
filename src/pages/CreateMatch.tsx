@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useUser } from '@clerk/clerk-react'
+import { useAuth } from '@/contexts/AuthContext'
 import { ArrowLeft, Users, Lock, Globe } from 'lucide-react'
 import { matchService } from '@/services/MatchService'
 import { walletService } from '@/services/WalletService'
@@ -10,7 +10,7 @@ import toast from 'react-hot-toast'
 
 const CreateMatch = () => {
     const navigate = useNavigate()
-    const { user } = useUser()
+    const { user } = useAuth()
     const [searchParams] = useSearchParams()
 
     const gameId = searchParams.get('game') as 'chess' | 'card29' || 'chess'
