@@ -1,15 +1,3 @@
-import { db } from '@/config/firebaseConfig'
-import {
-    doc,
-    getDoc,
-    updateDoc,
-    collection,
-    query,
-    where,
-    orderBy,
-    limit,
-    getDocs
-} from 'firebase/firestore'
 import {
     LFGStatus,
     LFGStatusMode,
@@ -20,10 +8,6 @@ import {
     HostMetrics
 } from '@/types/DossierTypes'
 import { userService } from './UserService'
-
-const USER_COLLECTION = 'users'
-const TOURNAMENTS_COLLECTION = 'tournaments'
-const TOURNAMENT_PARTICIPANTS_COLLECTION = 'tournamentParticipants'
 
 class DossierService {
     // ========================================
@@ -100,45 +84,36 @@ class DossierService {
         }
     }
 
+    /*
     // Real calculation logic (to be integrated with actual tournament data)
     private calculateAggressionScore(tournaments: any[]): number {
-        // Logic: Kill/Death ratio weighted
-        // Higher kills relative to deaths = higher aggression
         return 75
     }
 
     private calculateSurvivalScore(tournaments: any[]): number {
-        // Logic: Average placement / distance traveled
-        // Better placements = higher survival
         return 82
     }
 
     private calculateTeamImpactScore(tournaments: any[]): number {
-        // Logic: Assists + Revives
-        // More team actions = higher impact
         return 68
     }
 
     private calculateConsistencyScore(tournaments: any[]): number {
-        // Logic: Standard deviation of performance
-        // Lower variance = higher consistency
         return 91
     }
 
     private calculateClutchScore(tournaments: any[]): number {
-        // Logic: 1vX win rate
-        // More clutch wins = higher score
         return 77
     }
+    */
 
     // ========================================
     // TROPHY CABINET
     // ========================================
 
-    async getTrophyCabinet(userId: string): Promise<TrophyItem[]> {
+    async getTrophyCabinet(_userId: string): Promise<TrophyItem[]> {
         try {
             // Query tournaments where user placed 1st, 2nd, or 3rd
-            const trophies: TrophyItem[] = []
 
             // TODO: Replace with actual Firestore queries
             // Mock data for demonstration
@@ -176,7 +151,7 @@ class DossierService {
     // ACTIVITY TIMELINE
     // ========================================
 
-    async getActivityTimeline(userId: string, limitCount: number = 10): Promise<ActivityTimelineItem[]> {
+    async getActivityTimeline(_userId: string, limitCount: number = 10): Promise<ActivityTimelineItem[]> {
         try {
             // TODO: Query various activity sources and merge
             // For now, return mock data

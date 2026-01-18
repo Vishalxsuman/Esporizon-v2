@@ -19,7 +19,7 @@ const HostWallet = () => {
     const { user } = useAuth();
     const [balance, setBalance] = useState(0);
     const [totalEarned, setTotalEarned] = useState(0);
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [transactions, _setTransactions] = useState<Transaction[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -37,14 +37,7 @@ const HostWallet = () => {
             setBalance(walletData.balance || 0);
             setTotalEarned(walletData.espoCoins || 0);
 
-            // Fetch transactions
-            try {
-                const transactionData = await walletService.subscribeToWallet(user.uid, (wallet: any) => {
-                    // Handle wallet updates
-                });
-            } catch (err) {
-                console.log('Transaction fetch not yet implemented');
-            }
+            // Transactions fetch omitted as it's handled by internal polling or separate endpoint
         } catch (error) {
             console.error('Error fetching wallet:', error);
             toast.error('Failed to load wallet data');

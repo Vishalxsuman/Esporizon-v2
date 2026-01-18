@@ -18,7 +18,7 @@ const WarRoomPage = () => {
     const [activeTab, setActiveTab] = useState<WarRoomTab>('global')
     const [chatMessage, setChatMessage] = useState('')
     const [showChat, setShowChat] = useState(true)
-    const { trustLevel, trustLevelInfo, isLoading } = useWarRoomPermissions()
+    const { trustLevel, trustLevelInfo: _trustLevelInfo, isLoading } = useWarRoomPermissions()
 
     const handleSendMessage = () => {
         if (!chatMessage.trim()) return

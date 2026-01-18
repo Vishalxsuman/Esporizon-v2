@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Shield, Star, Trophy, Users, TrendingUp, CheckCircle, Clock, Award, MessageSquare, Calendar } from 'lucide-react'
+import { ArrowLeft, Shield, Star, Trophy, TrendingUp, CheckCircle, Clock, Award, MessageSquare, Calendar } from 'lucide-react'
 import TournamentCard from '@/components/TournamentCard'
 import HostRatingModal from '@/components/HostRatingModal'
 import { HostProfile as HostProfileType, Tournament } from '@/types/tournament'
@@ -205,8 +205,8 @@ const HostProfile = () => {
                                             <Star
                                                 key={star}
                                                 className={`w-5 h-5 ${star <= Math.round(host.rating)
-                                                        ? 'fill-yellow-500 text-yellow-500'
-                                                        : 'text-zinc-700'
+                                                    ? 'fill-yellow-500 text-yellow-500'
+                                                    : 'text-zinc-700'
                                                     }`}
                                             />
                                         ))}
@@ -335,8 +335,8 @@ const HostProfile = () => {
                                                 <Star
                                                     key={star}
                                                     className={`w-3 h-3 ${star <= rating.rating
-                                                            ? 'fill-yellow-500 text-yellow-500'
-                                                            : 'text-zinc-700'
+                                                        ? 'fill-yellow-500 text-yellow-500'
+                                                        : 'text-zinc-700'
                                                         }`}
                                                 />
                                             ))}
