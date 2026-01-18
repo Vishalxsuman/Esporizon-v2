@@ -1,5 +1,5 @@
 # Dependencies
-node_modules/
+node_modules
 .pnp
 .pnp.js
 
@@ -11,6 +11,7 @@ dist
 build
 
 # Environment Variables
+# Environment Variables
 .env
 .env.local
 .env.development.local
@@ -21,6 +22,12 @@ build
 
 # Keep examples
 !.env.example
+
+# Firebase Service Account Keys (DO NOT COMMIT)
+serviceAccountKey.json
+server/serviceAccountKey.json
+backend-standalone/serviceAccountKey.json
+**/serviceAccountKey.json
 
 # Misc
 .DS_Store

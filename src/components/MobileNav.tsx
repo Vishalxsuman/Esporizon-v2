@@ -10,7 +10,6 @@ const MobileNav = () => {
         { icon: Home, label: 'Home', route: '/dashboard' },
         { icon: Trophy, label: 'Tournaments', route: '/tournaments' },
         { icon: PlusSquare, label: 'Intel', route: '/social', isPrimary: true },
-        { icon: Dices, label: 'Games', route: '/predict' },
         { icon: User, label: 'Profile', route: '/settings' },
     ]
 

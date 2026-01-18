@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useUser } from '@clerk/clerk-react'
+import { useAuth } from '@/contexts/AuthContext'
 import { Search, Users, ArrowLeft, Zap } from 'lucide-react'
 import { matchService } from '@/services/MatchService'
 import { walletService } from '@/services/WalletService'
@@ -11,7 +11,7 @@ import toast from 'react-hot-toast'
 
 const PublicLobbies = () => {
     const navigate = useNavigate()
-    const { user } = useUser()
+    const { user } = useAuth()
     const [lobbies, setLobbies] = useState<Match[]>([])
     const [loading, setLoading] = useState(true)
     const [filter, setFilter] = useState<'all' | 'chess' | 'card29'>('all')

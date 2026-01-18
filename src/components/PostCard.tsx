@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, forwardRef } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Heart, MessageCircle, Share2, User as UserIcon, MoreHorizontal, Lock, X } from 'lucide-react'
@@ -13,7 +13,7 @@ interface PostCardProps {
     index: number
 }
 
-const PostCard = ({ post, index }: PostCardProps) => {
+const PostCard = forwardRef<HTMLDivElement, PostCardProps>(({ post, index }, ref) => {
     const [showComments, setShowComments] = useState(false)
     const [processingLike, setProcessingLike] = useState(false)
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
@@ -73,6 +73,7 @@ const PostCard = ({ post, index }: PostCardProps) => {
 
     return (
         <motion.div
+            ref={ref}
             layout
             initial={{ opacity: 0, scale: 0.98, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -225,6 +226,8 @@ const PostCard = ({ post, index }: PostCardProps) => {
             </AnimatePresence>
         </motion.div>
     )
-}
+})
+
+PostCard.displayName = 'PostCard'
 
 export default PostCard

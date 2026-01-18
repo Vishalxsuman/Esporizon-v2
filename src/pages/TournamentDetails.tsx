@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { useAuth } from '@/contexts/AuthContext'
-import { Tournament, TournamentParticipant } from '@/types/tournament'
-import { tournamentService } from '@/services/TournamentService'
+import { useAuth } from '../contexts/AuthContext'
+import { Tournament, TournamentParticipant, RoomDetails } from '../types/tournament'
+import { tournamentService } from '../services/TournamentService'
 import toast, { Toaster } from 'react-hot-toast'
-import { Calendar, Users, Trophy, DollarSign, Clock, MapPin } from 'lucide-react'
+import { Calendar, Users, Trophy, DollarSign, Clock, MapPin, ArrowLeft, Shield, Eye } from 'lucide-react'
+import RoomDetailsModal from '../components/RoomDetailsModal'
+import JoinTournamentModal from '../components/JoinTournamentModal'
+import TournamentChatRoom from '../components/TournamentChatRoom'
 
 const TournamentDetails = () => {
     const { id } = useParams<{ id: string }>()
@@ -15,6 +18,10 @@ const TournamentDetails = () => {
     const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState(false)
     const [hasJoined, setHasJoined] = useState(false)
+    const [roomDetails, setRoomDetails] = useState<RoomDetails | null>(null)
+    const [showRoomModal, setShowRoomModal] = useState(false)
+    const [showJoinModal, setShowJoinModal] = useState(false)
+    const navigate = useNavigate();
 
     // Load tournament data
     useEffect(() => {
@@ -24,7 +31,7 @@ const TournamentDetails = () => {
             try {
                 // In our migrated architecture, tournamentService returns static data
                 const allTournaments = await tournamentService.getTournaments()
-                const found = allTournaments.find(t => t.id === id)
+                const found = allTournaments.find((t: Tournament) => t.id === id)
                 if (found) {
                     setTournament(found)
                 }
@@ -42,7 +49,7 @@ const TournamentDetails = () => {
     useEffect(() => {
         if (!id) return
 
-        tournamentService.getParticipants(id).then((data) => {
+        tournamentService.getParticipants(id).then((data: TournamentParticipant[]) => {
             setParticipants(data)
             // Check if current user has joined
             if (user) {
@@ -54,7 +61,38 @@ const TournamentDetails = () => {
         })
     }, [id, user])
 
-    const handleJoin = async () => {
+    // Check and load room details if tournament starts soon
+    useEffect(() => {
+        if (!tournament || !hasJoined) return
+
+        const checkRoomAvailability = () => {
+            const startTime = new Date(tournament.startDate).getTime()
+            const now = new Date().getTime()
+            const tenMinutes = 10 * 60 * 1000
+
+            // Room details available 10 minutes before start
+            if (startTime - now <= tenMinutes && startTime > now) {
+                // Mock room details - replace with API call
+                const mockRoom: RoomDetails = {
+                    roomId: '123456789',
+                    password: 'ESPO2026',
+                    server: 'Asia',
+                    map: tournament.mapMode || 'Bermuda',
+                    specialInstructions: 'Join the room 5 minutes before match start. Follow tournament rules strictly.',
+                    availableAt: new Date(startTime - tenMinutes),
+                    isAvailable: true
+                }
+                setRoomDetails(mockRoom)
+            }
+        }
+
+        checkRoomAvailability()
+        const interval = setInterval(checkRoomAvailability, 30000) // Check every 30 seconds
+
+        return () => clearInterval(interval)
+    }, [tournament, hasJoined])
+
+    const handleJoin = async (teamName: string, players: any[]) => {
         if (!user) {
             toast.error('Please sign in to join tournaments')
             return
@@ -62,28 +100,30 @@ const TournamentDetails = () => {
 
         if (!tournament) return
 
-        // Prompt for Team Name (Optional but good for UX)
-        const teamName = window.prompt('Enter your Team Name (Optional):', user.displayName || 'My Team')
-
         setActionLoading(true)
         try {
-            console.log('Joining tournament:', id, 'User:', user.id)
+            console.log('Joining tournament:', id, 'Team:', teamName, 'Players:', players)
             await tournamentService.joinTournament(id!, {
-                teamName: teamName || (user.displayName ? `${user.displayName}'s Team` : 'Anonymous Team'),
-                players: [{ userId: user.id || user.uid || '', userName: user.displayName || 'Unknown', role: 'leader' }]
+                teamName: teamName,
+                players: players.map(p => ({
+                    userId: user.id || user.uid || '',
+                    userName: p.name,
+                    role: p.role
+                }))
             })
 
             toast.success('Successfully joined tournament!', {
                 icon: '🎉',
                 style: {
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'rgba(20, 184, 166, 0.1)',
                     backdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(0, 255, 194, 0.3)',
+                    border: '1px solid rgba(20, 184, 166, 0.3)',
                     color: '#fff',
                 },
             })
 
             setHasJoined(true)
+            setShowJoinModal(false)
             // Reload participants
             const data = await tournamentService.getParticipants(id!)
             setParticipants(data)
@@ -117,9 +157,9 @@ const TournamentDetails = () => {
             toast.success('Left tournament. Entry fee refunded.', {
                 icon: '✅',
                 style: {
-                    background: 'rgba(255, 255, 255, 0.05)',
+                    background: 'rgba(20, 184, 166, 0.1)',
                     backdropFilter: 'blur(16px)',
-                    border: '1px solid rgba(0, 255, 194, 0.3)',
+                    border: '1px solid rgba(20, 184, 166, 0.3)',
                     color: '#fff',
                 },
             })
@@ -131,6 +171,12 @@ const TournamentDetails = () => {
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Failed to leave tournament', {
                 icon: '❌',
+                style: {
+                    background: 'rgba(255, 75, 43, 0.1)',
+                    backdropFilter: 'blur(16px)',
+                    border: '1px solid rgba(255, 75, 43, 0.3)',
+                    color: '#fff',
+                },
             })
         } finally {
             setActionLoading(false)
@@ -153,8 +199,8 @@ const TournamentDetails = () => {
 
     if (loading || !tournament) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{ background: '#09090b' }}>
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: '#00ffc2' }}></div>
+            <div className="min-h-screen flex items-center justify-center bg-black">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500"></div>
             </div>
         )
     }
@@ -167,45 +213,90 @@ const TournamentDetails = () => {
     const canJoin = !hasJoined && !isFull && !isDeadlinePassed && tournament.status === 'upcoming'
 
     return (
-        <div className="min-h-screen py-6 px-4" style={{ background: '#09090b' }}>
+        <div className="min-h-screen bg-black pb-24 animate-fadeIn bg-cyber-grid bg-fixed overflow-x-hidden">
             <Toaster position="top-center" />
 
-            <div className="max-w-5xl mx-auto">
+            {/* Background Atmosphere Layers */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-teal-500/10 blur-[120px] opacity-50" />
+                <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-cyan-600/5 blur-[100px] opacity-30" />
+            </div>
+
+            <div className="relative px-5 pt-8 pb-6 z-10 max-w-5xl mx-auto">
                 {/* Header */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mb-6"
+                    className="mb-8"
                 >
-                    <Link to={`/tournaments/${tournament.gameId}`} className="text-sm text-gray-400 hover:text-white mb-2 inline-block">
-                        ← Back to {tournament.gameName} Tournaments
-                    </Link>
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                        <div>
-                            <h1 className="text-3xl font-bold mb-2">{tournament.title}</h1>
-                            <div className="flex items-center gap-3">
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold ${tournament.status === 'upcoming' ? 'bg-blue-500/20 text-blue-400' :
-                                    tournament.status === 'ongoing' ? 'bg-green-500/20 text-green-400' :
-                                        'bg-gray-500/20 text-gray-400'
+                    <button
+                        onClick={() => navigate(`/tournaments`)}
+                        className="flex items-center gap-2 text-zinc-500 hover:text-white transition-all mb-7 group"
+                    >
+                        <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        <span className="text-[11px] font-black uppercase tracking-[0.2em]">Exit Briefing</span>
+                    </button>
+
+                    <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-3">
+                                <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[9px] font-black tracking-widest uppercase border ${tournament.status === 'ongoing'
+                                    ? 'bg-red-500/10 text-red-500 border-red-500/20 animate-pulse'
+                                    : tournament.status === 'upcoming'
+                                        ? 'bg-teal-500/10 text-teal-500 border-teal-500/20'
+                                        : 'bg-zinc-800 text-zinc-500 border-white/10'
                                     }`}>
-                                    {tournament.status.toUpperCase()}
-                                </span>
-                                <span className="text-sm font-medium uppercase" style={{ color: '#00ffc2' }}>
-                                    {tournament.format}
-                                </span>
+                                    <div className={`w-1 h-1 rounded-full ${tournament.status === 'ongoing' ? 'bg-red-500' : 'bg-current'}`} />
+                                    {tournament.status}
+                                </div>
+                                <div className="text-[9px] font-black text-teal-500 uppercase tracking-[0.3em]">
+                                    {tournament.format} SYSTEM
+                                </div>
                             </div>
+                            <h1 className="text-4xl font-black text-white tracking-tighter italic leading-none">
+                                {tournament.title.toUpperCase()}<span className="text-teal-500 italic text-5xl">.</span>
+                            </h1>
+
+                            {/* Host Info */}
+                            <Link
+                                to={`/host/${tournament.organizerId}`}
+                                className="flex items-center gap-2 mt-3 w-fit px-3 py-1.5 rounded-lg bg-zinc-900/60 border border-white/5 hover:border-teal-500/30 transition-all group"
+                            >
+                                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 border border-teal-500/20 flex items-center justify-center text-[10px] font-black text-teal-400">
+                                    {tournament.organizerName?.charAt(0).toUpperCase() || 'H'}
+                                </div>
+                                <div>
+                                    <p className="text-[10px] font-black text-zinc-400 group-hover:text-teal-400 uppercase tracking-wide transition-colors">
+                                        Hosted by {tournament.organizerName}
+                                    </p>
+                                </div>
+                                <Eye className="w-3 h-3 text-zinc-600 group-hover:text-teal-400 transition-colors" />
+                            </Link>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex gap-3">
+                        <div className="flex flex-col gap-3">
+                            {/* Room Details Button (if available) */}
+                            {roomDetails && hasJoined && (
+                                <button
+                                    onClick={() => setShowRoomModal(true)}
+                                    className="relative group overflow-hidden bg-yellow-500 hover:bg-yellow-400 rounded-2xl px-8 py-4 shadow-[0_0_30px_rgba(234,179,8,0.3)] transition-all active:scale-[0.98] animate-pulse"
+                                >
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                    <span className="relative text-sm font-black tracking-[0.2em] text-black">VIEW ROOM DETAILS</span>
+                                </button>
+                            )}
+
                             {canJoin && (
                                 <button
-                                    onClick={handleJoin}
+                                    onClick={() => setShowJoinModal(true)}
                                     disabled={actionLoading}
-                                    className="px-6 py-3 rounded-lg font-bold transition-all disabled:opacity-50"
-                                    style={{ background: 'linear-gradient(135deg, #00ffc2 0%, #7c3aed 100%)', color: '#09090b' }}
+                                    className="relative group overflow-hidden bg-teal-500 hover:bg-teal-400 rounded-2xl px-8 py-4 shadow-[0_0_30px_rgba(20,184,166,0.3)] transition-all active:scale-[0.98]"
                                 >
-                                    {actionLoading ? 'Joining...' : `Join (₹${tournament.entryFee})`}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                    <span className="relative text-sm font-black tracking-[0.2em] text-black">
+                                        {actionLoading ? 'JOINING...' : 'JOIN TOURNAMENT'}
+                                    </span>
                                 </button>
                             )}
 
@@ -213,151 +304,196 @@ const TournamentDetails = () => {
                                 <button
                                     onClick={handleLeave}
                                     disabled={actionLoading}
-                                    className="px-6 py-3 glass-card-premium font-bold hover:bg-red-500/20 transition-all"
+                                    className="relative group overflow-hidden bg-zinc-900 border border-white/10 rounded-2xl px-8 py-4 shadow-2xl transition-all active:scale-[0.98]"
                                 >
-                                    {actionLoading ? 'Leaving...' : 'Leave Tournament'}
+                                    <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/10 to-red-500/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                                    <span className="relative text-sm font-black tracking-[0.2em] text-zinc-400 group-hover:text-red-400">
+                                        {actionLoading ? 'ABORTING...' : 'ABORT DEPLOYMENT'}
+                                    </span>
                                 </button>
                             )}
                         </div>
                     </div>
                 </motion.div>
 
-                {/* Stats Cards */}
+                {/* Stats Cards - Glass Shelf Style */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.1 }}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6"
+                    className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
                 >
-                    <div className="glass-card-premium">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Trophy className="w-4 h-4" style={{ color: '#00ffc2' }} />
-                            <p className="text-xs text-gray-400">Prize Pool</p>
-                        </div>
-                        <p className="text-2xl font-bold" style={{ color: '#00ffc2' }}>₹{tournament.prizePool.toLocaleString('en-IN')}</p>
-                    </div>
-
-                    <div className="glass-card-premium">
-                        <div className="flex items-center gap-2 mb-1">
-                            <DollarSign className="w-4 h-4" style={{ color: '#00ffc2' }} />
-                            <p className="text-xs text-gray-400">Entry Fee</p>
-                        </div>
-                        <p className="text-2xl font-bold">₹{tournament.entryFee}</p>
-                    </div>
-
-                    <div className="glass-card-premium">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Users className="w-4 h-4" style={{ color: '#00ffc2' }} />
-                            <p className="text-xs text-gray-400">Teams</p>
-                        </div>
-                        <p className="text-2xl font-bold">{tournament.currentTeams}/{tournament.maxTeams}</p>
-                    </div>
-
-                    <div className="glass-card-premium">
-                        <div className="flex items-center gap-2 mb-1">
-                            <Calendar className="w-4 h-4" style={{ color: '#00ffc2' }} />
-                            <p className="text-xs text-gray-400">Matches</p>
-                        </div>
-                        <p className="text-2xl font-bold">{tournament.totalMatches}</p>
-                    </div>
+                    <DetailStat label="Bounty Pool" value={`₹${tournament.prizePool.toLocaleString('en-IN')}`} icon={<Trophy className="w-4 h-4" />} isAccent />
+                    <DetailStat label="Entry Tax" value={`₹${tournament.entryFee}`} icon={<DollarSign className="w-4 h-4" />} />
+                    <DetailStat label="Units" value={`${tournament.currentTeams}/${tournament.maxTeams}`} icon={<Users className="w-4 h-4" />} />
+                    <DetailStat label="Engagements" value={tournament.totalMatches} icon={<Calendar className="w-4 h-4" />} />
                 </motion.div>
 
-                {/* About */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="glass-card-premium mb-6"
-                >
-                    <h2 className="text-xl font-bold mb-4">About</h2>
-                    <p className="text-gray-300 mb-4">{tournament.description}</p>
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Main Content */}
+                    <div className="lg:col-span-2 space-y-8">
+                        {/* About */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.2 }}
+                            className="relative rounded-[2.5rem] bg-zinc-900/40 backdrop-blur-3xl border border-white/5 p-8 shadow-2xl"
+                        >
+                            <h2 className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em] mb-6">Mission Briefing</h2>
+                            <p className="text-zinc-400 font-bold text-sm leading-relaxed mb-8">{tournament.description}</p>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-center gap-3">
-                            <Calendar className="w-5 h-5" style={{ color: '#00ffc2' }} />
-                            <div>
-                                <p className="text-xs text-gray-400">Start Date</p>
-                                <p className="font-semibold">{formatDate(tournament.startDate)}</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <InfoItem icon={<Calendar className="w-5 h-5" />} label="Launch Date" value={formatDate(tournament.startDate)} />
+                                <InfoItem icon={<Clock className="w-5 h-5" />} label="Lockdown" value={formatDate(tournament.registrationDeadline)} />
+                                <InfoItem icon={<MapPin className="w-5 h-5" />} label="Tactical Map" value={tournament.mapMode} />
+                                <InfoItem icon={<Trophy className="w-5 h-5" />} label="Bounty Split" value={`${tournament.prizeDistribution.first}% / ${tournament.prizeDistribution.second}% / ${tournament.prizeDistribution.third}%`} />
                             </div>
-                        </div>
+                        </motion.div>
 
-                        <div className="flex items-center gap-3">
-                            <Clock className="w-5 h-5" style={{ color: '#00ffc2' }} />
-                            <div>
-                                <p className="text-xs text-gray-400">Registration Deadline</p>
-                                <p className="font-semibold">{formatDate(tournament.registrationDeadline)}</p>
-                            </div>
-                        </div>
+                        {/* Participants */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="relative rounded-[2.5rem] bg-zinc-900/40 backdrop-blur-3xl border border-white/5 p-8 shadow-2xl"
+                        >
+                            <h2 className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em] mb-6">Registered Units ({participants.length})</h2>
 
-                        <div className="flex items-center gap-3">
-                            <MapPin className="w-5 h-5" style={{ color: '#00ffc2' }} />
-                            <div>
-                                <p className="text-xs text-gray-400">Map/Mode</p>
-                                <p className="font-semibold">{tournament.mapMode}</p>
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                            <Trophy className="w-5 h-5" style={{ color: '#00ffc2' }} />
-                            <div>
-                                <p className="text-xs text-gray-400">Prize Distribution</p>
-                                <p className="font-semibold">
-                                    {tournament.prizeDistribution.first}% / {tournament.prizeDistribution.second}% / {tournament.prizeDistribution.third}%
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </motion.div>
-
-                {/* Participants */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 }}
-                    className="glass-card-premium"
-                >
-                    <h2 className="text-xl font-bold mb-4">Participants ({participants.length})</h2>
-
-                    {participants.length === 0 ? (
-                        <div className="text-center py-8 text-gray-400">
-                            <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                            <p>No participants yet. Be the first to join!</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-2">
-                            {participants.map((participant, idx) => (
-                                <div
-                                    key={participant.id}
-                                    className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm"
-                                            style={{ background: 'linear-gradient(135deg, #00ffc2 0%, #7c3aed 100%)', color: '#09090b' }}>
-                                            {idx + 1}
-                                        </div>
-                                        <div>
-                                            <p className="font-semibold">
-                                                {participant.teamName || participant.players[0]?.userName || 'Unknown'}
-                                            </p>
-                                            <p className="text-xs text-gray-400">
-                                                {participant.players.length} {participant.players.length === 1 ? 'player' : 'players'}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {user?.uid === participant.players[0]?.userId && (
-                                        <span className="px-2 py-1 rounded text-xs font-bold" style={{ background: '#00ffc2', color: '#09090b' }}>
-                                            YOU
-                                        </span>
-                                    )}
+                            {participants.length === 0 ? (
+                                <div className="text-center py-12 text-zinc-600">
+                                    <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                                    <p className="text-xs font-black tracking-widest uppercase">No units deployed yet</p>
                                 </div>
-                            ))}
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {participants.map((participant, idx) => (
+                                        <div
+                                            key={participant.id}
+                                            className="flex items-center justify-between p-4 bg-zinc-950/40 rounded-2xl border border-white/5 hover:border-teal-500/20 transition-all group/unit"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-teal-500/20 flex items-center justify-center font-black text-teal-500 group-hover/unit:scale-110 transition-transform">
+                                                    {idx + 1}
+                                                </div>
+                                                <div>
+                                                    <p className="font-black text-white text-xs uppercase tracking-tight">
+                                                        {participant.teamName || participant.players[0]?.userName || 'Unknown'}
+                                                    </p>
+                                                    <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest">
+                                                        {participant.players.length} UNIT {participant.players.length === 1 ? 'MEMBER' : 'MEMBERS'}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {user?.uid === participant.players[0]?.userId && (
+                                                <div className="px-2 py-1 rounded bg-teal-500 font-black text-[9px] text-black tracking-widest">
+                                                    YOU
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+
+                    {/* Sidebar / Rules / Trust */}
+                    <div className="space-y-6">
+                        <div className="bg-zinc-900/40 backdrop-blur-md border border-white/5 rounded-[2rem] p-6">
+                            <h3 className="text-[10px] font-black text-teal-500 uppercase tracking-[0.3em] mb-5">Engagement Rules</h3>
+                            <ul className="space-y-4">
+                                <RuleItem text="No emulators allowed" />
+                                <RuleItem text="Room ID via App & SMS" />
+                                <RuleItem text="Fair Play Monitoring active" />
+                                <RuleItem text="15m pre-launch assembly" />
+                            </ul>
                         </div>
+
+                        <div className="bg-teal-500/5 backdrop-blur-md border border-teal-500/20 rounded-[2rem] p-6">
+                            <div className="flex items-center gap-3 mb-4">
+                                <Shield className="w-5 h-5 text-teal-500" />
+                                <h3 className="text-[10px] font-black text-white uppercase tracking-[0.3em]">Secure Intel</h3>
+                            </div>
+                            <p className="text-[10px] text-zinc-400 font-bold leading-relaxed uppercase tracking-wide italic">
+                                ALL MATCHES RECORDED. ADMINS VERIFY RESULTS BEFORE BOUNTY DISPERSAL.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Tournament Chat Room - Only for joined tournaments */}
+                    {hasJoined && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="space-y-6"
+                        >
+                            <h2 className="text-[10px] font-black text-teal-500 uppercase tracking-[0.4em]">
+                                Tournament Chat
+                            </h2>
+                            <TournamentChatRoom
+                                tournamentId={tournament.id}
+                                tournamentName={tournament.title}
+                                isAdmin={false}
+                            />
+                        </motion.div>
                     )}
-                </motion.div>
+                </div>
             </div>
+
+            {/* Room Details Modal */}
+            {roomDetails && tournament && (
+                <RoomDetailsModal
+                    isOpen={showRoomModal}
+                    onClose={() => setShowRoomModal(false)}
+                    roomDetails={roomDetails}
+                    tournamentName={tournament.title}
+                    startTime={new Date(tournament.startDate)}
+                />
+            )}
+
+            {/* Join Tournament Modal */}
+            {tournament && (
+                <JoinTournamentModal
+                    isOpen={showJoinModal}
+                    onClose={() => setShowJoinModal(false)}
+                    tournament={tournament}
+                    onJoin={handleJoin}
+                />
+            )}
         </div>
     )
 }
+
+// Helper Components
+const DetailStat = ({ label, value, icon, isAccent }: { label: string, value: string | number, icon: React.ReactNode, isAccent?: boolean }) => (
+    <div className="bg-zinc-950/40 backdrop-blur-md rounded-2xl p-5 border border-white/5 hover:border-teal-500/20 transition-all group/stat">
+        <div className="flex items-center gap-2 mb-2 text-zinc-600 group-hover:text-teal-500/60 transition-colors">
+            {icon}
+            <span className="text-[9px] font-black uppercase tracking-widest">{label}</span>
+        </div>
+        <p className={`text-2xl font-black italic tracking-tighter ${isAccent ? 'text-teal-400 drop-shadow-[0_0_15px_rgba(20,184,166,0.3)]' : 'text-white'}`}>
+            {value}
+        </p>
+    </div>
+)
+
+const InfoItem = ({ icon, label, value }: { icon: React.ReactNode, label: string, value: string }) => (
+    <div className="flex items-center gap-4 group/info">
+        <div className="w-10 h-10 rounded-xl bg-zinc-950/50 border border-white/5 flex items-center justify-center text-teal-500 group-hover/info:scale-110 transition-transform">
+            {icon}
+        </div>
+        <div>
+            <p className="text-[9px] font-black text-zinc-600 uppercase tracking-widest mb-0.5">{label}</p>
+            <p className="text-xs font-black text-zinc-300 uppercase tracking-tight">{value}</p>
+        </div>
+    </div>
+)
+
+const RuleItem = ({ text }: { text: string }) => (
+    <li className="flex items-center gap-3">
+        <div className="w-1 h-1 rounded-full bg-teal-500" />
+        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-wide">{text}</span>
+    </li>
+)
 
 export default TournamentDetails

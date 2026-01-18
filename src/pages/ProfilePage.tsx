@@ -1,370 +1,621 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-    ChevronLeft,
-    Moon,
-    Gamepad2,
-    Bell,
-    ShieldCheck,
-    LogOut,
-    Trash2,
-    ChevronRight,
-    Wallet,
-    Trophy,
-    Star,
-    Zap,
+    ArrowLeft,
     Target,
-    Activity,
-    Users,
-    Briefcase,
-    User
+    Flame,
+    Clock,
+    MoreVertical,
+    Swords,
+    Edit3,
+    LogOut,
+    Settings,
+    MessageSquare,
+    Zap
 } from 'lucide-react'
-import { useClerk } from '@clerk/clerk-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { userService } from '@/services/UserService'
-import { UserProfile } from '@/types'
-import { Link, useNavigate, useParams } from 'react-router-dom'
-import toast, { Toaster } from 'react-hot-toast'
 import { useTheme } from '@/contexts/ThemeContext'
+import { useNavigate, useParams } from 'react-router-dom'
+import { Toaster, toast } from 'react-hot-toast'
+import { Sun, Moon } from 'lucide-react'
+import ProfileService from '@/services/ProfileService'
+import AvatarWithFrame from '@/components/AvatarWithFrame'
 import EditProfileModal from '@/components/EditProfileModal'
-import ParticlesBackground from '@/components/ParticlesBackground'
+import CustomerSupportModal from '@/components/CustomerSupportModal'
+
+// --- Types ---
+interface ProfileData {
+    user: {
+        id: string;
+        username: string;
+        firebaseUid: string;
+        createdAt: string;
+    };
+    profile: {
+        title: string;
+        avatarId: string;
+        avatarType?: 'initials' | 'geometric' | 'gradient' | 'default';
+        frameId: string;
+        bio: string;
+        socialLinks: Record<string, string>;
+        themeColor: string;
+        currentStreak?: number;
+    };
+    stats: Record<string, {
+        game: string;
+        currentRank: string;
+        rankScore: number;
+        matchesPlayed: number;
+        matchesWon: number;
+        matchesLost: number;
+        winRate: number;
+        kills: number;
+        kdRatio: number;
+    }>;
+    aggregate: {
+        totalMatches: number;
+        totalWins: number;
+        overallWinRate: number;
+    };
+    history: Array<{
+        tournamentId: string;
+        game: string;
+        result: string;
+        rank: number;
+        kills: number;
+        prizeWon: number;
+        scoreChange: number;
+        playedAt: string;
+        _id: string;
+    }>;
+}
 
 const ProfilePage = () => {
     const { user, signOut } = useAuth()
+    const { theme, toggleTheme } = useTheme()
     const { userId: paramId } = useParams()
     const navigate = useNavigate()
-    const [profile, setProfile] = useState<UserProfile | null>(null)
+
+    const targetUserId = paramId || user?.uid
+
+    const [data, setData] = useState<ProfileData | null>(null)
     const [loading, setLoading] = useState(true)
-    const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-    const { theme, toggleTheme } = useTheme()
-    const { openUserProfile } = useClerk()
-    const targetUserId = paramId || user?.id || user?.uid
+    const [error, setError] = useState<string | null>(null)
+    const [activeTab, setActiveTab] = useState<'overview' | 'matches'>('overview')
+    const [showSettingsMenu, setShowSettingsMenu] = useState(false)
+    const [showEditModal, setShowEditModal] = useState(false)
+    const [showSupportModal, setShowSupportModal] = useState(false)
+
+    const fetchProfile = async () => {
+        if (!targetUserId) {
+            setError('No user ID available');
+            setLoading(false);
+            return;
+        }
+
+        try {
+            setLoading(true)
+            const profileData = await ProfileService.getProfileByUserId(targetUserId);
+            setData(profileData)
+            setError(null)
+        } catch (err) {
+            console.error('Failed to load profile:', err)
+
+            // In development, use mock data as fallback
+            if (import.meta.env.DEV) {
+                console.warn('Using mock data (backend unavailable)');
+                toast('Using Demo Data (Backend Unavailable)', { icon: '⚠️' });
+
+                // Mock data
+                const mockData: ProfileData = {
+                    user: {
+                        id: 'mock-id',
+                        username: user?.displayName || 'EliteGamer',
+                        firebaseUid: user?.uid || 'mock-uid',
+                        createdAt: new Date().toISOString()
+                    },
+                    profile: {
+                        title: 'Pro Elite',
+                        avatarId: 'default',
+                        avatarType: 'initials',
+                        frameId: 'gold_frame',
+                        bio: 'Professional esports player seeking dominance.',
+                        socialLinks: {},
+                        themeColor: 'gold',
+                        currentStreak: 3
+                    },
+                    stats: {
+                        freefire: {
+                            game: 'freefire',
+                            currentRank: 'Pro',
+                            rankScore: 4200,
+                            matchesPlayed: 150,
+                            matchesWon: 45,
+                            matchesLost: 105,
+                            winRate: 30,
+                            kills: 850,
+                            kdRatio: 4.5
+                        },
+                        bgmi: {
+                            game: 'bgmi',
+                            currentRank: 'Diamond',
+                            rankScore: 3100,
+                            matchesPlayed: 80,
+                            matchesWon: 12,
+                            matchesLost: 68,
+                            winRate: 15,
+                            kills: 320,
+                            kdRatio: 2.8
+                        },
+                        valorant: {
+                            game: 'valorant',
+                            currentRank: 'Gold',
+                            rankScore: 1200,
+                            matchesPlayed: 40,
+                            matchesWon: 20,
+                            matchesLost: 20,
+                            winRate: 50,
+                            kills: 400,
+                            kdRatio: 1.2
+                        },
+                        minecraft: {
+                            game: 'minecraft',
+                            currentRank: 'Silver',
+                            rankScore: 600,
+                            matchesPlayed: 10,
+                            matchesWon: 2,
+                            matchesLost: 8,
+                            winRate: 20,
+                            kills: 15,
+                            kdRatio: 1.5
+                        }
+                    },
+                    aggregate: {
+                        totalMatches: 280,
+                        totalWins: 79,
+                        overallWinRate: 28
+                    },
+                    history: [
+                        {
+                            _id: '1',
+                            tournamentId: 't1',
+                            game: 'freefire',
+                            result: 'Victory',
+                            rank: 1,
+                            kills: 12,
+                            prizeWon: 5000,
+                            scoreChange: 150,
+                            playedAt: new Date(Date.now() - 86400000).toISOString()
+                        },
+                        {
+                            _id: '2',
+                            tournamentId: 't2',
+                            game: 'bgmi',
+                            result: 'Defeat',
+                            rank: 14,
+                            kills: 4,
+                            prizeWon: 0,
+                            scoreChange: -10,
+                            playedAt: new Date(Date.now() - 172800000).toISOString()
+                        }
+                    ]
+                };
+
+                setData(mockData);
+                setError(null);
+            } else {
+                setError('Could not load profile data.')
+                toast.error('Failed to load profile')
+            }
+        } finally {
+            setLoading(false)
+        }
+    };
 
     useEffect(() => {
-        if (!targetUserId) return
-
-        setLoading(true)
-        const unsubscribe = userService.subscribeToProfile(targetUserId, (data) => {
-            setProfile(data)
-            setLoading(false)
-        })
-
-        return () => unsubscribe()
+        fetchProfile();
     }, [targetUserId])
 
-    const isOwnProfile = (user?.id === targetUserId) || (user?.uid === targetUserId)
-
-    const handleToggleSetting = async (key: keyof UserProfile['settings']) => {
-        if (!user || !profile || !isOwnProfile) return
-        try {
-            const userId = user?.id || user?.uid
-            if (!userId) return
-            await userService.updateProfile(userId, {
-                settings: {
-                    ...profile.settings,
-                    [key]: !profile.settings[key]
-                }
-            })
-        } catch (error) {
-            toast.error('Failed to update tactical settings')
-        }
-    }
+    const isOwnProfile = (user?.uid === data?.user?.firebaseUid) || (!paramId && !!user)
 
     const handleLogout = async () => {
         try {
-            await signOut()
-            navigate('/auth')
+            await signOut();
+            toast.success('Logged out successfully');
+            navigate('/auth');
         } catch (error) {
-            toast.error('Extraction failed: Protocol error')
+            console.error('Logout error:', error);
+            toast.error('Failed to logout');
         }
-    }
+    };
+
+    // Helper for Rank Colors
+    const getRankColor = (rank: string) => {
+        switch (rank?.toLowerCase()) {
+            case 'elite': return 'from-yellow-400 via-orange-500 to-red-600';
+            case 'pro': return 'from-purple-400 to-pink-600';
+            case 'diamond': return 'from-blue-400 to-cyan-500';
+            case 'platinum': return 'from-teal-400 to-emerald-500';
+            case 'gold': return 'from-yellow-300 to-amber-500';
+            case 'silver': return 'from-slate-300 to-slate-400';
+            default: return 'from-stone-500 to-stone-700';
+        }
+    };
+
+    const gameIcons: Record<string, string> = {
+        freefire: '🔥',
+        bgmi: '🎯',
+        valorant: '⚡',
+        minecraft: '⛏️'
+    };
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-[#09090b] flex flex-col items-center justify-center p-4">
+            <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col items-center justify-center p-4">
                 <div className="relative">
-                    <div className="w-16 h-16 border-4 border-[#00ffc2]/10 border-t-[#00ffc2] rounded-full animate-spin"></div>
+                    <div className="w-16 h-16 border-4 border-[var(--accent)]/10 border-t-[var(--accent)] rounded-full animate-spin"></div>
                     <div className="absolute inset-0 flex items-center justify-center">
-                        <Target className="text-[#00ffc2] animate-pulse" size={20} />
+                        <Target className="text-[var(--accent)] animate-pulse" size={20} />
                     </div>
                 </div>
-                <p className="mt-4 text-[10px] font-black uppercase tracking-[0.4em] text-[#00ffc2]">Decrypting Profile...</p>
+                <p className="mt-4 text-[10px] font-black uppercase tracking-[0.4em] text-[var(--accent)]">Loading Intel...</p>
             </div>
         )
     }
 
-    const StatCard = ({ icon: Icon, label, value, color }: { icon: any, label: string, value: string | number, color: string }) => (
-        <motion.div
-            whileHover={{ y: -5, scale: 1.02 }}
-            className="p-5 rounded-[2rem] bg-white/[0.02] border border-white/5 backdrop-blur-xl relative overflow-hidden group"
-        >
-            <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${color}`} />
-            <div className="flex justify-between items-start mb-2">
-                <div className={`p-2 rounded-xl bg-white/5 text-gray-400 group-hover:text-white transition-colors`}>
-                    <Icon size={18} />
-                </div>
-                <div className="text-[10px] font-black tracking-widest text-[#00ffc2] opacity-0 group-hover:opacity-100 transition-opacity">LVL 99</div>
+    if (error && !data) {
+        return (
+            <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col items-center justify-center p-4">
+                <div className="text-red-500 font-bold mb-4">{error || 'Profile not found'}</div>
+                <button onClick={() => navigate('/')} className="px-4 py-2 bg-[var(--surface)] rounded-lg text-sm">Go Home</button>
             </div>
-            <div className="text-2xl font-black italic tracking-tighter text-white">{value}</div>
-            <div className="text-[9px] font-bold uppercase tracking-widest text-gray-500 mt-1">{label}</div>
-        </motion.div>
-    )
+        )
+    }
+
+    if (!data) return null;
+
+    const { profile, stats, aggregate, history, user: profileUser } = data;
 
     return (
-        <div className="min-h-screen bg-[#09090b] text-white pb-32 relative overflow-hidden">
+        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] pb-32 relative overflow-hidden">
             <Toaster position="top-center" />
-            <ParticlesBackground />
 
-            {/* Premium Header */}
-            <div className="relative z-10 px-6 py-8 flex items-center justify-between max-w-xl mx-auto">
-                <button
-                    onClick={() => navigate(-1)}
-                    className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-white/10 transition-all group"
-                >
-                    <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-                </button>
-                <div className="text-center">
-                    <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[var(--accent)] mb-1">Sector 7 Personnel</div>
-                    <h1 className="text-sm font-black uppercase tracking-widest italic text-white flex items-center gap-2">
-                        <ShieldCheck size={14} className="text-[#00ffc2]" /> Profile Uplink
-                    </h1>
-                </div>
-                {isOwnProfile ? (
-                    <div className="flex gap-2">
-                        <button
-                            onClick={() => openUserProfile()}
-                            className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-[var(--accent)] hover:text-black transition-all group"
-                        >
-                            <User size={20} className="group-hover:scale-110 transition-transform" />
-                        </button>
-                        <button
-                            onClick={() => setIsEditModalOpen(true)}
-                            className="p-3 bg-white/5 border border-white/10 rounded-2xl hover:bg-[var(--accent)] hover:text-black transition-all group"
-                        >
-                            <Zap size={20} className="group-hover:rotate-12 transition-transform" />
-                        </button>
-                    </div>
-                ) : (
-                    <div className="w-11" /> // Spacer
-                )}
+            {/* Background Atmosphere */}
+            <div className="fixed inset-0 pointer-events-none opacity-20">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[var(--accent)]/10 blur-[150px]" />
             </div>
 
-            <div className="max-w-xl mx-auto px-6 space-y-8 relative z-10">
-                {/* Hero Profile Section */}
-                <div className="relative pt-12 text-center">
-                    <div className="relative inline-block mb-6">
-                        {/* Interactive Avatar Border */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-[#00ffc2] via-[#7c3aed] to-[#00ffc2] rounded-[3rem] blur-2xl opacity-20 animate-pulse" />
-                        <div className="relative w-32 h-32 rounded-[2.5rem] bg-gradient-to-br from-[#00ffc2] to-[#7c3aed] p-1 shadow-[0_0_50px_rgba(0,255,194,0.15)]">
-                            <div className="w-full h-full rounded-[2.3rem] bg-[#09090b] flex items-center justify-center overflow-hidden border-2 border-[#18181b]">
-                                {user?.photoURL ? (
-                                    <img src={user.photoURL} alt="" className="w-full h-full object-cover" />
-                                ) : (
-                                    <span className="text-4xl font-black italic text-gray-700">{profile?.username?.charAt(0).toUpperCase() || 'E'}</span>
-                                )}
+            {/* Header */}
+            <div className="sticky top-0 z-50 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border)]">
+                <div className="max-w-md mx-auto px-5 py-4 flex items-center justify-between">
+                    <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center">
+                        <ArrowLeft className="w-5 h-5" />
+                    </button>
+                    <div className="text-center">
+                        <div className="text-[8px] font-bold uppercase tracking-[0.3em] text-[var(--accent)]">ESPORIZON</div>
+                        <div className="text-[10px] font-black italic text-[var(--text-primary)]">OPERATIVE DOSSIER</div>
+                    </div>
+                    <div className="flex gap-1">
+                        <button onClick={toggleTheme} className="p-2.5 hover:bg-[var(--surface-hover)] rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center">
+                            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                        </button>
+                        {isOwnProfile && (
+                            <div className="relative">
+                                <button
+                                    onClick={() => setShowSettingsMenu(!showSettingsMenu)}
+                                    className="p-2.5 hover:bg-[var(--surface-hover)] rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
+                                >
+                                    <MoreVertical size={18} />
+                                </button>
+                                <AnimatePresence>
+                                    {showSettingsMenu && (
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                            className="absolute right-0 mt-2 w-48 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden z-10"
+                                        >
+                                            <button
+                                                onClick={() => {
+                                                    setShowEditModal(true);
+                                                    setShowSettingsMenu(false);
+                                                }}
+                                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition-colors text-left"
+                                            >
+                                                <Edit3 size={16} className="text-[var(--accent)]" />
+                                                <span className="text-sm font-bold">Edit Profile</span>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowSupportModal(true);
+                                                    setShowSettingsMenu(false);
+                                                }}
+                                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition-colors text-left border-t border-[var(--border)]"
+                                            >
+                                                <MessageSquare size={16} className="text-[var(--accent)]" />
+                                                <span className="text-sm font-bold">Customer Support</span>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowSettingsMenu(false);
+                                                    navigate('/settings');
+                                                }}
+                                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition-colors text-left border-t border-[var(--border)]"
+                                            >
+                                                <Settings size={16} className="text-[var(--text-secondary)]" />
+                                                <span className="text-sm font-bold">Settings</span>
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setShowSettingsMenu(false);
+                                                    handleLogout();
+                                                }}
+                                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-500/10 transition-colors text-left border-t border-[var(--border)]"
+                                            >
+                                                <LogOut size={16} className="text-red-500" />
+                                                <span className="text-sm font-bold text-red-500">Logout</span>
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
                             </div>
-                            <div className="absolute -bottom-2 -right-2 p-2.5 bg-[#00ffc2] rounded-2xl shadow-[0_0_20px_#00ffc2] border-4 border-[#09090b]">
-                                <Star size={14} className="text-[#09090b] fill-current" />
-                            </div>
-                        </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            <div className="max-w-md mx-auto px-5 pt-6 space-y-8 relative z-10">
+
+                {/* IDENTITY SECTION */}
+                <div className="flex flex-col items-center text-center">
+                    <AvatarWithFrame
+                        username={profileUser.username}
+                        rank={profile.title}
+                        avatarType={profile.avatarType || 'initials'}
+                        size="large"
+                        showBadge={true}
+                        className="mb-4"
+                    />
+
+                    <h1 className="text-3xl font-black italic tracking-wide uppercase text-white mb-2">
+                        {profileUser.username}
+                    </h1>
+
+                    <div className="flex items-center gap-2 mb-4">
+                        <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-gradient-to-r ${getRankColor(profile.title)} text-black shadow-lg shadow-[var(--accent)]/20`}>
+                            {profile.title}
+                        </span>
                     </div>
 
-                    <div className="space-y-4">
-                        <div>
-                            <h2 className="text-4xl font-black italic tracking-tighter uppercase leading-none">
-                                {profile?.username || 'Elite Gamer'}
-                            </h2>
-                            <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#00ffc2]/10 border border-[#00ffc2]/20 rounded-full mt-3">
-                                <Activity size={10} className="text-[#00ffc2]" />
-                                <span className="text-[10px] font-black tracking-[0.2em] text-[#00ffc2] uppercase">
-                                    @{profile?.username || 'player'}
-                                </span>
-                            </div>
-                        </div>
-                        <p className="text-gray-400 text-xs font-medium max-w-xs mx-auto leading-relaxed border-l-2 border-white/5 pl-4 ml-4 italic">
-                            {profile?.bio || 'Professional Esports Player. Always ready for the next combat.'}
+                    {profile.bio && (
+                        <p className="text-sm text-[var(--text-secondary)] italic max-w-[300px] leading-relaxed">
+                            "{profile.bio}"
                         </p>
-                    </div>
+                    )}
 
+                    {/* Quick Actions (Mobile-optimized) */}
                     {isOwnProfile && (
-                        <div className="mt-8 flex justify-center">
+                        <div className="flex gap-3 mt-6 w-full max-w-sm">
                             <button
-                                onClick={toggleTheme}
-                                className="flex items-center gap-3 px-5 py-2.5 bg-white/[0.03] border border-white/5 rounded-2xl hover:bg-white/10 transition-all group"
+                                onClick={() => setShowEditModal(true)}
+                                className="flex-1 px-4 py-3 bg-[var(--accent)] text-black rounded-xl font-bold uppercase text-xs tracking-wide hover:opacity-90 transition-opacity flex items-center justify-center gap-2 min-h-[48px]"
                             >
-                                <Moon size={16} className={theme === 'dark' ? 'text-[#00ffc2]' : 'text-gray-400'} />
-                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-400 group-hover:text-white">
-                                    {theme === 'dark' ? 'Dark Ops Enabled' : 'Light Mode Active'}
-                                </span>
-                                <div className={`w-10 h-5 rounded-full relative transition-colors ${theme === 'dark' ? 'bg-[#00ffc2]' : 'bg-gray-700'}`}>
-                                    <motion.div
-                                        animate={{ x: theme === 'dark' ? 22 : 2 }}
-                                        className="absolute top-1 w-3 h-3 bg-white rounded-full"
-                                    />
-                                </div>
+                                <Edit3 size={16} />
+                                Edit Profile
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="px-4 py-3 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl font-bold uppercase text-xs tracking-wide hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-center gap-2 min-h-[48px]"
+                            >
+                                <LogOut size={16} />
+                                Logout
                             </button>
                         </div>
                     )}
                 </div>
 
-                {/* Tactical Stats Grid */}
-                <div className="grid grid-cols-2 gap-4">
-                    <StatCard
-                        icon={Trophy}
-                        label="Combat Victories"
-                        value={profile?.tournamentsWon || 0}
-                        color="from-yellow-400 to-amber-600"
-                    />
-                    <StatCard
-                        icon={Users}
-                        label="Active Campaigns"
-                        value={profile?.tournamentsPlayed || 0}
-                        color="from-blue-400 to-indigo-600"
-                    />
-                    <StatCard
-                        icon={Wallet}
-                        label="Total Earnings"
-                        value={`₹${profile?.totalEarnings?.toLocaleString() || 0}`}
-                        color="from-[#00ffc2] to-emerald-600"
-                    />
-                    <StatCard
-                        icon={Briefcase}
-                        label="Referral Income"
-                        value={`₹${profile?.referralEarnings?.toLocaleString() || 0}`}
-                        color="from-[#7c3aed] to-purple-600"
-                    />
-                </div>
-
-                {/* Profile Tabs/Sections */}
-                <div className="space-y-6">
-                    {/* Game IDs Section */}
-                    <div className="space-y-4">
-                        <div className="flex items-center gap-3 ml-2">
-                            <Gamepad2 className="text-[#00ffc2]" size={16} />
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00ffc2]">Tactical Identifiers</h3>
+                {/* PERFORMANCE SNAPSHOT */}
+                <div className="space-y-4">
+                    <div className="grid grid-cols-3 gap-0 border border-[var(--border)] bg-[var(--surface)]/50 rounded-2xl overflow-hidden divide-x divide-[var(--border)]">
+                        <div className="p-4 text-center group hover:bg-[var(--surface-hover)] transition-colors">
+                            <div className="text-[var(--text-secondary)] mb-1 text-[10px] font-bold uppercase tracking-wider">Matches</div>
+                            <div className="text-2xl font-black italic text-[var(--text-primary)]">{aggregate.totalMatches}</div>
                         </div>
-                        <div className="grid gap-3">
-                            {['BGMI', 'Free Fire', 'Valorant', 'Minecraft'].map((game) => {
-                                const key = game.toLowerCase().replace(' ', '')
-                                const gameId = profile?.gameAccounts?.[key as keyof UserProfile['gameAccounts']]
-                                return (
-                                    <div key={game} className="flex items-center justify-between p-5 bg-white/[0.02] border border-white/5 rounded-3xl hover:bg-white/[0.05] transition-all group">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-2xl bg-black/40 border border-white/5 flex items-center justify-center text-gray-500 group-hover:text-[#00ffc2] group-hover:border-[#00ffc2]/30 transition-all">
-                                                <Target size={18} />
-                                            </div>
-                                            <div>
-                                                <div className="text-[10px] font-black uppercase tracking-widest text-gray-500">{game}</div>
-                                                <div className="text-sm font-black italic tracking-tight text-white">{gameId || 'Not Configured'}</div>
-                                            </div>
-                                        </div>
-                                        {isOwnProfile && <ChevronRight size={14} className="text-gray-700 group-hover:text-white" />}
-                                    </div>
-                                )
-                            })}
+                        <div className="p-4 text-center group hover:bg-[var(--surface-hover)] transition-colors">
+                            <div className="text-[var(--text-secondary)] mb-1 text-[10px] font-bold uppercase tracking-wider">Wins</div>
+                            <div className="text-2xl font-black italic text-[var(--accent)]">{aggregate.totalWins}</div>
+                        </div>
+                        <div className="p-4 text-center group hover:bg-[var(--surface-hover)] transition-colors">
+                            <div className="text-[var(--text-secondary)] mb-1 text-[10px] font-bold uppercase tracking-wider">Win Rate</div>
+                            <div className={`text-2xl font-black italic ${aggregate.overallWinRate > 50 ? 'text-green-500' : 'text-yellow-500'}`}>
+                                {aggregate.overallWinRate}%
+                            </div>
                         </div>
                     </div>
 
-                    {isOwnProfile && (
-                        <>
-                            {/* Command & Control (Settings/Actions) */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3 ml-2">
-                                    <ShieldCheck className="text-purple-500" size={16} />
-                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-purple-500">Command & Control</h3>
+                    {/* Current Streak */}
+                    {profile.currentStreak !== undefined && profile.currentStreak !== 0 && (
+                        <div className={`p-4 rounded-xl border flex items-center justify-between ${profile.currentStreak > 0
+                            ? 'bg-green-500/5 border-green-500/20'
+                            : 'bg-red-500/5 border-red-500/20'
+                            }`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${profile.currentStreak > 0 ? 'bg-green-500/20' : 'bg-red-500/20'
+                                    }`}>
+                                    <Flame size={20} className={profile.currentStreak > 0 ? 'text-green-500' : 'text-red-500'} />
                                 </div>
-                                <div className="bg-white/[0.02] border border-white/5 rounded-[2.5rem] overflow-hidden divide-y divide-white/5 bg-gradient-to-b from-white/[0.01] to-transparent">
-                                    <Link to="/wallet" className="flex items-center justify-between p-6 hover:bg-white/[0.03] transition-all group">
-                                        <div className="flex items-center gap-4 text-left">
-                                            <div className="p-3 bg-[#fbbf24]/10 rounded-2xl text-[#fbbf24] border border-[#fbbf24]/20 group-hover:scale-110 transition-transform">
-                                                <Wallet size={20} />
-                                            </div>
-                                            <div>
-                                                <div className="text-xs font-black uppercase tracking-widest text-white">Central Bank</div>
-                                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">Manage Assets & Rewards</div>
-                                            </div>
-                                        </div>
-                                        <ChevronRight size={18} className="text-gray-700 group-hover:text-white" />
-                                    </Link>
-
-                                    <button className="w-full flex items-center justify-between p-6 hover:bg-white/[0.03] transition-all group">
-                                        <div className="flex items-center gap-4 text-left">
-                                            <div className="p-3 bg-red-500/10 rounded-2xl text-red-500 border border-red-500/20 group-hover:scale-110 transition-transform">
-                                                <ShieldCheck size={20} />
-                                            </div>
-                                            <div>
-                                                <div className="text-xs font-black uppercase tracking-widest text-white">Security Uplink</div>
-                                                <div className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mt-0.5">2FA & Access Protocols</div>
-                                            </div>
-                                        </div>
-                                        <ChevronRight size={18} className="text-gray-700 group-hover:text-white" />
-                                    </button>
-
-                                    <button onClick={handleLogout} className="w-full flex items-center justify-between p-6 hover:bg-red-500/10 transition-all group text-red-500">
-                                        <div className="flex items-center gap-4 text-left">
-                                            <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20 group-hover:scale-110 transition-transform">
-                                                <LogOut size={20} />
-                                            </div>
-                                            <div>
-                                                <div className="text-xs font-black uppercase tracking-widest">Protocol Exit</div>
-                                                <div className="text-[10px] text-red-500/40 font-bold uppercase tracking-widest mt-0.5">Terminate Active Session</div>
-                                            </div>
-                                        </div>
-                                    </button>
+                                <div>
+                                    <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                                        {profile.currentStreak > 0 ? 'Win Streak' : 'Loss Streak'}
+                                    </div>
+                                    <div className="text-xl font-black italic text-[var(--text-primary)]">
+                                        {Math.abs(profile.currentStreak)} {Math.abs(profile.currentStreak) === 1 ? 'Match' : 'Matches'}
+                                    </div>
                                 </div>
                             </div>
-
-                            {/* Alert Notifications */}
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3 ml-2">
-                                    <Bell className="text-blue-500" size={16} />
-                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-blue-500">Signal Filters</h3>
-                                </div>
-                                <div className="bg-white/[0.02] border border-white/5 rounded-3xl overflow-hidden divide-y divide-white/5">
-                                    {[
-                                        { id: 'tournamentReminders', label: 'Tactical Alerts', desc: 'Tournament starts & countdowns' },
-                                        { id: 'matchResults', label: 'Intel Reports', desc: 'Game outcomes & stats' },
-                                        { id: 'newTournaments', label: 'Mission Briefs', desc: 'New tournament availability' }
-                                    ].map((setting) => (
-                                        <div key={setting.id} className="flex items-center justify-between p-5 hover:bg-white/[0.03] transition-all">
-                                            <div className="text-left">
-                                                <div className="text-xs font-black uppercase tracking-widest text-white">{setting.label}</div>
-                                                <div className="text-[9px] font-bold text-gray-600 uppercase mt-0.5">{setting.desc}</div>
-                                            </div>
-                                            <button
-                                                onClick={() => handleToggleSetting(setting.id as keyof UserProfile['settings'])}
-                                                className={`w-12 h-6 rounded-full relative transition-all duration-500 ${profile?.settings[setting.id as keyof UserProfile['settings']] ? 'bg-[#00ffc2] shadow-[0_0_15px_rgba(0,255,194,0.3)]' : 'bg-white/10'}`}
-                                            >
-                                                <motion.div
-                                                    animate={{ x: profile?.settings[setting.id as keyof UserProfile['settings']] ? 26 : 4 }}
-                                                    className="absolute top-1 w-4 h-4 bg-white rounded-full shadow-lg"
-                                                />
-                                            </button>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </>
+                            {profile.currentStreak > 0 && (
+                                <Zap size={24} className="text-green-500 animate-pulse" />
+                            )}
+                        </div>
                     )}
                 </div>
 
-                {/* Termination Section */}
-                {isOwnProfile && (
-                    <div className="pt-8 text-center space-y-4">
-                        <button className="text-[10px] font-black uppercase tracking-[0.3em] text-red-900 hover:text-red-500 transition-colors flex items-center gap-2 mx-auto px-6 py-3 border border-red-900/20 rounded-2xl hover:bg-red-950/20">
-                            <Trash2 size={12} /> Operational Termination
+                {/* NAVIGATION TABS */}
+                <div className="flex p-1 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
+                    {[
+                        { id: 'overview', label: 'Overview', icon: Target },
+                        { id: 'matches', label: 'History', icon: Clock },
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id as any)}
+                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all min-h-[48px] ${activeTab === tab.id
+                                ? 'bg-[var(--accent)] text-black shadow-lg'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                }`}
+                        >
+                            <tab.icon size={16} />
+                            {tab.label}
                         </button>
-                    </div>
-                )}
+                    ))}
+                </div>
+
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        {activeTab === 'overview' ? (
+                            <div className="space-y-6">
+                                {/* GAME RANKS */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <Swords size={18} className="text-[var(--accent)]" />
+                                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Combat Records</h3>
+                                    </div>
+
+                                    {Object.values(stats).map((stat) => (
+                                        <motion.div
+                                            key={stat.game}
+                                            className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-5 relative overflow-hidden group hover:border-[var(--accent)]/40 transition-all"
+                                            whileHover={{ scale: 1.02 }}
+                                            transition={{ type: 'spring', stiffness: 300 }}
+                                        >
+                                            {/* Rank Progress Background */}
+                                            <div className="absolute bottom-0 left-0 h-1.5 bg-[var(--accent)]/20 w-full">
+                                                <motion.div
+                                                    className="h-full bg-[var(--accent)]"
+                                                    initial={{ width: 0 }}
+                                                    animate={{ width: `${Math.min((stat.rankScore / 5000) * 100, 100)}%` }}
+                                                    transition={{ duration: 1, ease: 'easeOut' }}
+                                                />
+                                            </div>
+
+                                            <div className="flex justify-between items-center relative z-10 mb-3">
+                                                <div className="flex items-center gap-4">
+                                                    {/* Game Icon */}
+                                                    <div className="w-12 h-12 rounded-xl bg-[var(--surface)] flex items-center justify-center text-2xl">
+                                                        {gameIcons[stat.game] || '🎮'}
+                                                    </div>
+
+                                                    <div>
+                                                        <div className="text-base font-black uppercase italic tracking-wide text-white capitalize">{stat.game}</div>
+                                                        <div className={`text-sm font-bold bg-gradient-to-r ${getRankColor(stat.currentRank)} bg-clip-text text-transparent`}>
+                                                            {stat.currentRank} <span className="text-[var(--text-secondary)] text-[0.7rem] font-normal">({stat.rankScore} PTS)</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="text-right">
+                                                    <div className="text-[0.65rem] uppercase tracking-wider text-[var(--text-secondary)] font-bold">K/D Ratio</div>
+                                                    <div className="text-xl font-black italic text-[var(--text-primary)]">{stat.kdRatio}</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Mini Stats */}
+                                            <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-[var(--border)]">
+                                                <div>
+                                                    <div className="text-[0.65rem] text-[var(--text-secondary)] font-bold uppercase">Played</div>
+                                                    <div className="text-sm font-black text-[var(--text-primary)]">{stat.matchesPlayed}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[0.65rem] text-[var(--text-secondary)] font-bold uppercase">Won</div>
+                                                    <div className="text-sm font-black text-green-500">{stat.matchesWon}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-[0.65rem] text-[var(--text-secondary)] font-bold uppercase">Win %</div>
+                                                    <div className="text-sm font-black text-[var(--accent)]">{stat.winRate}%</div>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Clock size={18} className="text-[var(--accent)]" />
+                                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Recent Operations</h3>
+                                </div>
+
+                                {history.length === 0 ? (
+                                    <div className="text-center py-12 text-[var(--text-secondary)] text-sm italic">
+                                        No combat history found.
+                                    </div>
+                                ) : (
+                                    history.map((match) => (
+                                        <div key={match._id} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-4 flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors">
+                                            <div className="flex items-center gap-4">
+                                                <div className={`w-1.5 h-14 rounded-full ${match.result === 'Victory' ? 'bg-green-500' : (match.result === 'Defeat' ? 'bg-red-500' : 'bg-gray-500')}`} />
+                                                <div>
+                                                    <div className="text-sm font-bold uppercase text-[var(--text-primary)] capitalize">{match.game}</div>
+                                                    <div className="text-xs text-[var(--text-secondary)]">{new Date(match.playedAt).toLocaleDateString()}</div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-4">
+                                                <div className="text-center">
+                                                    <div className="text-[0.65rem] uppercase tracking-wider text-[var(--text-secondary)]">Rank</div>
+                                                    <div className="text-base font-black text-white">#{match.rank}</div>
+                                                </div>
+                                                <div className="text-center">
+                                                    <div className="text-[0.65rem] uppercase tracking-wider text-[var(--text-secondary)]">Kills</div>
+                                                    <div className="text-base font-black text-white">{match.kills}</div>
+                                                </div>
+                                                <div className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase ${match.result === 'Victory' ? 'text-green-400 bg-green-400/10' : 'text-[var(--text-secondary)] bg-[var(--surface)]'}`}>
+                                                    {match.result}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        )}
+                    </motion.div>
+                </AnimatePresence>
+
             </div>
 
-            {/* Modal */}
-            <EditProfileModal
-                isOpen={isEditModalOpen}
-                onClose={() => setIsEditModalOpen(false)}
-                profile={profile}
-                user={user}
-            />
+            {/* Modals */}
+            {isOwnProfile && (
+                <>
+                    <EditProfileModal
+                        isOpen={showEditModal}
+                        onClose={() => setShowEditModal(false)}
+                        profile={data as any}
+                        user={user}
+                    />
+                    <CustomerSupportModal
+                        isOpen={showSupportModal}
+                        onClose={() => setShowSupportModal(false)}
+                        firebaseUid={user?.uid || ''}
+                        userId={data?.user?.id}
+                    />
+                </>
+            )}
         </div>
     )
 }

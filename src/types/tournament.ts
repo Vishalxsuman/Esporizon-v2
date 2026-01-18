@@ -38,6 +38,7 @@ export interface Tournament {
     format: 'solo' | 'duo' | 'squad'
     mapMode: string
     totalMatches: number
+    difficulty?: 'beginner' | 'intermediate' | 'pro'
 }
 
 export interface TournamentParticipant {
@@ -95,4 +96,70 @@ export interface JoinTournamentDto {
         userName: string
         role?: 'leader' | 'member'
     }[]
+}
+
+// Room Details (shared 10 minutes before match)
+export interface RoomDetails {
+    roomId: string
+    password: string
+    server: string
+    map: string
+    specialInstructions?: string
+    availableAt: Date
+    isAvailable: boolean
+}
+
+// Host Profile
+export interface HostProfile {
+    id: string
+    name: string
+    avatar?: string
+    rating: number
+    reviewCount: number
+    tournamentsHosted: number
+    verified: boolean
+    memberSince: string
+    stats: HostStats
+}
+
+export interface HostStats {
+    totalTournaments: number
+    activeTournaments: number
+    completedTournaments: number
+    totalParticipants: number
+    averageRating: number
+    successRate: number
+    responseTime: string
+    cancellationRate: number
+}
+
+// Tournament Results
+export interface TournamentResults {
+    tournamentId: string
+    leaderboard: ResultEntry[]
+    mvp?: string
+    totalRounds: number
+    completedAt: string
+    proofUrls?: string[]
+}
+
+export interface ResultEntry {
+    rank: number
+    teamName: string
+    playerName: string
+    kills?: number
+    points: number
+    prize: number
+}
+
+// Advanced Filtering
+export interface TournamentFilters {
+    gameId?: string[]
+    status?: ('upcoming' | 'ongoing' | 'completed')[]
+    mode?: ('solo' | 'duo' | 'squad')[]
+    entryType?: 'free' | 'paid' | 'all'
+    minPrize?: number
+    maxEntryFee?: number
+    sortBy?: 'startDate' | 'prizePool' | 'entryFee'
+    sortOrder?: 'asc' | 'desc'
 }

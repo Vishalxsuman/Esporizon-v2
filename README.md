@@ -1,112 +1,285 @@
-# Esporizon V2 - Premium Esports Platform
+# Esporizon - Professional Esports Tournament Platform
 
-A high-performance, real-time esports platform featuring competitive card games, chess, and social features, migrated to GitHub Pages with modern authentication and CDN-based asset delivery.
+[![TypeScript](https://img.shields.io/badge/TypeScript-4.9-blue)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-18-61DAFB)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-18-green)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-6.0-green)](https://www.mongodb.com/)
 
-## 🚀 System Architecture
+A production-ready esports tournament platform supporting Free Fire, BGMI, Valorant, and Minecraft with real-money prize distribution, automated wallet management, and comprehensive host tools.
 
-- **Hosting:** GitHub Pages (Static Hosting)
-- **Authentication:** [Clerk](https://clerk.com) (OIDC / OAuth 2.0) - **SOLE AUTH PROVIDER**
-- **Assets:** [Cloudinary](https://cloudinary.com/) (Image Uploads)
-- **Data Persistence:** Firebase Firestore (Posts, Likes, Comments, Game State, Tournaments)
-- **CI/CD:** GitHub Actions (`.github/workflows/deploy.yml`)
+## 🚀 Quick Start
 
-## 🛠️ Tech Stack
+### Prerequisites
+- Node.js 18+ 
+- MongoDB 6.0+
+- Firebase Project (for authentication)
 
-- **Frontend:** React 18 + TypeScript + Vite
-- **Styling:** Tailwind CSS + Framer Motion
-- **Icons:** Lucide React
-- **Notifications:** React Hot Toast
-- **Game Logic:** Custom TypeScript Game Engines (Card 29, Chess)
+### installation
 
-## 🔐 Security & Architecture
+```bash
+# Clone repository
+git clone <repository-url>
+cd esporizon
 
-- **Clerk Auth Only:** Firebase Auth is NOT used. All user identity is managed by Clerk.
-- **Firestore Data:** Security rules enforce read/write access based on Clerk User IDs.
-- **Stateless Frontend:** SPA architecture with client-side routing.
-- **Zero Trust:** Backend-less design relying on robust Firestore rules.
+# Install frontend dependencies
+npm install
 
-## 📦 Deployment Guide
-
-### Environment Variables
-Create a `.env` file in the root using `VITE_` prefix:
-```env
-# Clerk
-VITE_CLERK_PUBLISHABLE_KEY=...
-
-# Firebase (Firestore Only)
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_STORAGE_BUCKET=...
-# ... other firebase config
+# Install backend dependencies
+cd backend-standalone
+npm install
+cd ..
 ```
 
-### Build & Deploy
-1. Push to the `main` branch.
-2. GitHub Actions will build (`npm run build`) and deploy to GitHub Pages.
-3. Custom domain `esporizon.in` is configured via the `public/CNAME` file.
+### Environment Configuration
+
+1. **Frontend (.env.development)**
+```env
+VITE_API_URL=http://localhost:5000
+VITE_FIREBASE_API_KEY=your_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+```
+
+2. **Backend (backend-standalone/.env)**
+```env
+PORT=5000
+MONGODB_URI=mongodb://localhost:27017/esporizon
+FIREBASE_PROJECT_ID=your_project_id
+FIREBASE_CLIENT_EMAIL=your_client_email
+FIREBASE_PRIVATE_KEY="your_private_key"
+NODE_ENV=development
+```
+
+### Running the Application
+
+```bash
+# Terminal 1: Start MongoDB
+mongod
+
+# Terminal 2: Start Backend
+cd backend-standalone
+npm start
+
+# Terminal 3: Start Frontend
+npm run dev
+```
+
+Access the application at `http://localhost:3000`
+
+## 📚 Features
+
+### For Players
+- ✅ **Multi-Game Support**: Free Fire, BGMI, Valorant, Minecraft
+- ✅ **Wallet System**: Deposit funds, pay entry fees, receive prizes automatically
+- ✅ **Tournament Discovery**: Browse upcoming/ongoing/completed tournaments
+- ✅ **Team Registration**: Solo, Duo, Squad modes
+- ✅ **Real-time Chat**: Tournament-specific chat rooms
+- ✅ **Profile Management**: Game-wise stats and rank tracking
+- ✅ **Report System**: Submit disputes against tournaments/hosts
+
+### For Hosts
+- ✅ **Tournament Creation**: Custom prize structures, entry fees, game rooms
+- ✅ **Prize Distribution**: Winner-based (98% split) or Kill-based rewards
+- ✅ **Auto-Finance**: 2% service fee auto-credited to host wallet
+- ✅ **Room Management**: Game-specific credentials (Room ID, Password, Lobby ID)
+- ✅ **Result Publishing**: AI-assisted result extraction and validation
+- ✅ **Dispute Resolution**: View and resolve player reports
+- ✅ **Earnings Dashboard**: Track service fees and tournament performance
+
+## 🏗️ Tech Stack
+
+### Frontend
+- **Framework**: React 18 + TypeScript
+- **Build Tool**: Vite 4
+- **Styling**: Tailwind CSS
+- **Animation**: Framer Motion
+- **Routing**: React Router v6
+- **HTTP Client**: Axios
+- **State Management**: Context API
+- **Icons**: Lucide React
+
+### Backend
+- **Runtime**: Node.js 18
+- **Framework**: Express.js
+- **Database**: MongoDB (Mongoose ODM)
+- **Authentication**: Firebase Admin SDK
+- **Validation**: Express Validator
+
+### Authentication
+- **System**: Firebase Authentication
+- **Methods**: Email/Password, Google OAuth
 
 ## 📁 Project Structure
 
 ```
 esporizon/
-├── .github/workflows/  # Deployment automation
-├── public/             # CNAME, 404.html, and favicon
 ├── src/
-│   ├── components/     # UI Components (GameHeader, PlayerSeat, SocialFeed, etc.)
-│   ├── contexts/       # Auth & Theme providers
-│   ├── hooks/          # Custom hooks (Game State, Bots, Audio)
-│   ├── pages/          # Application views (Dashboard, Card29Game, ChessGame, etc.)
-│   ├── services/       # Firebase & Game Logic (MatchService, WalletService)
-│   ├── types/          # TypeScript definitions
-│   └── utils/          # Helper functions
-└── Images/             # Static game posters
+│   ├── components/        # Reusable UI components
+│   ├── pages/             # Route components
+│   ├── services/          # API service layers
+│   ├── contexts/          # React context providers
+│   ├── types/             # TypeScript type definitions
+│   └── config/            # Configuration files
+├── backend-standalone/
+│   ├── src/
+│   │   ├── models/        #  MongoDB schemas
+│   │   ├── controllers/   # Request handlers
+│   │   ├── routes/        # API routes
+│   │   ├── middleware/    # Authentication, validation
+│   │   └── utils/         # Helper functions
+│   └── server.js          # Express server entry
+└── public/                # Static assets
 ```
 
-## 🎮 Features
+## 🔐 Security Features
 
-### Core Platform
-- **Cinematic Landing Page:** Modern hero section with glassmorphism effects.
-- **Interactive Dashboard:** 3:4 vertical game posters with live indicators and real-time wallet updates.
-- **Wallet System:** Simulated balance and transactions via `localStorage` (migrating to Firestore).
-- **Social Nexus:** Real-time social feed with posts, likes, comments, and user search.
-- **Profile System:** Custom attributes, stats tracking, and avatar management.
-- **Tournament System:** Create, join, and manage tournaments with automated bracket generation (frontend mocked).
+- **Firebase Authentication**: Secure JWT-based auth
+- **Route Protection**: Middleware-based access control
+- **Host Verification**: Subscription status validation
+- **Wallet Security**: Atomic transactions with MongoDB sessions
+- **Input Validation**: Server-side validation for all endpoints
+- **CORS Configuration**: Environment-specific origins
 
-### 🃏 29 Card Game (Flagship)
-- **Complete Rule Set:** Full bidding mechanic (16-28), trump selection, and strict trick-taking rules.
-- **Advanced UI/UX:**
-  - Glassmorphism Game Header with round/trick tracking.
-  - "Last Hand" history overlay.
-  - Interactive table animations for card plays.
-  - Smart trump reveal mechanics with "pop-out" card.
-- **Multiplayer Engine:**
-  - Real-time firestore syncing (sub-second latency).
-  - Robust reconnection handling.
-  - Server-synced 30s turn timers.
-- **Intelligence:**
-  - Smart Bots for practice mode (3s delay).
-  - "Double" and "Redouble" challenge phases.
+## 💰 Prize Distribution System
 
-### ♟️ Chess
-- **Online Multiplayer:** Quick matchmaking and invite system.
-- **Bot Integration:** Play against AI engine.
-- **Standard Rules:** Checkmate, stalemate, and move validation.
+### 98/2 Split Model
+- **98%** goes to players (configurable distribution)
+- **2%** platform service fee (auto-credited to host)
 
-### 🎨 Color Prediction (Win Go)
-- **Multiple Game Modes:** 30s, 1 Min, 3 Min, and 5 Min rounds.
-- **Backend Engine:** Standalone Express.js server with period management and result generation.
-- **Real-Time Betting:** Place bets on colors (Red/Green/Violet), numbers (0-9), or size (Big/Small).
-- **Server-Synced Timer:** Backend authority ensures fair round cycles (Betting → Locked → Result → New Round).
-- **Automated Payouts:** 1.95x for colors/size, 9x for exact numbers, special rates for 0/5.
-- **History & Chart:** Browse up to 100 past results with pagination (10 per page).
-- **Mobile Optimized:** Compact Game Balance card and responsive UI for all screen sizes.
+### Distribution Types
+1. **Winner-Based**: Fixed percentages to top 3 (e.g., 60%, 25%, 13%)
+2. **Kill-Based**: Dynamic payout per kill (e.g., ₹3/kill)
 
-### 🏆 Tournaments & Matchmaking
-- **Guest Access:** instant play with simple room codes—no login required for casual matches.
-- **Public Lobbies:** Browse and join open games.
-- **Private Rooms:** Invite friends via 6-digit codes.
-- **Spectator Mode:** (Planned) Watch live high-stakes matches.
+### Validation
+- Backend enforces 98% player distribution
+- Frontend UI shows real-time validation
+- Results immutable after publishing
+
+## 🎮 Game-Specific Features
+
+### Free Fire / BGMI
+- Room ID + Password
+- Match time scheduling
+- Server region selection
+
+### Valorant
+- Custom Lobby ID
+- Match Code
+- Team slot configuration
+
+### Minecraft
+- Server Name
+- World Name
+- Game Mode specification
+
+## 🗄️ Database Models
+
+### Core Models
+- **User**: Player profiles, authentication
+- **Host**: Host accounts, subscription status
+- **Tournament**: Event details, configuration, participants
+- **Wallet**: Balance, transaction history, stats
+- **Report**: Dispute system, message threads
+- **PlayerProfile**: Game stats, rankings, match history
+
+## 🔄 API Endpoints
+
+See [Backend README](./backend-standalone/README.md) for complete API documentation.
+
+### Key Endpoints
+- `POST /api/tournaments` - Create tournament
+- `POST /api/tournaments/:id/register` - Register for tournament
+- `POST /api/results/publish` - Publish results (auto-credits wallets)
+- `GET /api/wallet` - Get wallet balance
+- `POST /api/reports` - Create dispute report
+- `GET /api/host/reports` - View player reports
+
+## 🧪 Testing
+
+```bash
+# Frontend tests
+npm run test
+
+# Backend tests
+cd backend-standalone
+npm test
+
+# E2E tests
+npm run test:e2e
+```
+
+See [TESTING.md](./TESTING.md) for detailed testing guide.
+
+## 📦 Build & Deployment
+
+```bash
+# Build frontend
+npm run build
+
+# Preview production build
+npm run preview
+
+# Build backend
+cd backend-standalone
+npm run build
+```
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Port Already in Use**
+```bash
+# Frontend will automatically try ports 3000-3010
+# Backend: Change PORT in .env
+```
+
+**MongoDB Connection Failed**
+```bash
+# Ensure MongoDB is running
+mongod --dbpath=/path/to/data
+
+# Check connection string in backend/.env
+```
+
+**Firebase Auth Errors**
+- Verify Firebase credentials in `.env`
+- Check Firebase console project settings
+- Ensure service account has correct permissions
+
+## 📝 License
+
+MIT License - see [LICENSE](./LICENSE) for details
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to branch (`git push origin feature/AmazingFeature`)
+5. Open Pull Request
+
+## 📧 Support
+
+For issues and questions:
+- GitHub Issues: [Create Issue](https://github.com/your-repo/issues)
+- Email: support@esporizon.com
+
+## 🎯 Roadmap
+
+- [x] Multi-game tournament support
+- [x] Automated wallet system
+- [x] Prize distribution (98/2 split)
+- [x] Report/dispute system
+- [ ] AI result extraction
+- [ ] Mobile apps (iOS/Android)
+- [ ] Live streaming integration
+- [ ] Sponsor management
+- [ ] Advanced analytics dashboard
 
 ---
 
-🎮 **ESPO V2 - Powering the next generation of esports.**
+**Built with ❤️ for the esports community**

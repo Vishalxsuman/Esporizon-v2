@@ -27,6 +27,100 @@ export interface UserProfile {
     newTournaments: boolean
     teamInvites: boolean
   }
+  // War Room fields
+  trustLevel?: 0 | 1 | 2 | 3
+  badges?: Array<{
+    type: string
+    earnedAt: string
+  }>
+  warRoomStats?: {
+    postsCreated: number
+    successfulRecruitments: number
+    reportCount: number
+  }
+  // Dossier fields
+  clanTag?: string
+  clanLogo?: string
+  signatureGame?: {
+    gameId: string
+    gameName: string
+    inGameId: string
+    rank: string
+    winRate: number
+    tournamentsPlayed: number
+    lastUpdated: string
+  }
+  lfgStatus?: {
+    mode: 'available_scrims' | 'looking_duo' | 'tournament_ready' | 'not_available'
+    expiresAt?: string
+    autoExpireHours?: number
+    setAt: string
+  }
+  skillMetrics?: {
+    aggression: number
+    survival: number
+    teamImpact: number
+    consistency: number
+    clutchFactor: number
+    lastCalculated: string
+  }
+  socialLinks?: {
+    youtube?: string
+    twitch?: string
+  }
+  isVerifiedHost?: boolean
+  hostMetrics?: {
+    hostingRating: number
+    totalPrizeDistributed: number
+    tournamentsCompleted: number
+    activeTournaments: number
+    upcomingTournaments: number
+  }
+  playerStats?: {
+    gameStats?: {
+      bgmi?: {
+        currentRank: string
+        winRate: number
+        matchesPlayed: number
+        matchesWon: number
+        kills: number
+        rankScore: number
+      }
+      freefire?: {
+        currentRank: string
+        winRate: number
+        matchesPlayed: number
+        matchesWon: number
+        kills: number
+        rankScore: number
+      }
+      valorant?: {
+        currentRank: string
+        winRate: number
+        matchesPlayed: number
+        matchesWon: number
+        kills: number
+        rankScore: number
+      }
+      minecraft?: {
+        currentRank: string
+        winRate: number
+        matchesPlayed: number
+        matchesWon: number
+        kills: number
+        rankScore: number
+      }
+    }
+    recentTournaments?: Array<{
+      tournamentId: string
+      game: string
+      rank: number
+      isWinner: boolean
+      rankScoreChange: number
+      date: string
+    }>
+    totalEarnings?: number
+  }
 }
 
 export interface Wallet {
@@ -73,19 +167,4 @@ export interface Match {
   }
 }
 
-export interface Prediction {
-  id: string
-  userId: string
-  matchId: string
-  predictedTeam: string
-  amount: number
-  status: 'pending' | 'won' | 'lost'
-  createdAt: string
-}
 
-export interface ColorPredictionResult {
-  id: string
-  color: 'red' | 'green' | 'violet'
-  multiplier: number
-  timestamp: string
-}
