@@ -1,6 +1,7 @@
 import { Wallet } from '@/types'
 import axios from 'axios'
 import { auth } from '@/config/firebaseConfig'
+import { API_URL } from '@/config/api'
 
 class WalletService {
   private pollingInterval: NodeJS.Timeout | null = null;
@@ -11,11 +12,6 @@ class WalletService {
     this.setupRealtimeSync(userId);
 
     try {
-      let API_URL = import.meta.env.VITE_API_URL;
-      if (!API_URL) {
-        console.warn('VITE_API_URL missing in WalletService, using fallback');
-        API_URL = 'https://api.esporizon.in/api';
-      }
       console.log('💰 WalletService fetching from:', `${API_URL}/wallet`);
 
       const response = await axios.get(`${API_URL}/wallet`, {
@@ -49,8 +45,6 @@ class WalletService {
     // Poll backend every 5 seconds
     this.pollingInterval = setInterval(async () => {
       try {
-        let API_URL = import.meta.env.VITE_API_URL;
-        if (!API_URL) API_URL = 'https://api.esporizon.in/api';
         const response = await axios.get(`${API_URL}/wallet`, {
           headers: { 'user-id': userId }
         });
@@ -72,10 +66,9 @@ class WalletService {
   async addFunds(amount: number, _userId: string): Promise<void> {
     try {
       // Get Firebase ID token
-      const token = await auth.currentUser?.getIdToken();
+      const token = await auth?.currentUser?.getIdToken();
 
-      let API_URL = import.meta.env.VITE_API_URL;
-      if (!API_URL) API_URL = 'https://api.esporizon.in/api';
+
 
       try {
         if (token) {
@@ -122,8 +115,6 @@ class WalletService {
 
   // Helper for manual subscription if needed
   subscribeToWallet(userId: string, callback: (wallet: Wallet) => void): () => void {
-    let API_URL = import.meta.env.VITE_API_URL;
-    if (!API_URL) API_URL = 'https://api.esporizon.in/api';
 
     const pollWallet = async () => {
       try {

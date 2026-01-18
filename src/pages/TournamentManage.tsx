@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Trophy, Save, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { API_URL } from '@/config/api';
 
 interface Tournament {
     id: string;
@@ -43,7 +44,7 @@ const TournamentManage = () => {
                 setLoading(true);
                 const token = await getToken();
                 // Note: Modified backend filter by organizerId
-                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/tournaments?organizerId=${user.uid}`, {
+                const response = await fetch(`${API_URL}/api/tournaments?organizerId=${user.uid}`, {
                     headers: { 'Authorization': `Bearer ${token}` } // Optional if backend public endpoint checks this? Actually my manual update didn't mandate auth, but it's good practice.
                 });
                 if (!response.ok) throw new Error('Failed to fetch tournaments');
@@ -66,7 +67,7 @@ const TournamentManage = () => {
 
         try {
             setLoadingParticipants(true);
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/tournaments/${tournament.id}/participants`);
+            const response = await fetch(`${API_URL}/api/tournaments/${tournament.id}/participants`);
             if (!response.ok) throw new Error('Failed to fetch participants');
 
             const data = await response.json();
@@ -122,7 +123,7 @@ const TournamentManage = () => {
                     teamName: r.teamName || r.userName
                 }));
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/tournaments/${selectedTournament.id}/results`, {
+            const response = await fetch(`${API_URL}/api/tournaments/${selectedTournament.id}/results`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

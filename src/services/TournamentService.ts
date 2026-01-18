@@ -1,5 +1,6 @@
 import { auth } from '../config/firebaseConfig';
 import { Tournament, TournamentParticipant, TournamentResults } from '@/types/tournament'
+import { API_URL } from '@/config/api';
 
 class TournamentService {
     private mockResults: Map<string, TournamentResults> = new Map()
@@ -280,8 +281,7 @@ class TournamentService {
 
     async joinTournament(tournamentId: string, data: { teamName: string; players: any[] }): Promise<void> {
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const token = await auth.currentUser?.getIdToken();
+            const token = await auth?.currentUser?.getIdToken();
 
             const response = await fetch(`${API_URL}/api/tournaments/${tournamentId}/register`, {
                 method: 'POST',
@@ -311,8 +311,7 @@ class TournamentService {
 
     async leaveTournament(tournamentId: string): Promise<void> {
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const token = await auth.currentUser?.getIdToken();
+            const token = await auth?.currentUser?.getIdToken();
 
             const response = await fetch(`${API_URL}/api/tournaments/${tournamentId}/register`, {
                 method: 'DELETE',
@@ -337,8 +336,7 @@ class TournamentService {
     // Add new methods for host tournament management
     async createTournament(tournamentData: any): Promise<any> {
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const token = await auth.currentUser?.getIdToken();
+            const token = await auth?.currentUser?.getIdToken();
 
             const response = await fetch(`${API_URL}/api/tournaments`, {
                 method: 'POST',
@@ -366,8 +364,7 @@ class TournamentService {
 
     async updateTournamentStatus(tournamentId: string, status: string): Promise<void> {
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const token = await auth.currentUser?.getIdToken();
+            const token = await auth?.currentUser?.getIdToken();
 
             const response = await fetch(`${API_URL}/api/tournaments/${tournamentId}/status`, {
                 method: 'PATCH',
@@ -390,8 +387,7 @@ class TournamentService {
 
     async deleteTournament(tournamentId: string): Promise<void> {
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-            const token = await auth.currentUser?.getIdToken();
+            const token = await auth?.currentUser?.getIdToken();
 
             const response = await fetch(`${API_URL}/api/tournaments/${tournamentId}`, {
                 method: 'DELETE',
