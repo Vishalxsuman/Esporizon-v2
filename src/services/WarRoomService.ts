@@ -205,93 +205,103 @@ class WarRoomService {
     // ========================================
 
     async createRecruitmentCard(userId: string, userName: string, userAvatar: string, data: CreateRecruitmentDto): Promise<string> {
-        // Check permission
-        const canRecruit = await this.checkPermission(userId, 'recruit')
-        if (!canRecruit) {
-            throw new Error('Insufficient trust level to create recruitment')
+        try {
+            // Check permission
+            const canRecruit = await this.checkPermission(userId, 'recruit')
+            if (!canRecruit) {
+                throw new Error('Insufficient trust level to create recruitment')
+            }
+
+            // Check spam - max 3 recruitments per hour
+            const recentPosts = await this.getUserRecentRecruitments(userId, 60) // last hour
+            if (recentPosts.length >= 3) {
+                throw new Error('Too many recruitments in short time. Please wait.')
+            }
+
+            // Get user profile
+            const trustLevel = await this.getUserTrustLevel(userId)
+            const badges = await this.getUserBadges(userId)
+
+            const card: Omit<RecruitmentCard, 'id'> = {
+                userId,
+                userName,
+                userAvatar,
+                trustLevel,
+                badges,
+                gameId: data.gameId,
+                gameName: this.getGameName(data.gameId),
+                mode: data.mode,
+                tournamentId: data.tournamentId,
+                tournamentName: '', // TODO: fetch from tournament
+                tournamentStartTime: data.timeSlotTimestamp,
+                roleNeeded: data.roleNeeded,
+                roleName: this.getRoleName(data.roleNeeded),
+                slotsAvailable: data.slotsAvailable,
+                currentMembers: [],
+                minimumKD: data.minimumKD,
+                minimumRank: data.minimumRank,
+                requirements: data.requirements,
+                timeSlot: data.timeSlot,
+                timeSlotTimestamp: data.timeSlotTimestamp,
+                entryFee: data.entryFee,
+                status: 'active',
+                expiresAt: data.timeSlotTimestamp,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            }
+
+            const docRef = await addDoc(collection(db, RECRUITMENT_COLLECTION), card)
+            return docRef.id
+        } catch (error) {
+            console.error("Error creating recruitment card:", error)
+            throw error
         }
-
-        // Check spam - max 3 recruitments per hour
-        const recentPosts = await this.getUserRecentRecruitments(userId, 60) // last hour
-        if (recentPosts.length >= 3) {
-            throw new Error('Too many recruitments in short time. Please wait.')
-        }
-
-        // Get user profile
-        const trustLevel = await this.getUserTrustLevel(userId)
-        const badges = await this.getUserBadges(userId)
-
-        const card: Omit<RecruitmentCard, 'id'> = {
-            userId,
-            userName,
-            userAvatar,
-            trustLevel,
-            badges,
-            gameId: data.gameId,
-            gameName: this.getGameName(data.gameId),
-            mode: data.mode,
-            tournamentId: data.tournamentId,
-            tournamentName: '', // TODO: fetch from tournament
-            tournamentStartTime: data.timeSlotTimestamp,
-            roleNeeded: data.roleNeeded,
-            roleName: this.getRoleName(data.roleNeeded),
-            slotsAvailable: data.slotsAvailable,
-            currentMembers: [],
-            minimumKD: data.minimumKD,
-            minimumRank: data.minimumRank,
-            requirements: data.requirements,
-            timeSlot: data.timeSlot,
-            timeSlotTimestamp: data.timeSlotTimestamp,
-            entryFee: data.entryFee,
-            status: 'active',
-            expiresAt: data.timeSlotTimestamp,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-        }
-
-        const docRef = await addDoc(collection(db, RECRUITMENT_COLLECTION), card)
-        return docRef.id
     }
 
     async joinSquad(cardId: string, userId: string): Promise<string> {
-        const cardRef = doc(db, RECRUITMENT_COLLECTION, cardId)
-        const cardSnap = await getDoc(cardRef)
+        try {
+            const cardRef = doc(db, RECRUITMENT_COLLECTION, cardId)
+            const cardSnap = await getDoc(cardRef)
 
-        if (!cardSnap.exists()) {
-            throw new Error('Recruitment card not found')
+            if (!cardSnap.exists()) {
+                throw new Error('Recruitment card not found')
+            }
+
+            const card = cardSnap.data() as RecruitmentCard
+
+            if (card.status !== 'active') {
+                throw new Error('Recruitment is no longer active')
+            }
+
+            if (card.currentMembers.length >= card.slotsAvailable) {
+                throw new Error('Squad is full')
+            }
+
+            if (card.currentMembers.includes(userId)) {
+                throw new Error('Already joined')
+            }
+
+            const newMembers = [...card.currentMembers, userId]
+            const isFilled = newMembers.length >= card.slotsAvailable
+
+            await updateDoc(cardRef, {
+                currentMembers: newMembers,
+                status: isFilled ? 'filled' : 'active',
+                updatedAt: new Date().toISOString()
+            })
+
+            // Create squad chat if filled
+            if (isFilled) {
+                const squadChatId = await this.createSquadChat(cardId, card.tournamentId, [...newMembers, card.userId])
+                await updateDoc(cardRef, { squadChatId })
+                return squadChatId
+            }
+
+            return ''
+        } catch (error) {
+            console.error("Error joining squad:", error)
+            throw error
         }
-
-        const card = cardSnap.data() as RecruitmentCard
-
-        if (card.status !== 'active') {
-            throw new Error('Recruitment is no longer active')
-        }
-
-        if (card.currentMembers.length >= card.slotsAvailable) {
-            throw new Error('Squad is full')
-        }
-
-        if (card.currentMembers.includes(userId)) {
-            throw new Error('Already joined')
-        }
-
-        const newMembers = [...card.currentMembers, userId]
-        const isFilled = newMembers.length >= card.slotsAvailable
-
-        await updateDoc(cardRef, {
-            currentMembers: newMembers,
-            status: isFilled ? 'filled' : 'active',
-            updatedAt: new Date().toISOString()
-        })
-
-        // Create squad chat if filled
-        if (isFilled) {
-            const squadChatId = await this.createSquadChat(cardId, card.tournamentId, [...newMembers, card.userId])
-            await updateDoc(cardRef, { squadChatId })
-            return squadChatId
-        }
-
-        return ''
     }
 
     async createSquadChat(recruitmentCardId: string, tournamentId: string, members: string[]): Promise<string> {
@@ -350,26 +360,31 @@ class WarRoomService {
     // ========================================
 
     async generateTournamentCard(tournamentId: string, eventType: TournamentEventType, tournamentData: any): Promise<void> {
-        const card: Omit<TournamentCard, 'id'> = {
-            tournamentId,
-            eventType,
-            gameName: tournamentData.gameName,
-            tournamentName: tournamentData.title,
-            bannerUrl: tournamentData.bannerUrl,
-            prizePool: tournamentData.prizePool,
-            entryFee: tournamentData.entryFee,
-            slotsTotal: tournamentData.maxTeams,
-            slotsFilled: tournamentData.currentTeams || 0,
-            organizerId: tournamentData.organizerId,
-            organizerName: tournamentData.organizerName,
-            isVerifiedHost: false, // TODO: check if verified
-            status: tournamentData.status,
-            startTime: tournamentData.startDate,
-            autoGenerated: true,
-            createdAt: new Date().toISOString()
-        }
+        try {
+            const card: Omit<TournamentCard, 'id'> = {
+                tournamentId,
+                eventType,
+                gameName: tournamentData.gameName,
+                tournamentName: tournamentData.title,
+                bannerUrl: tournamentData.bannerUrl,
+                prizePool: tournamentData.prizePool,
+                entryFee: tournamentData.entryFee,
+                slotsTotal: tournamentData.maxTeams,
+                slotsFilled: tournamentData.currentTeams || 0,
+                organizerId: tournamentData.organizerId,
+                organizerName: tournamentData.organizerName,
+                isVerifiedHost: false, // TODO: check if verified
+                status: tournamentData.status,
+                startTime: tournamentData.startDate,
+                autoGenerated: true,
+                createdAt: new Date().toISOString()
+            }
 
-        await addDoc(collection(db, TOURNAMENT_CARDS_COLLECTION), card)
+            await addDoc(collection(db, TOURNAMENT_CARDS_COLLECTION), card)
+        } catch (error) {
+            console.error("Error generating tournament card:", error)
+            // Non-critical, just log it. Don't throw to avoid interrupting main flow if possible
+        }
     }
 
     subscribeToTournamentCards(

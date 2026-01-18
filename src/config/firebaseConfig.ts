@@ -19,6 +19,17 @@ const app = initializeApp(firebaseConfig)
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app)
+import { GoogleAuthProvider } from 'firebase/auth'
+
+export const googleProvider = new GoogleAuthProvider()
+
+// Defensive logging
+if (import.meta.env.DEV) {
+    console.log('Firebase Initialized:', {
+        authDomain: firebaseConfig.authDomain,
+        projectId: firebaseConfig.projectId
+    })
+}
 
 // Initialize Firestore
 export const db = getFirestore(app)
