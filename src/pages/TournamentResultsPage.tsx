@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Trophy, Medal, Award, Download, Share2, Target, Crosshair, Users } from 'lucide-react'
+import { ArrowLeft, Trophy, Download, Share2, Target, Crosshair, Users } from 'lucide-react'
 import { TournamentResults as TournamentResultsType, Tournament } from '@/types/tournament'
 import { tournamentService } from '@/services/TournamentService'
 
@@ -56,7 +56,7 @@ const TournamentResultsPage = () => {
     }
 
     const top3 = results.leaderboard.slice(0, 3)
-    const restOfLeaderboard = results.leaderboard.slice(3)
+
 
     return (
         <div className="min-h-screen bg-black pb-24 animate-fadeIn bg-cyber-grid bg-fixed overflow-x-hidden">

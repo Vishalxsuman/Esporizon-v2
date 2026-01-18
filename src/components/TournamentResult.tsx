@@ -22,7 +22,7 @@ interface TournamentResultProps {
     totalPrizePool: number;
 }
 
-const TournamentResult: React.FC<TournamentResultProps> = ({ isOpen, onClose, results, tournamentName, totalPrizePool }) => {
+const TournamentResult: React.FC<TournamentResultProps> = ({ isOpen, onClose, results, tournamentName, totalPrizePool: _totalPrizePool }) => {
     // Sort results by rank
     const sortedResults = [...results].sort((a, b) => a.rank - b.rank);
 

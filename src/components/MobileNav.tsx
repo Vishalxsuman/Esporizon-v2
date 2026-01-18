@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, PlusSquare, Trophy, Dices, User } from 'lucide-react'
+import { Home, PlusSquare, Trophy, User } from 'lucide-react'
 import { motion } from 'framer-motion'
 
 const MobileNav = () => {
