@@ -18,10 +18,15 @@ const POSTS_COLLECTION = 'posts'
 
 class PostService {
     async getTodaysPosts(maxPosts: number = 20): Promise<Post[]> {
-        const postsRef = collection(db, POSTS_COLLECTION)
-        const q = query(postsRef, orderBy('createdAt', 'desc'), limit(maxPosts))
-        const snapshot = await getDocs(q)
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
+        try {
+            const postsRef = collection(db, POSTS_COLLECTION)
+            const q = query(postsRef, orderBy('createdAt', 'desc'), limit(maxPosts))
+            const snapshot = await getDocs(q)
+            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
+        } catch (error) {
+            console.error("Error fetching posts:", error)
+            return []
+        }
     }
 
     subscribePublicPosts(
@@ -97,34 +102,39 @@ class PostService {
     async toggleLike(postId: string, userId: string): Promise<void> {
         if (!userId) throw new Error("Authentication Required")
 
-        const postRef = doc(db, POSTS_COLLECTION, postId)
+        try {
+            const postRef = doc(db, POSTS_COLLECTION, postId)
 
-        await runTransaction(db, async (transaction) => {
-            const postDoc = await transaction.get(postRef)
-            if (!postDoc.exists()) throw new Error("Post does not exist")
+            await runTransaction(db, async (transaction) => {
+                const postDoc = await transaction.get(postRef)
+                if (!postDoc.exists()) throw new Error("Post does not exist")
 
-            const data = postDoc.data() as Post
-            const likes = data.likes || []
-            const hasLiked = likes.includes(userId)
+                const data = postDoc.data() as Post
+                const likes = data.likes || []
+                const hasLiked = likes.includes(userId)
 
-            const currentCount = typeof data.likeCount === 'number' ? data.likeCount : likes.length
+                const currentCount = typeof data.likeCount === 'number' ? data.likeCount : likes.length
 
-            if (hasLiked) {
-                // Unlike
-                const newLikes = likes.filter(id => id !== userId)
-                transaction.update(postRef, {
-                    likes: newLikes,
-                    likeCount: Math.max(0, currentCount - 1)
-                })
-            } else {
-                // Like
-                const newLikes = [...likes, userId]
-                transaction.update(postRef, {
-                    likes: newLikes,
-                    likeCount: currentCount + 1
-                })
-            }
-        })
+                if (hasLiked) {
+                    // Unlike
+                    const newLikes = likes.filter(id => id !== userId)
+                    transaction.update(postRef, {
+                        likes: newLikes,
+                        likeCount: Math.max(0, currentCount - 1)
+                    })
+                } else {
+                    // Like
+                    const newLikes = [...likes, userId]
+                    transaction.update(postRef, {
+                        likes: newLikes,
+                        likeCount: currentCount + 1
+                    })
+                }
+            })
+        } catch (error) {
+            console.error("Error toggling like:", error)
+            throw error // Re-throw to let UI handle if needed, or suppress if just logging
+        }
     }
 
     // Deprecated but kept for safety if called elsewhere with old signature
@@ -220,21 +230,26 @@ class PostService {
         userAvatar: string,
         visibility: 'public' | 'private' = 'public'
     ): Promise<void> {
-        const postsRef = collection(db, POSTS_COLLECTION)
-        const newPost = {
-            userId,
-            userName,
-            userAvatar: userAvatar || '',
-            content,
-            imageUrl: imageUrl || '',
-            likes: [],
-            likeCount: 0,
-            shares: [],
-            commentCount: 0,
-            visibility,
-            createdAt: new Date().toISOString()
+        try {
+            const postsRef = collection(db, POSTS_COLLECTION)
+            const newPost = {
+                userId,
+                userName,
+                userAvatar: userAvatar || '',
+                content,
+                imageUrl: imageUrl || '',
+                likes: [],
+                likeCount: 0,
+                shares: [],
+                commentCount: 0,
+                visibility,
+                createdAt: new Date().toISOString()
+            }
+            await addDoc(postsRef, newPost)
+        } catch (error) {
+            console.error("Error creating post:", error)
+            throw error
         }
-        await addDoc(postsRef, newPost)
     }
 }
 
