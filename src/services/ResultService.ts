@@ -1,13 +1,12 @@
 import axios from 'axios';
 import { auth } from '@/config/firebaseConfig';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_URL } from '@/config/api';
 
 /**
  * Get auth headers with Firebase token
  */
 const getAuthHeaders = async () => {
-    const token = await auth.currentUser?.getIdToken();
+    const token = await auth?.currentUser?.getIdToken();
     return {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'

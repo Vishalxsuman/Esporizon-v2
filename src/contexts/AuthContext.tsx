@@ -6,9 +6,8 @@ import {
   onAuthStateChanged,
   updateProfile,
   signInWithPopup,
-  GoogleAuthProvider,
 } from 'firebase/auth'
-import { auth } from '@/config/firebaseConfig'
+import { auth, googleProvider, isFirebaseConfigured } from '@/config/firebaseConfig'
 import { User } from '@/types'
 
 interface AuthContextType {
@@ -28,6 +27,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // Check if Firebase is configured
+    if (!isFirebaseConfigured) {
+      console.warn('⚠️ Firebase not configured - Auth features disabled')
+      setLoading(false)
+      return
+    }
+
+    if (!auth) {
+      setLoading(false)
+      return
+    }
+
     // Listen for auth state changes
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       if (firebaseUser) {
@@ -50,6 +61,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [])
 
   const signIn = async (email: string, password: string) => {
+    if (!auth) {
+      throw new Error('Firebase Auth not configured')
+    }
     try {
       await signInWithEmailAndPassword(auth, email, password)
     } catch (error: any) {
@@ -59,6 +73,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   const signUp = async (email: string, password: string, displayName: string) => {
+    if (!auth) {
+      throw new Error('Firebase Auth not configured')
+    }
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
 
@@ -75,9 +92,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   const signInWithGoogle = async () => {
+    if (!auth || !googleProvider) {
+      throw new Error('Firebase Auth not configured')
+    }
     try {
-      const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
+      await signInWithPopup(auth, googleProvider)
     } catch (error: any) {
       console.error('Google sign in error:', error)
       throw new Error(error.message || 'Failed to sign in with Google')
@@ -85,6 +104,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }
 
   const signOut = async () => {
+    if (!auth) {
+      throw new Error('Firebase Auth not configured')
+    }
     try {
       await firebaseSignOut(auth)
     } catch (error: any) {
@@ -95,7 +117,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const getToken = async (options?: any) => {
     try {
-      if (!auth.currentUser) {
+      if (!auth || !auth.currentUser) {
         return null
       }
       // Get Firebase ID token

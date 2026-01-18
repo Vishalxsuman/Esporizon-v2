@@ -1,6 +1,5 @@
 import { auth } from '../config/firebaseConfig';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_URL } from '@/config/api';
 
 interface CreateReportData {
     tournamentId: string;
@@ -14,7 +13,7 @@ class ReportServiceClass {
      * Create a new report
      */
     async createReport(data: CreateReportData) {
-        const token = await auth.currentUser?.getIdToken();
+        const token = await auth?.currentUser?.getIdToken();
 
         const response = await fetch(`${API_URL}/api/reports`, {
             method: 'POST',
@@ -37,7 +36,7 @@ class ReportServiceClass {
      * Get reports for host
      */
     async getReportsForHost(status?: string, page: number = 1, limit: number = 20) {
-        const token = await auth.currentUser?.getIdToken();
+        const token = await auth?.currentUser?.getIdToken();
 
         const params = new URLSearchParams({
             page: page.toString(),
@@ -62,7 +61,7 @@ class ReportServiceClass {
      * Get reports for player
      */
     async getReportsForPlayer(status?: string, page: number = 1, limit: number = 20) {
-        const token = await auth.currentUser?.getIdToken();
+        const token = await auth?.currentUser?.getIdToken();
 
         const params = new URLSearchParams({
             page: page.toString(),
@@ -87,7 +86,7 @@ class ReportServiceClass {
      * Get report details
      */
     async getReportDetails(reportId: string) {
-        const token = await auth.currentUser?.getIdToken();
+        const token = await auth?.currentUser?.getIdToken();
 
         const response = await fetch(`${API_URL}/api/reports/${reportId}`, {
             headers: {
@@ -106,7 +105,7 @@ class ReportServiceClass {
      * Add reply to report
      */
     async addReply(reportId: string, message: string) {
-        const token = await auth.currentUser?.getIdToken();
+        const token = await auth?.currentUser?.getIdToken();
 
         const response = await fetch(`${API_URL}/api/reports/${reportId}/reply`, {
             method: 'POST',
@@ -129,7 +128,7 @@ class ReportServiceClass {
      * Update report status
      */
     async updateStatus(reportId: string, status: string) {
-        const token = await auth.currentUser?.getIdToken();
+        const token = await auth?.currentUser?.getIdToken();
 
         const response = await fetch(`${API_URL}/api/reports/${reportId}/status`, {
             method: 'PATCH',
