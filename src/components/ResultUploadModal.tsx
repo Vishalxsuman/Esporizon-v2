@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Upload, X, Check, AlertCircle, Loader2, Edit3,
-    Eye, Trophy, Users, Calendar, Coins, Image as ImageIcon,
+    Upload, X, Loader2, Image as ImageIcon,
     CheckCircle2, XCircle, Clock
 } from 'lucide-react';
 import ResultAnalysisService, { ResultAnalysis } from '@/services/ResultAnalysisService';
@@ -110,7 +109,7 @@ const ResultUploadModal = ({
             const base64 = await ResultAnalysisService.fileToBase64(screenshot);
 
             // Upload and trigger AI analysis
-            const result = await ResultAnalysisService.uploadResultScreenshot(
+            await ResultAnalysisService.uploadResultScreenshot(
                 tournamentId,
                 hostFirebaseUid,
                 base64
@@ -348,12 +347,12 @@ const ResultUploadModal = ({
 
                                 {/* Polling Status */}
                                 {isPolling && (
-                                <div className="flex items-center justify-center gap-3 py-4">
-                                    <Loader2 size={20} className="animate-spin text-[var(--accent)]" />
-                                    <span className="text-sm text-[var(--text-secondary)]">
-                                        AI is processing your screenshot...
-                                    </span>
-                                </div>
+                                    <div className="flex items-center justify-center gap-3 py-4">
+                                        <Loader2 size={20} className="animate-spin text-[var(--accent)]" />
+                                        <span className="text-sm text-[var(--text-secondary)]">
+                                            AI is processing your screenshot...
+                                        </span>
+                                    </div>
                                 )}
                             </div>
                         </motion.div>

@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion'
 import { ArrowLeft, Globe } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import SocialSection from '@/components/SocialSection'

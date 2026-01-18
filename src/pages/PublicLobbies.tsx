@@ -59,8 +59,8 @@ const PublicLobbies = () => {
             await matchService.joinMatch({
                 matchId,
                 userId: user.id,
-                userName: user.fullName || user.firstName || 'Player',
-                userAvatar: user.imageUrl
+                userName: user.displayName || 'Player',
+                userAvatar: user.photoURL || ''
             })
 
             toast.success('Joined match!')
