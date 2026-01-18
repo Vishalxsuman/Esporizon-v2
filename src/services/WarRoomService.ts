@@ -1,4 +1,4 @@
-import { db } from '@/config/firebaseConfig'
+import { getFirebaseDb } from '@/config/firebaseConfig'
 import {
     collection,
     doc,
@@ -42,7 +42,7 @@ class WarRoomService {
 
     async getUserTrustLevel(userId: string): Promise<TrustLevel> {
         try {
-            const docRef = doc(db, USER_WAR_ROOM_COLLECTION, userId)
+            const docRef = doc(getFirebaseDb(), USER_WAR_ROOM_COLLECTION, userId)
             const docSnap = await getDoc(docRef)
 
             if (docSnap.exists()) {
@@ -60,7 +60,7 @@ class WarRoomService {
     }
 
     async initializeUserProfile(userId: string): Promise<void> {
-        const docRef = doc(db, USER_WAR_ROOM_COLLECTION, userId)
+        const docRef = doc(getFirebaseDb(), USER_WAR_ROOM_COLLECTION, userId)
         const profile: UserWarRoomProfile = {
             userId,
             trustLevel: 0,
@@ -78,7 +78,7 @@ class WarRoomService {
     }
 
     async updateTrustLevel(userId: string, newLevel: TrustLevel): Promise<void> {
-        const docRef = doc(db, USER_WAR_ROOM_COLLECTION, userId)
+        const docRef = doc(getFirebaseDb(), USER_WAR_ROOM_COLLECTION, userId)
         await updateDoc(docRef, {
             trustLevel: newLevel,
             updatedAt: new Date().toISOString()
@@ -111,14 +111,14 @@ class WarRoomService {
     }
 
     async incrementTournamentCount(userId: string): Promise<void> {
-        const docRef = doc(db, USER_WAR_ROOM_COLLECTION, userId)
+        const docRef = doc(getFirebaseDb(), USER_WAR_ROOM_COLLECTION, userId)
         const docSnap = await getDoc(docRef)
 
         if (!docSnap.exists()) {
             await this.initializeUserProfile(userId)
         }
 
-        await runTransaction(db, async (transaction) => {
+        await runTransaction(getFirebaseDb(), async (transaction) => {
             const freshDoc = await transaction.get(docRef)
             if (!freshDoc.exists()) return
 
@@ -153,7 +153,7 @@ class WarRoomService {
     // ========================================
 
     async awardBadge(userId: string, badgeType: BadgeType, metadata?: any): Promise<void> {
-        const docRef = doc(db, USER_WAR_ROOM_COLLECTION, userId)
+        const docRef = doc(getFirebaseDb(), USER_WAR_ROOM_COLLECTION, userId)
         const docSnap = await getDoc(docRef)
 
         if (!docSnap.exists()) {
@@ -189,7 +189,7 @@ class WarRoomService {
     }
 
     async getUserBadges(userId: string): Promise<Badge[]> {
-        const docRef = doc(db, USER_WAR_ROOM_COLLECTION, userId)
+        const docRef = doc(getFirebaseDb(), USER_WAR_ROOM_COLLECTION, userId)
         const docSnap = await getDoc(docRef)
 
         if (!docSnap.exists()) {
@@ -250,7 +250,7 @@ class WarRoomService {
                 updatedAt: new Date().toISOString()
             }
 
-            const docRef = await addDoc(collection(db, RECRUITMENT_COLLECTION), card)
+            const docRef = await addDoc(collection(getFirebaseDb(), RECRUITMENT_COLLECTION), card)
             return docRef.id
         } catch (error) {
             console.error("Error creating recruitment card:", error)
@@ -260,7 +260,7 @@ class WarRoomService {
 
     async joinSquad(cardId: string, userId: string): Promise<string> {
         try {
-            const cardRef = doc(db, RECRUITMENT_COLLECTION, cardId)
+            const cardRef = doc(getFirebaseDb(), RECRUITMENT_COLLECTION, cardId)
             const cardSnap = await getDoc(cardRef)
 
             if (!cardSnap.exists()) {
@@ -313,7 +313,7 @@ class WarRoomService {
             expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days
         }
 
-        const docRef = await addDoc(collection(db, SQUAD_CHATS_COLLECTION), chat)
+        const docRef = await addDoc(collection(getFirebaseDb(), SQUAD_CHATS_COLLECTION), chat)
         return docRef.id
     }
 
@@ -321,7 +321,7 @@ class WarRoomService {
         const cutoffTime = new Date(Date.now() - minutesBack * 60 * 1000).toISOString()
 
         const q = query(
-            collection(db, RECRUITMENT_COLLECTION),
+            collection(getFirebaseDb(), RECRUITMENT_COLLECTION),
             where('userId', '==', userId),
             where('createdAt', '>', cutoffTime),
             orderBy('createdAt', 'desc')
@@ -336,7 +336,7 @@ class WarRoomService {
         callback: (cards: RecruitmentCard[]) => void
     ): () => void {
         let q = query(
-            collection(db, RECRUITMENT_COLLECTION),
+            collection(getFirebaseDb(), RECRUITMENT_COLLECTION),
             where('status', '==', 'active'),
             orderBy('createdAt', 'desc'),
             limit(20)
@@ -380,7 +380,7 @@ class WarRoomService {
                 createdAt: new Date().toISOString()
             }
 
-            await addDoc(collection(db, TOURNAMENT_CARDS_COLLECTION), card)
+            await addDoc(collection(getFirebaseDb(), TOURNAMENT_CARDS_COLLECTION), card)
         } catch (error) {
             console.error("Error generating tournament card:", error)
             // Non-critical, just log it. Don't throw to avoid interrupting main flow if possible
@@ -391,7 +391,7 @@ class WarRoomService {
         callback: (cards: TournamentCard[]) => void
     ): () => void {
         const q = query(
-            collection(db, TOURNAMENT_CARDS_COLLECTION),
+            collection(getFirebaseDb(), TOURNAMENT_CARDS_COLLECTION),
             orderBy('createdAt', 'desc'),
             limit(20)
         )
@@ -440,7 +440,7 @@ class WarRoomService {
             updatedAt: new Date().toISOString()
         }
 
-        const docRef = await addDoc(collection(db, CLIPS_COLLECTION), clip)
+        const docRef = await addDoc(collection(getFirebaseDb(), CLIPS_COLLECTION), clip)
         return docRef.id
     }
 
@@ -449,7 +449,7 @@ class WarRoomService {
         callback: (clips: ClipPost[]) => void
     ): () => void {
         let q = query(
-            collection(db, CLIPS_COLLECTION),
+            collection(getFirebaseDb(), CLIPS_COLLECTION),
             where('status', '==', 'active'),
             orderBy('createdAt', 'desc'),
             limit(20)
@@ -497,7 +497,7 @@ class WarRoomService {
     async cleanupExpiredCards(): Promise<void> {
         const now = new Date().toISOString()
         const q = query(
-            collection(db, RECRUITMENT_COLLECTION),
+            collection(getFirebaseDb(), RECRUITMENT_COLLECTION),
             where('status', '==', 'active'),
             where('expiresAt', '<', now)
         )
@@ -512,3 +512,4 @@ class WarRoomService {
 }
 
 export const warRoomService = new WarRoomService()
+

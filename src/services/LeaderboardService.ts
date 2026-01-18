@@ -1,4 +1,4 @@
-import { db } from '@/config/firebaseConfig'
+import { getFirebaseDb } from '@/config/firebaseConfig'
 import {
     collection,
     doc,
@@ -14,7 +14,7 @@ import {
 import type { Leaderboard, LeaderboardEntry } from '@/types/match'
 
 class LeaderboardService {
-    private leaderboardsCollection = collection(db, 'leaderboards')
+    private leaderboardsCollection = collection(getFirebaseDb(), 'leaderboards')
 
     // Get current leaderboard by type
     async getLeaderboard(type: 'overall_champions' | 'free_masters' | 'top_earners'): Promise<Leaderboard | null> {
