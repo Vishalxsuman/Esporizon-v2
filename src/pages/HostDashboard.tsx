@@ -67,7 +67,11 @@ const HostDashboard = () => {
                 navigate('/host/benefits');
             }
         } catch (error) {
-            console.error('Error checking host status:', error);
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error checking host status:', error);
+
+            }
             if (localStorage.getItem('user_is_host') === 'true') {
                 setIsHost(true);
             } else {
@@ -85,8 +89,12 @@ const HostDashboard = () => {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-black flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500"></div>
+            <div className="min-h-screen bg-black p-8">
+                <div className="max-w-7xl mx-auto space-y-8">
+                    <div className="h-20 bg-zinc-900/50 rounded-2xl animate-pulse" />
+                    <div className="h-12 w-96 bg-zinc-900/50 rounded-xl animate-pulse" />
+                    <div className="h-64 bg-zinc-900/50 rounded-3xl animate-pulse" />
+                </div>
             </div>
         );
     }
@@ -148,8 +156,8 @@ const HostDashboard = () => {
                                 whileTap={{ scale: 0.98 }}
                                 onClick={() => setActiveGame(game.id)}
                                 className={`relative px-6 py-4 rounded-2xl border-2 transition-all min-w-[140px] ${isActive
-                                        ? 'border-white bg-gradient-to-br ' + game.color
-                                        : 'border-white/10 bg-zinc-900/50 hover:border-white/20'
+                                    ? 'border-white bg-gradient-to-br ' + game.color
+                                    : 'border-white/10 bg-zinc-900/50 hover:border-white/20'
                                     }`}
                             >
                                 <div className="flex flex-col items-center gap-2">

@@ -47,7 +47,11 @@ const ResultUploadModal = ({
                 }
             }
         } catch (error) {
-            console.error('Error checking existing results:', error);
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error checking existing results:', error);
+
+            }
         }
     };
 
@@ -64,7 +68,11 @@ const ResultUploadModal = ({
                     }
                 }
             } catch (error) {
-                console.error('Polling error:', error);
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.error('Polling error:', error);
+
+                }
             }
         }, 3000); // Poll every 3 seconds
 
@@ -123,7 +131,11 @@ const ResultUploadModal = ({
             if (onSuccess) onSuccess();
 
         } catch (error: any) {
-            console.error('Upload error:', error);
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Upload error:', error);
+
+            }
             toast.error(error.message || 'Failed to upload screenshot');
         } finally {
             setIsUploading(false);

@@ -43,8 +43,13 @@ const HostReports = () => {
             const data = await reportService.getReportsForHost(statusFilter);
             setReports(data.reports);
         } catch (error: any) {
-            console.error('Error fetching reports:', error);
-            toast.error('Failed to load reports');
+            if (import.meta.env.MODE !== 'production') {
+
+                console.warn('Reports data unavailable:', error);
+
+            }
+            // Show empty state
+            setReports([])
         } finally {
             setLoading(false);
         }
@@ -119,8 +124,8 @@ const HostReports = () => {
                                     key={status}
                                     onClick={() => setStatusFilter(status)}
                                     className={`px-4 py-2 rounded-xl font-bold text-sm whitespace-nowrap transition-all ${statusFilter === status
-                                            ? 'bg-teal-500 text-black'
-                                            : 'bg-zinc-900/50 text-gray-400 border border-white/10 hover:border-white/20'
+                                        ? 'bg-teal-500 text-black'
+                                        : 'bg-zinc-900/50 text-gray-400 border border-white/10 hover:border-white/20'
                                         }`}
                                 >
                                     {status === '' ? 'All' : status.replace('_', ' ').toUpperCase()}
@@ -208,8 +213,8 @@ const HostReports = () => {
                                     >
                                         <div
                                             className={`max-w-[70%] rounded-2xl p-4 ${msg.senderType === 'host'
-                                                    ? 'bg-teal-500/20 border border-teal-500/30'
-                                                    : 'bg-zinc-800/50 border border-white/10'
+                                                ? 'bg-teal-500/20 border border-teal-500/30'
+                                                : 'bg-zinc-800/50 border border-white/10'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-2 mb-2">

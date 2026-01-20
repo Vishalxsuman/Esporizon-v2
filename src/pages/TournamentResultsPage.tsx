@@ -31,10 +31,18 @@ const TournamentResultsPage = () => {
                 setResults(resultsData)
             } else {
                 // No results available yet
-                console.log('No results available for this tournament')
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.log('No results available for this tournament');
+
+                }
             }
         } catch (error) {
-            console.error('Error fetching results:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error fetching results:', error);
+
+            }
         } finally {
             setLoading(false)
         }

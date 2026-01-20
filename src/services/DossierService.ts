@@ -27,7 +27,11 @@ class DossierService {
                 lfgStatus
             })
         } catch (error) {
-            console.error('Error updating LFG status:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error updating LFG status:', error);
+
+            }
             throw error
         }
     }
@@ -59,51 +63,32 @@ class DossierService {
     // SKILL METRICS CALCULATION
     // ========================================
 
-    async calculateSkillMetrics(userId: string): Promise<SkillMetrics> {
+    async calculateSkillMetrics(_userId: string): Promise<SkillMetrics> {
         try {
-            // TODO: Replace with actual tournament data queries
-            // For now, return mock data
-            const mockMetrics: SkillMetrics = {
-                aggression: Math.floor(Math.random() * 40) + 60, // 60-100
-                survival: Math.floor(Math.random() * 40) + 50, // 50-90
-                teamImpact: Math.floor(Math.random() * 40) + 55, // 55-95
-                consistency: Math.floor(Math.random() * 40) + 65, // 65-100
-                clutchFactor: Math.floor(Math.random() * 40) + 60, // 60-100
+            // Return default metrics until backend endpoint is available
+            const emptyMetrics: SkillMetrics = {
+                aggression: 0,
+                survival: 0,
+                teamImpact: 0,
+                consistency: 0,
+                clutchFactor: 0,
                 lastCalculated: new Date().toISOString()
             }
-
-            // Save to user profile
-            await userService.updateProfile(userId, {
-                skillMetrics: mockMetrics
-            })
-
-            return mockMetrics
+            return emptyMetrics
         } catch (error) {
-            console.error('Error calculating skill metrics:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error calculating skill metrics:', error);
+
+            }
             throw error
         }
     }
 
     /*
-    // Real calculation logic (to be integrated with actual tournament data)
+    // Future implementation for real calculation
     private calculateAggressionScore(tournaments: any[]): number {
-        return 75
-    }
-
-    private calculateSurvivalScore(tournaments: any[]): number {
-        return 82
-    }
-
-    private calculateTeamImpactScore(tournaments: any[]): number {
-        return 68
-    }
-
-    private calculateConsistencyScore(tournaments: any[]): number {
-        return 91
-    }
-
-    private calculateClutchScore(tournaments: any[]): number {
-        return 77
+        return 0
     }
     */
 
@@ -113,36 +98,14 @@ class DossierService {
 
     async getTrophyCabinet(_userId: string): Promise<TrophyItem[]> {
         try {
-            // Query tournaments where user placed 1st, 2nd, or 3rd
-
-            // TODO: Replace with actual Firestore queries
-            // Mock data for demonstration
-            const mockTrophies: TrophyItem[] = [
-                {
-                    id: 'trophy_1',
-                    tournamentId: 'tournament_123',
-                    tournamentName: 'Free Fire Arena Championship',
-                    placement: 1,
-                    prizeWon: 50000,
-                    date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                    gameId: 'freefire',
-                    participants: 64
-                },
-                {
-                    id: 'trophy_2',
-                    tournamentId: 'tournament_456',
-                    tournamentName: 'BGMI Pro League',
-                    placement: 2,
-                    prizeWon: 30000,
-                    date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
-                    gameId: 'bgmi',
-                    participants: 32
-                }
-            ]
-
-            return mockTrophies
+            // Return empty array until backend endpoint is available
+            return []
         } catch (error) {
-            console.error('Error getting trophy cabinet:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting trophy cabinet:', error);
+
+            }
             return []
         }
     }
@@ -151,56 +114,16 @@ class DossierService {
     // ACTIVITY TIMELINE
     // ========================================
 
-    async getActivityTimeline(_userId: string, limitCount: number = 10): Promise<ActivityTimelineItem[]> {
+    async getActivityTimeline(_userId: string, _limitCount: number = 10): Promise<ActivityTimelineItem[]> {
         try {
-            // TODO: Query various activity sources and merge
-            // For now, return mock data
-            const mockActivities: ActivityTimelineItem[] = [
-                {
-                    id: 'activity_1',
-                    type: 'tournament_won',
-                    title: 'Won Free Fire Arena Tournament',
-                    description: '1st Place • ₹50,000 Prize',
-                    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-                    metadata: {
-                        tournamentId: 'tournament_123',
-                        placement: 1,
-                        prize: 50000
-                    }
-                },
-                {
-                    id: 'activity_2',
-                    type: 'tournament_joined',
-                    title: 'Joined BGMI Squad Championship',
-                    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
-                    metadata: {
-                        tournamentId: 'tournament_789'
-                    }
-                },
-                {
-                    id: 'activity_3',
-                    type: 'recruitment_formed',
-                    title: 'Formed Squad "Elite Gamers"',
-                    description: '4 members joined',
-                    timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-                },
-                {
-                    id: 'activity_4',
-                    type: 'tournament_placed',
-                    title: 'Placed 2nd in BGMI Pro League',
-                    description: '₹30,000 Prize',
-                    timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-                    metadata: {
-                        tournamentId: 'tournament_456',
-                        placement: 2,
-                        prize: 30000
-                    }
-                }
-            ]
-
-            return mockActivities.slice(0, limitCount)
+            // Return empty array until backend endpoint is available
+            return []
         } catch (error) {
-            console.error('Error getting activity timeline:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting activity timeline:', error);
+
+            }
             return []
         }
     }
@@ -218,7 +141,11 @@ class DossierService {
                 }
             })
         } catch (error) {
-            console.error('Error updating signature game:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error updating signature game:', error);
+
+            }
             throw error
         }
     }
@@ -235,19 +162,22 @@ class DossierService {
                 return null
             }
 
-            // TODO: Calculate from actual tournament data
-            // Mock data for demonstration
-            const mockHostMetrics: HostMetrics = {
-                hostingRating: 4.8,
-                totalPrizeDistributed: 500000,
-                tournamentsCompleted: 45,
-                activeTournaments: 3,
-                upcomingTournaments: 2
+            // Return default metrics until backend endpoint is available
+            const defaultHostMetrics: HostMetrics = {
+                hostingRating: 0,
+                totalPrizeDistributed: 0,
+                tournamentsCompleted: 0,
+                activeTournaments: 0,
+                upcomingTournaments: 0
             }
 
-            return mockHostMetrics
+            return defaultHostMetrics
         } catch (error) {
-            console.error('Error getting host metrics:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting host metrics:', error);
+
+            }
             return null
         }
     }
@@ -262,7 +192,11 @@ class DossierService {
                 socialLinks: links
             })
         } catch (error) {
-            console.error('Error updating social links:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error updating social links:', error);
+
+            }
             throw error
         }
     }
@@ -278,7 +212,11 @@ class DossierService {
                 clanLogo
             })
         } catch (error) {
-            console.error('Error updating clan:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error updating clan:', error);
+
+            }
             throw error
         }
     }

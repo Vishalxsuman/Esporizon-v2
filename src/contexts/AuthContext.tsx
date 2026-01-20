@@ -13,11 +13,14 @@ import { User } from '@/types'
 interface AuthContextType {
   user: User | null
   loading: boolean
+  authReady: boolean
+  idToken: string | null
   signIn: (email: string, password: string) => Promise<void>
   signUp: (email: string, password: string, displayName: string) => Promise<void>
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
   getToken: (options?: any) => Promise<string | null>
+  updateUserHostStatus: (isHost: boolean) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -25,34 +28,79 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authReady, setAuthReady] = useState(false)
+  const [idToken, setIdToken] = useState<string | null>(null)
 
   useEffect(() => {
     // Check if Firebase is configured
     if (!isFirebaseConfigured) {
-      console.warn('⚠️ Firebase not configured - Auth features disabled')
+      if (import.meta.env.MODE !== 'production') {
+
+          console.warn('⚠️ Firebase not configured - Auth features disabled');
+
+      }
       setLoading(false)
+      setAuthReady(true)
       return
     }
 
     if (!auth) {
       setLoading(false)
+      setAuthReady(true)
       return
     }
 
     // Listen for auth state changes
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        // Map Firebase user to our User type
+        // Get ID token first
+        let token: string | null = null
+        try {
+          token = await firebaseUser.getIdToken()
+          setIdToken(token)
+        } catch (error) {
+          if (import.meta.env.MODE !== 'production') {
+
+              console.error('Failed to get initial ID token:', error);
+
+          }
+        }
+
+        // Map Firebase user to our User type with default isHost: false
         setUser({
           id: firebaseUser.uid,
           uid: firebaseUser.uid,
           email: firebaseUser.email,
           displayName: firebaseUser.displayName || 'Gamer',
           photoURL: firebaseUser.photoURL,
+          isHost: false // Default to false, will be updated if backend responds
         })
+
+        // Try to fetch user role from backend (non-blocking, fire-and-forget)
+        if (token) {
+          import('@/services/api').then(({ api }) => {
+            api.get('/api/user/profile')
+              .then(response => {
+                if (response?.data) {
+                  const isHost = response.data.role === 'host' || response.data.isHost === true
+                  setUser(prev => prev ? { ...prev, isHost } : null)
+                }
+              })
+              .catch(() => {
+                // Silently fail - user stays with isHost: false
+                // This is fine for new users or when backend is unreachable
+              })
+          }).catch(() => {
+            // API module failed to load, ignore
+          })
+        }
       } else {
         setUser(null)
+        setIdToken(null)
       }
+
+      // Mark auth as ready only after first state change
+      setAuthReady(true)
       setLoading(false)
     })
 
@@ -67,7 +115,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await signInWithEmailAndPassword(auth, email, password)
     } catch (error: any) {
-      console.error('Sign in error:', error)
+      if (import.meta.env.MODE !== 'production') {
+
+          console.error('Sign in error:', error);
+
+      }
       throw new Error(error.message || 'Failed to sign in')
     }
   }
@@ -86,7 +138,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         })
       }
     } catch (error: any) {
-      console.error('Sign up error:', error)
+      if (import.meta.env.MODE !== 'production') {
+
+          console.error('Sign up error:', error);
+
+      }
       throw new Error(error.message || 'Failed to sign up')
     }
   }
@@ -98,7 +154,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await signInWithPopup(auth, googleProvider)
     } catch (error: any) {
-      console.error('Google sign in error:', error)
+      if (import.meta.env.MODE !== 'production') {
+
+          console.error('Google sign in error:', error);
+
+      }
       throw new Error(error.message || 'Failed to sign in with Google')
     }
   }
@@ -110,7 +170,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       await firebaseSignOut(auth)
     } catch (error: any) {
-      console.error('Sign out error:', error)
+      if (import.meta.env.MODE !== 'production') {
+
+          console.error('Sign out error:', error);
+
+      }
       throw new Error(error.message || 'Failed to sign out')
     }
   }
@@ -122,11 +186,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
       // Get Firebase ID token
       const token = await auth.currentUser.getIdToken(options?.forceRefresh || false)
+      setIdToken(token) // Cache the token
       return token
     } catch (error: any) {
-      console.error('Get token error:', error)
+      if (import.meta.env.MODE !== 'production') {
+
+          console.error('Get token error:', error);
+
+      }
       return null
     }
+  }
+
+  const updateUserHostStatus = (isHost: boolean) => {
+    setUser(prev => prev ? { ...prev, isHost } : null)
   }
 
   return (
@@ -134,11 +207,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       value={{
         user,
         loading,
+        authReady,
+        idToken,
         signIn,
         signUp,
         signInWithGoogle,
         signOut,
         getToken,
+        updateUserHostStatus,
       }}
     >
       {children}

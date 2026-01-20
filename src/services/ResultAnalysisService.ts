@@ -1,4 +1,4 @@
-import { endpoints } from '@/config/api';
+import { api } from '@/services/api';
 
 export interface ResultAnalysis {
     _id: string;
@@ -45,26 +45,21 @@ class ResultAnalysisService {
         screenshotUrl?: string
     ) {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/results/upload`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    tournamentId,
-                    hostFirebaseUid,
-                    screenshotBase64,
-                    screenshotUrl: screenshotUrl || ''
-                })
+            const response = await api.post('/api/results/upload', {
+                tournamentId,
+                hostFirebaseUid,
+                screenshotBase64,
+                screenshotUrl: screenshotUrl || ''
             });
+            return response.data;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to upload screenshot');
+                console.error('Upload screenshot error:', error);
+
             }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Upload screenshot error:', error);
-            throw error;
+            const message = error.response?.data?.message || 'Failed to upload screenshot';
+            throw new Error(message);
         }
     }
 
@@ -73,19 +68,18 @@ class ResultAnalysisService {
      */
     async getResultAnalysis(tournamentId: string) {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/results/tournament/${tournamentId}`);
-
-            if (!response.ok) {
-                if (response.status === 404) {
-                    return null; // No results yet
-                }
-                throw new Error('Failed to fetch result analysis');
+            const response = await api.get(`/api/results/tournament/${tournamentId}`);
+            return response.data;
+        } catch (error: any) {
+            if (error.response && error.response.status === 404) {
+                return null; // No results yet
             }
+            if (import.meta.env.MODE !== 'production') {
 
-            return await response.json();
-        } catch (error) {
-            console.error('Get result analysis error:', error);
-            throw error;
+                console.error('Get result analysis error:', error);
+
+            }
+            throw new Error('Failed to fetch result analysis');
         }
     }
 
@@ -94,16 +88,15 @@ class ResultAnalysisService {
      */
     async getPendingResults() {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/results/admin/pending`);
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch pending results');
-            }
-
-            return await response.json();
+            const response = await api.get('/api/results/admin/pending');
+            return response.data;
         } catch (error) {
-            console.error('Get pending results error:', error);
-            throw error;
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Get pending results error:', error);
+
+            }
+            throw new Error('Failed to fetch pending results');
         }
     }
 
@@ -117,25 +110,20 @@ class ResultAnalysisService {
         adminUserId: string
     ) {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/results/admin/${resultAnalysisId}/edit`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    editedResults,
-                    adminNotes,
-                    adminUserId
-                })
+            const response = await api.put(`/api/results/admin/${resultAnalysisId}/edit`, {
+                editedResults,
+                adminNotes,
+                adminUserId
             });
+            return response.data;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to edit results');
+                console.error('Admin edit results error:', error);
+
             }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Admin edit results error:', error);
-            throw error;
+            const message = error.response?.data?.message || 'Failed to edit results';
+            throw new Error(message);
         }
     }
 
@@ -148,24 +136,19 @@ class ResultAnalysisService {
         finalResults?: Array<any>
     ) {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/results/admin/${resultAnalysisId}/approve`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    adminUserId,
-                    finalResults
-                })
+            const response = await api.post(`/api/results/admin/${resultAnalysisId}/approve`, {
+                adminUserId,
+                finalResults
             });
+            return response.data;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to approve results');
+                console.error('Admin approve results error:', error);
+
             }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Admin approve results error:', error);
-            throw error;
+            const message = error.response?.data?.message || 'Failed to approve results';
+            throw new Error(message);
         }
     }
 
@@ -178,24 +161,19 @@ class ResultAnalysisService {
         reason: string
     ) {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/results/admin/${resultAnalysisId}/reject`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    adminUserId,
-                    reason
-                })
+            const response = await api.post(`/api/results/admin/${resultAnalysisId}/reject`, {
+                adminUserId,
+                reason
             });
+            return response.data;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to reject results');
+                console.error('Admin reject results error:', error);
+
             }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Admin reject results error:', error);
-            throw error;
+            const message = error.response?.data?.message || 'Failed to reject results';
+            throw new Error(message);
         }
     }
 

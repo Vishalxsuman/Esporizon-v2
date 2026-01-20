@@ -84,7 +84,11 @@ if (validation.isValid) {
             })
         }
     } catch (error) {
-        console.error('❌ Firebase initialization failed:', error)
+        if (import.meta.env.MODE !== 'production') {
+
+            console.error('❌ Firebase initialization failed:', error);
+
+        }
         throw new Error(
             `Firebase initialization error: ${error instanceof Error ? error.message : 'Unknown error'}`
         )
@@ -116,7 +120,13 @@ For GITHUB PAGES DEPLOYMENT:
 Firebase features will be DISABLED until this is resolved.
 `.trim()
 
-    console.error(errorMessage)
+    if (import.meta.env.MODE !== 'production') {
+
+
+        console.error(errorMessage);
+
+
+    }
 
     // In development, throw to catch issues early
     if (import.meta.env.DEV) {

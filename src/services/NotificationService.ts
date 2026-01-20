@@ -52,7 +52,11 @@ class NotificationService {
 
             return { notifications, lastDoc: lastVisible, hasMore }
         } catch (error) {
-            console.error('Error getting notifications:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting notifications:', error);
+
+            }
             return { notifications: [], lastDoc: null, hasMore: false }
         }
     }
@@ -68,7 +72,11 @@ class NotificationService {
             const snapshot = await getDocs(q)
             return snapshot.size
         } catch (error) {
-            console.error('Error getting unread count:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting unread count:', error);
+
+            }
             return 0
         }
     }
@@ -81,7 +89,11 @@ class NotificationService {
             )
             await Promise.all(updates)
         } catch (error) {
-            console.error('Error marking notifications as read:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error marking notifications as read:', error);
+
+            }
             throw new Error('Failed to mark notifications as read')
         }
     }
@@ -100,7 +112,11 @@ class NotificationService {
             )
             await Promise.all(updates)
         } catch (error) {
-            console.error('Error marking all as read:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error marking all as read:', error);
+
+            }
             throw new Error('Failed to mark all notifications as read')
         }
     }
@@ -121,7 +137,11 @@ class NotificationService {
             } as Notification))
             callback(notifications)
         }, (error) => {
-            console.error('Error listening to notifications:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error listening to notifications:', error);
+
+            }
             callback([])
         })
     }
@@ -137,7 +157,11 @@ class NotificationService {
         return onSnapshot(q, (snapshot) => {
             callback(snapshot.size)
         }, (error) => {
-            console.error('Error listening to unread count:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error listening to unread count:', error);
+
+            }
             callback(0)
         })
     }

@@ -1,5 +1,6 @@
+import { forwardRef } from 'react'
 import { motion } from 'framer-motion'
-import { Trophy, IndianRupee, Users, Clock, Calendar, Eye, Lock } from 'lucide-react'
+import { Trophy, IndianRupee, Users, Clock, Lock, LogIn, ArrowRight, ShieldCheck } from 'lucide-react'
 import { Tournament } from '@/types/tournament'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
@@ -7,336 +8,351 @@ import { useAuth } from '@/contexts/AuthContext'
 interface TournamentCardProps {
     tournament: Tournament
     index?: number
+    compact?: boolean
 }
 
-const TournamentCard = ({ tournament, index = 0 }: TournamentCardProps) => {
+const TournamentCard = forwardRef<HTMLDivElement, TournamentCardProps>(({ tournament, index = 0, compact = false }, ref) => {
+
     const navigate = useNavigate()
     const { user } = useAuth()
 
+    if (!tournament) return null
+
+    const isFull = (tournament.currentTeams || 0) >= (tournament.maxTeams || 0)
+    const isJoined = user && tournament.registeredPlayers?.includes(user.id)
+    const isCompleted = tournament.status === 'completed'
+    const isLive = tournament.status === 'live'
+
+    const getGameBanner = (gameId: string) => {
+        switch (gameId) {
+            case 'freefire': return 'https://images.unsplash.com/photo-1542751371-adc38448a05e?q=80&w=2070&auto=format&fit=crop'
+            case 'bgmi': return 'https://images.unsplash.com/photo-1542751110-97427bbecf20?q=80&w=2084&auto=format&fit=crop'
+            case 'valorant': return 'https://images.unsplash.com/photo-1614027164847-1b280143eb68?q=80&w=2070&auto=format&fit=crop'
+            case 'minecraft': return 'https://images.unsplash.com/photo-1627398242454-45a1465c2479?q=80&w=2074&auto=format&fit=crop'
+            default: return 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop'
+        }
+    }
+
     const getGameColor = (gameId: string) => {
         switch (gameId) {
-            case 'freefire':
-                return 'from-orange-500 to-red-500'
-            case 'bgmi':
-                return 'from-yellow-500 to-orange-500'
-            case 'valorant':
-                return 'from-red-500 to-pink-500'
-            case 'minecraft':
-                return 'from-green-500 to-emerald-500'
-            default:
-                return 'from-teal-500 to-cyan-500'
+            case 'freefire': return 'from-orange-500 to-red-500'
+            case 'bgmi': return 'from-teal-400 to-cyan-500'
+            case 'valorant': return 'from-red-500 to-pink-500'
+            case 'minecraft': return 'from-green-500 to-emerald-500'
+            default: return 'from-indigo-500 to-purple-500'
         }
     }
 
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'live':
-                return {
-                    bg: 'bg-red-500/10',
-                    text: 'text-red-500',
-                    border: 'border-red-500/20',
-                    animate: 'animate-pulse'
-                }
-            case 'upcoming':
-                return {
-                    bg: 'bg-teal-500/10',
-                    text: 'text-teal-500',
-                    border: 'border-teal-500/20',
-                    animate: ''
-                }
-            case 'completed':
-                return {
-                    bg: 'bg-zinc-800',
-                    text: 'text-zinc-500',
-                    border: 'border-white/10',
-                    animate: ''
-                }
-            default:
-                return {
-                    bg: 'bg-teal-500/10',
-                    text: 'text-teal-500',
-                    border: 'border-teal-500/20',
-                    animate: ''
-                }
-        }
-    }
-
-    // Check if user has already joined (mock - replace with real API check)
-    const hasUserJoined = false // TODO: Check from backend
-
-    // Check if tournament is full
-    const isFull = tournament.currentTeams >= tournament.maxTeams
-
-    // Determine button state and action
     const getButtonConfig = () => {
-        // Completed tournaments
-        if (tournament.status === 'completed') {
+        if (user && tournament.organizerId === user.uid) {
+            return {
+                text: 'Manage Operation',
+                color: 'bg-indigo-600 text-white shadow-[0_5px_15px_rgba(79,70,229,0.4)] hover:bg-indigo-500',
+                icon: <ShieldCheck className="w-4 h-4" />,
+                action: () => navigate(`/host/manage?tournamentId=${tournament.id}`)
+            }
+        }
+
+        if (!user) {
+            return {
+                text: 'Login to Join',
+                color: 'bg-zinc-900 border border-white/10 text-zinc-400 hover:text-white hover:border-[#00E0C6]/50',
+                icon: <LogIn className="w-4 h-4" />,
+                action: () => navigate('/auth')
+            }
+        }
+
+        if (isCompleted) {
             return {
                 text: 'View Results',
-                color: 'bg-zinc-700 hover:bg-zinc-600',
-                pulse: false,
-                disabled: false,
+                color: 'bg-zinc-900 border border-white/10 text-zinc-500 hover:text-white',
+                icon: <Trophy className="w-4 h-4" />,
                 action: () => navigate(`/tournament/${tournament.id}/results`)
             }
         }
 
-        // User already joined
-        if (hasUserJoined) {
+        if (isJoined) {
             return {
-                text: 'View Match',
-                color: 'bg-blue-600 hover:bg-blue-500',
-                pulse: false,
-                disabled: false,
+                text: 'ENTER ARENA',
+                color: 'bg-[#00E0C6] text-black shadow-[0_5px_20px_rgba(0,224,198,0.3)] hover:bg-[#00E0C6]/90',
+                icon: <ArrowRight className="w-4 h-4" />,
                 action: () => navigate(`/tournament/${tournament.id}`)
             }
         }
 
-        // Tournament is full
         if (isFull) {
             return {
-                text: 'Full',
-                color: 'bg-zinc-800 cursor-not-allowed',
-                pulse: false,
+                text: 'Arena Full',
+                color: 'bg-zinc-900 border border-red-500/20 text-red-500/50 cursor-not-allowed',
+                icon: <Lock className="w-4 h-4" />,
                 disabled: true,
                 action: () => { }
             }
         }
 
-        // Live tournament - can still join
-        if (tournament.status === 'live') {
-            return {
-                text: 'Join Match',
-                color: 'bg-red-500 hover:bg-red-400',
-                pulse: true,
-                disabled: false,
-                action: () => {
-                    if (!user) {
-                        navigate('/auth')
-                    } else {
-                        navigate(`/tournament/${tournament.id}`)
-                    }
-                }
-            }
-        }
-
-        // Upcoming tournament - registration open
         return {
-            text: 'Register Now',
-            color: 'bg-teal-500 hover:bg-teal-400',
-            pulse: false,
-            disabled: false,
-            action: () => {
-                if (!user) {
-                    navigate('/auth')
-                } else {
-                    navigate(`/tournament/${tournament.id}`)
-                }
-            }
+            text: 'DEPLOY NOW',
+            color: 'bg-red-500 text-white shadow-[0_5px_20px_rgba(239,68,68,0.4)] hover:bg-red-600',
+            icon: null,
+            pulse: isLive,
+            action: () => navigate(`/tournament/${tournament.id}`)
         }
     }
 
     const buttonConfig = getButtonConfig()
-    const statusStyle = getStatusColor(tournament.status)
-    const slotPercentage = (tournament.currentTeams / tournament.maxTeams) * 100
-    const isCompleted = tournament.status === 'completed'
+    const slotPercentage = Math.min(((tournament.currentTeams || 0) / (tournament.maxTeams || 1)) * 100, 100)
 
-    const handleCardClick = (e: React.MouseEvent) => {
-        // Don't navigate if clicking on host badge or button
-        const target = e.target as HTMLElement
-        if (target.closest('.host-badge') || target.closest('button')) {
-            return
-        }
+    const gameId = tournament.gameId || 'unknown'
+    const gameName = tournament.gameName || gameId
+    const title = tournament.title || 'Untitled Combat'
+    const prizePool = tournament.prizePool || 0
+    const entryFee = tournament.entryFee || 0
+    const format = tournament.format || 'Squad'
 
-        if (tournament.status === 'completed') {
-            navigate(`/tournament/${tournament.id}/results`)
-        } else {
-            navigate(`/tournament/${tournament.id}`)
+    const formatDate = (dateString: string) => {
+        try {
+            const date = new Date(dateString)
+            if (isNaN(date.getTime())) return 'SOON'
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+        } catch (e) {
+            return 'SOON'
         }
     }
 
-    const handleHostClick = (e: React.MouseEvent) => {
-        e.stopPropagation()
-        navigate(`/host/${tournament.organizerId}`)
+    const startDateText = formatDate(tournament.startDate)
+
+    if (compact) {
+        return (
+            <motion.div
+                ref={ref}
+                layout
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.3 }}
+                onClick={() => navigate(`/tournament/${tournament.id}`)}
+                className="relative flex flex-col rounded-3xl bg-[#0E1424] border border-white/5 shadow-xl overflow-hidden group hover:border-[#00E0C6]/30 transition-all duration-300 cursor-pointer w-full"
+            >
+                {/* Compact Banner */}
+                <div className="relative h-24 sm:h-28 w-full overflow-hidden">
+                    <img
+                        src={tournament.bannerUrl || getGameBanner(gameId)}
+                        alt={title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 opacity-40"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#0E1424] via-transparent to-transparent" />
+
+                    {/* Floating Circular Logo */}
+                    <div className="absolute -bottom-5 left-4 z-20">
+                        <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${getGameColor(gameId)} p-1.5 shadow-[0_0_15px_rgba(0,0,0,0.5)] border-2 border-[#0E1424]`}>
+                            <img
+                                src={gameId === 'freefire' ? '/Images/logo.png' : '/Images/espo.png'}
+                                alt=""
+                                className="w-full h-full object-contain"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Compact Content */}
+                <div className="px-4 pt-6 pb-4 flex flex-col flex-1 gap-3">
+                    <div>
+                        <div className="text-[7px] font-black uppercase tracking-[0.2em] text-[#00E0C6] mb-0.5 opacity-80">
+                            {gameName}
+                        </div>
+                        <h3 className="text-[13px] font-black italic tracking-tight text-white leading-tight line-clamp-1 group-hover:text-[#00E0C6] transition-colors">
+                            {title.toUpperCase()}
+                        </h3>
+                    </div>
+
+                    {/* Stats Row */}
+                    <div className="flex items-center justify-between gap-1">
+                        <div className="flex flex-col">
+                            <span className="text-[7px] font-bold text-zinc-500 uppercase tracking-wider">Bounty</span>
+                            <span className="text-[11px] font-black italic text-[#00E0C6]">₹{prizePool}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[7px] font-bold text-zinc-500 uppercase tracking-wider">Entry</span>
+                            <span className="text-[11px] font-black italic text-zinc-200">{entryFee === 0 ? 'FREE' : `₹${entryFee}`}</span>
+                        </div>
+                    </div>
+
+                    {/* Capacity */}
+                    <div className="space-y-1.5 mt-auto">
+                        <div className="flex justify-between items-center px-0.5">
+                            <span className="text-[8px] font-black text-zinc-600 uppercase">Slots</span>
+                            <span className="text-[9px] font-black italic text-zinc-400">
+                                {tournament.currentTeams || 0}/{tournament.maxTeams || 100}
+                            </span>
+                        </div>
+                        <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                            <motion.div
+                                initial={{ width: 0 }}
+                                animate={{ width: `${slotPercentage}%` }}
+                                className={`h-full ${isFull ? 'bg-red-500' : 'bg-[#00E0C6]'}`}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Mini Button */}
+                    <button
+                        className={`w-full py-2.5 rounded-xl font-black text-[9px] uppercase tracking-widest transition-all ${buttonConfig.color}`}
+                    >
+                        {buttonConfig.text === 'ENTER ARENA' || buttonConfig.text === 'DEPLOY NOW' ? 'ARENA' : buttonConfig.text}
+                    </button>
+                </div>
+            </motion.div>
+        )
     }
 
     return (
         <motion.div
+            ref={ref}
+            layout
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05, duration: 0.3 }}
-            onClick={handleCardClick}
-            className={`relative rounded-2xl bg-gradient-to-br from-zinc-900/60 to-zinc-950/80 backdrop-blur-3xl border border-white/5 p-6 shadow-2xl cursor-pointer transition-all duration-300 hover:border-teal-500/30 group ${isCompleted ? 'opacity-70' : ''
+            transition={{ delay: index * 0.05, duration: 0.4 }}
+            className={`relative flex flex-col rounded-[2.5rem] bg-[#0E1424] border border-white/5 shadow-2xl overflow-hidden group hover:border-[#00E0C6]/20 transition-all duration-500 min-h-[520px] ${isCompleted ? 'grayscale-[0.5] opacity-80' : ''
                 }`}
         >
-            {/* Side Accent Bar */}
-            <div
-                className={`absolute left-0 top-6 bottom-6 w-1 rounded-r-full shadow-[0_0_10px_rgba(20,184,166,0.4)] opacity-60 group-hover:opacity-100 transition-opacity bg-gradient-to-b ${getGameColor(
-                    tournament.gameId
-                )}`}
-            />
 
-            {/* Header Section */}
-            <div className="flex items-start justify-between mb-4 pl-3">
-                <div className="flex-1">
-                    {/* Game Badge */}
-                    <div className="flex items-center gap-2 mb-3">
-                        <div
-                            className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase bg-gradient-to-r ${getGameColor(
-                                tournament.gameId
-                            )} text-white shadow-lg`}
-                        >
-                            {tournament.gameName || tournament.gameId}
-                        </div>
+            {/* Banner Section */}
+            <div className="relative h-48 w-full overflow-hidden">
+                <img
+                    src={tournament.bannerUrl || getGameBanner(gameId)}
+                    alt={title}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0E1424] via-[#0E1424]/40 to-transparent" />
 
-                        {/* Difficulty Badge */}
-                        {tournament.difficulty && (
-                            <div className={`px-2 py-0.5 rounded-sm text-[9px] font-black tracking-widest uppercase border 
-                                ${tournament.difficulty === 'pro' ? 'bg-purple-500/10 text-purple-500 border-purple-500/20' :
-                                    tournament.difficulty === 'intermediate' ? 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20' :
-                                        'bg-green-500/10 text-green-500 border-green-500/20'}`}>
-                                {tournament.difficulty}
-                            </div>
-                        )}
-
-                        {/* Status Badge */}
-                        <div
-                            className={`flex items-center gap-1.5 px-2 py-0.5 rounded-sm text-[9px] font-black tracking-widest uppercase border ${statusStyle.bg} ${statusStyle.text} ${statusStyle.border} ${statusStyle.animate}`}
-                        >
-                            <div className={`w-1 h-1 rounded-full ${statusStyle.text.replace('text-', 'bg-')}`} />
-                            {tournament.status.toUpperCase()}
-                        </div>
+                {/* Game Logo Overlay */}
+                <div className="absolute top-6 left-6 flex items-center gap-3">
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${getGameColor(gameId)} p-2.5 shadow-2xl border border-white/10`}>
+                        <img
+                            src={gameId === 'freefire' ? '/Images/logo.png' : '/Images/espo.png'}
+                            alt=""
+                            className="w-full h-full object-contain brightness-110"
+                        />
                     </div>
-
-                    {/* Tournament Name */}
-                    <h3 className="text-lg font-black text-white leading-none tracking-tight italic group-hover:text-teal-400 transition-colors">
-                        {tournament.title.toUpperCase()}
-                    </h3>
-                </div>
-            </div>
-
-            {/* Info Grid */}
-            <div className="grid grid-cols-2 gap-4 mb-5 pl-3">
-                {/* Prize Pool */}
-                <div className="p-3 rounded-xl bg-white/5 border border-white/5 group-hover:bg-teal-500/5 transition-colors">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Trophy className="w-3 h-3 text-teal-500" />
-                        <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-                            Prize Pool
+                    <div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00E0C6] mb-0.5">
+                            {gameName}
                         </div>
-                    </div>
-                    <div className="text-2xl font-black text-teal-400 italic">
-                        ₹{(tournament.prizePool / 1000).toFixed(0)}K
+                        <h3 className="text-2xl font-black italic tracking-tighter text-white leading-none group-hover:text-[#00E0C6] transition-colors">
+                            {title.toUpperCase()}
+                        </h3>
                     </div>
                 </div>
 
-                {/* Entry Fee */}
-                <div className="p-3 rounded-xl bg-white/5 border border-white/5 group-hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-2 mb-1">
-                        <IndianRupee className="w-3 h-3 text-zinc-400" />
-                        <div className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">
-                            Entry Fee
-                        </div>
-                    </div>
-                    <div className="text-2xl font-black text-white italic">
-                        {tournament.entryFee === 0 ? 'FREE' : `₹${tournament.entryFee}`}
+                {/* Status Badge */}
+                <div className="absolute top-6 right-6">
+                    <div className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${isLive ? 'bg-red-500/20 text-red-500 border-red-500/30 animate-pulse' : 'bg-[#00E0C6]/10 text-[#00E0C6] border-[#00E0C6]/20'
+                        }`}>
+                        {tournament.status}
                     </div>
                 </div>
             </div>
 
-            {/* Match Info */}
-            <div className="pl-3 space-y-3 mb-5">
-                {/* Mode & Start Time */}
-                <div className="flex items-center justify-between text-[10px] font-black tracking-widest">
-                    <div className="flex items-center gap-2 text-zinc-500">
-                        <Users className="w-3 h-3 text-teal-500/50" />
-                        <span>{tournament.format?.toUpperCase()}</span>
+            {/* Core Stats Section */}
+            <div className="px-8 -mt-8 relative z-10 flex gap-4">
+                <div className="flex-1 bg-white/5 backdrop-blur-3xl rounded-[2rem] border border-white/10 p-5 group-hover:bg-white/[0.08] transition-all overflow-hidden relative">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-[#00E0C6]/5 blur-2xl rounded-full" />
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 block mb-1">TOTAL BOUNTY</span>
+                    <div className="flex items-center gap-2">
+                        <Trophy className="w-5 h-5 text-[#00E0C6]" />
+                        <span className="text-3xl font-black italic tracking-tighter text-[#00E0C6]">₹{prizePool.toLocaleString()}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-zinc-500">
-                        <Clock className="w-3 h-3 text-teal-500/50" />
-                        <span>
-                            {tournament.status === 'completed'
-                                ? 'COMPLETED'
-                                : new Date(tournament.startDate).toLocaleTimeString('en-IN', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: true
-                                })}
+                </div>
+                <div className="flex-1 bg-white/5 backdrop-blur-3xl rounded-[2rem] border border-white/10 p-5 group-hover:bg-white/[0.08] transition-all overflow-hidden relative">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-zinc-500 block mb-1">ENTRY FEE</span>
+                    <div className="flex items-center gap-2">
+                        <IndianRupee className="w-5 h-5 text-zinc-400" />
+                        <span className="text-3xl font-black italic tracking-tighter text-white">
+                            {entryFee === 0 ? 'FREE' : `₹${entryFee}`}
                         </span>
                     </div>
                 </div>
+            </div>
 
-                {/* Start Date */}
-                <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-zinc-500">
-                    <Calendar className="w-3 h-3 text-teal-500/50" />
-                    <span>
-                        {new Date(tournament.startDate).toLocaleDateString('en-IN', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                        })}
-                    </span>
+            {/* Secondary Details */}
+            <div className="px-8 mt-8 space-y-6">
+                <div className="flex items-center gap-8">
+                    <div className="flex items-center gap-2 text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                        <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">
+                            <Users className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest">{format}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-zinc-400 group-hover:text-zinc-200 transition-colors">
+                        <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center">
+                            <Clock className="w-4 h-4" />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest">{startDateText}</span>
+                    </div>
                 </div>
 
-                {/* Slots & Progress */}
-                <div>
-                    <div className="flex items-center justify-between text-[10px] font-black tracking-widest mb-2">
-                        <span className="text-zinc-500">SLOTS FILLED</span>
-                        <div className="flex items-center gap-1.5">
-                            <span className="text-white">{tournament.currentTeams}</span>
-                            <span className="text-zinc-600">/</span>
-                            <span className="text-zinc-600">{tournament.maxTeams}</span>
-                        </div>
+                {/* Capacity Bar */}
+                <div className="space-y-3">
+                    <div className="flex justify-between items-end">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">OPERATIONAL CAPACITY</span>
+                        <span className="text-sm font-black italic">
+                            <span className={slotPercentage >= 90 ? 'text-red-500' : 'text-[#00E0C6]'}>{tournament.currentTeams || 0}</span>
+                            <span className="text-zinc-600 mx-1">/</span>
+                            {tournament.maxTeams || 100}
+                        </span>
                     </div>
-
-                    {/* Progress Bar */}
-                    <div className="relative h-1.5 w-full bg-zinc-800/50 rounded-full overflow-hidden border border-white/5">
-                        <div
-                            className={`absolute top-0 left-0 h-full rounded-full shadow-[0_0_10px_rgba(20,184,166,0.6)] transition-all duration-1000 ${isFull ? 'bg-gradient-to-r from-red-500 to-orange-500' : 'bg-gradient-to-r from-teal-500 to-cyan-500'
+                    <div className="h-2 w-full bg-white/5 rounded-full p-[2px] border border-white/5">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${slotPercentage}%` }}
+                            className={`h-full rounded-full ${isFull ? 'bg-red-500' : 'bg-gradient-to-r from-[#00E0C6] to-[#7B61FF]'
                                 }`}
-                            style={{ width: `${slotPercentage}%` }}
-                        >
-                            <div className="absolute inset-0 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%)] bg-[length:20px_20px] animate-[slide_1s_linear_infinite]" />
-                        </div>
+                        />
                     </div>
                 </div>
             </div>
 
-            {/* CTA Button */}
-            <div className="pl-3 mb-4">
+            {/* Footer Action */}
+            <div className="mt-auto p-8 pt-0 space-y-6">
                 <button
+                    disabled={buttonConfig.disabled}
                     onClick={(e) => {
                         e.stopPropagation()
                         buttonConfig.action()
                     }}
-                    disabled={buttonConfig.disabled}
-                    className={`w-full py-3 rounded-lg font-black text-sm tracking-widest uppercase transition-all ${buttonConfig.color
-                        } ${buttonConfig.pulse ? 'animate-pulse' : ''} ${buttonConfig.disabled ? 'opacity-50' : 'shadow-lg active:scale-95'
-                        } flex items-center justify-center gap-2`}
+                    className={`w-full py-5 rounded-[1.5rem] font-black text-[13px] uppercase tracking-[0.2em] transition-all duration-300 flex items-center justify-center gap-3 active:scale-95 ${buttonConfig.color
+                        } ${buttonConfig.pulse ? 'animate-pulse' : ''} ${buttonConfig.disabled ? 'opacity-50 grayscale' : 'hover:scale-[1.02]'
+                        }`}
                 >
-                    {isFull && !hasUserJoined && <Lock className="w-4 h-4" />}
+                    {buttonConfig.icon}
                     {buttonConfig.text}
                 </button>
-            </div>
 
-            {/* Host Info - Clickable Badge */}
-            <div
-                onClick={handleHostClick}
-                className="host-badge pl-3"
-            >
-                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-zinc-900/60 border border-white/5 backdrop-blur-sm hover:border-teal-500/30 hover:bg-zinc-900/80 transition-all cursor-pointer group/host">
-                    <div className="w-6 h-6 rounded-full bg-gradient-to-br from-zinc-700 to-zinc-900 border border-teal-500/20 flex items-center justify-center text-[10px] font-black text-teal-400 group-hover/host:scale-110 transition-transform">
-                        {tournament.organizerName?.charAt(0).toUpperCase() || 'H'}
-                    </div>
-                    <div className="flex-1">
-                        <span className="text-[9px] font-black text-zinc-400 group-hover/host:text-teal-400 uppercase tracking-wide transition-colors">
-                            Host: {tournament.organizerName}
+                {/* Host Info */}
+                <div
+                    onClick={(e) => {
+                        e.stopPropagation()
+                        navigate(`/host/${tournament.organizerId}`)
+                    }}
+                    className="flex items-center justify-between px-2 pt-4 border-t border-white/5 group/host cursor-pointer"
+                >
+                    <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-zinc-900 border border-white/10 flex items-center justify-center text-[12px] font-black text-[#00E0C6] shadow-inner group-hover/host:border-[#00E0C6]/30 transition-all">
+                            {(tournament.organizerName || 'H').charAt(0).toUpperCase()}
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest text-zinc-500 group-hover/host:text-zinc-300 transition-colors">
+                            {tournament.organizerName || 'ARENA HOST'}
                         </span>
                     </div>
-                    <Eye className="w-3 h-3 text-zinc-600 group-hover/host:text-teal-400 transition-colors" />
+                    <ShieldCheck className="w-4 h-4 text-zinc-700 group-hover/host:text-[#00E0C6]/50 transition-all" />
                 </div>
             </div>
+
+            {/* Gloss Flare */}
+            <div className="absolute -top-24 -left-24 w-64 h-64 bg-[#00E0C6]/5 blur-[100px] rounded-full pointer-events-none group-hover:bg-[#00E0C6]/10 transition-all" />
         </motion.div>
     )
-}
+})
+
+TournamentCard.displayName = 'TournamentCard'
 
 export default TournamentCard

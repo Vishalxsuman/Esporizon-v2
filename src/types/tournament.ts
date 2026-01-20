@@ -1,9 +1,11 @@
 export interface Tournament {
     id: string
-    gameId: 'freefire' | 'bgmi' | 'valorant' | 'minecraft'
+    gameId: 'freefire' | 'bgmi' | 'valorant' | 'minecraft' | 'codm'
     gameName: string
     title: string
     description: string
+    bannerUrl?: string
+    rules?: string[]
 
     // Organizer
     organizerId: string
@@ -17,6 +19,7 @@ export interface Tournament {
     maxTeams: number
     teamSize: number
     currentTeams: number
+    registeredPlayers: string[]
 
     // Financials
     entryFee: number
@@ -39,6 +42,18 @@ export interface Tournament {
     mapMode: string
     totalMatches: number
     difficulty?: 'beginner' | 'intermediate' | 'pro'
+    perKillAmount?: number // Added for bounty type
+
+    // Room Details
+    roomDetails?: {
+        roomId: string
+        password: string
+        server: string
+        map: string
+    }
+
+    // Live Stream
+    youtubeUrl?: string | null
 }
 
 export interface TournamentParticipant {

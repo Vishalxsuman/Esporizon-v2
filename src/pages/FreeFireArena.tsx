@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Trophy, Users, Flame, Crown, CheckCircle, Calendar, Plus } from 'lucide-react'
+import { Trophy, Users, Flame, CheckCircle, Plus, ChevronRight, Shield, Target } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Tournament } from '@/types/tournament'
 import { tournamentService } from '@/services/TournamentService'
@@ -11,16 +11,15 @@ const FreeFireArena = () => {
     const navigate = useNavigate()
     const { user } = useAuth()
     const [searchParams] = useSearchParams()
-    const initialStatus = searchParams.get('status') || 'upcoming'
+    const initialStatus = searchParams.get('status') || 'live'
 
     const [tournaments, setTournaments] = useState<Tournament[]>([])
     const [activeTab, setActiveTab] = useState(initialStatus)
     const [loading, setLoading] = useState(true)
 
-    // Sync tab with URL param if it changes
     useEffect(() => {
         const status = searchParams.get('status')
-        if (status && ['upcoming', 'live', 'completed'].includes(status)) {
+        if (status && ['live', 'completed'].includes(status)) {
             setActiveTab(status)
         }
     }, [searchParams])
@@ -32,11 +31,14 @@ const FreeFireArena = () => {
     const fetchTournaments = async () => {
         setLoading(true)
         try {
-            // Fetch sorted by active tab status
             const data = await tournamentService.getTournaments('freefire', activeTab as any)
             setTournaments(data)
         } catch (error) {
-            console.error('Error fetching tournaments:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error fetching tournaments:', error);
+
+            }
         } finally {
             setLoading(false)
         }
@@ -47,167 +49,162 @@ const FreeFireArena = () => {
             navigate('/auth')
             return
         }
-
-        try {
-            const { subscriptionService } = await import('@/services/SubscriptionService');
-            const status = await subscriptionService.getSubscriptionStatus();
-
-            if (status.isHost) {
-                navigate('/host/dashboard')
-            } else {
-                navigate('/host/benefits')
-            }
-        } catch (error) {
-            console.error('Error verifying host status:', error);
-            navigate('/host/benefits');
+        if (user.isHost) {
+            navigate('/host/create/freefire')
+        } else {
+            navigate('/host/benefits')
         }
     }
 
     const tabs = [
-        { id: 'upcoming', label: 'Upcoming', icon: Calendar },
-        { id: 'live', label: 'Live Now', icon: Flame },
-        { id: 'completed', label: 'Completed', icon: CheckCircle },
+        { id: 'live', label: 'Combat Live', icon: Flame },
+        { id: 'completed', label: 'Archive', icon: CheckCircle },
     ]
 
     return (
-        <div className="min-h-screen bg-black pb-24 animate-fadeIn bg-cyber-grid bg-fixed overflow-x-hidden">
-            {/* Hero Background */}
-            <div className="relative h-[50vh] overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black z-10" />
-                <div className="absolute inset-0 bg-black/40 z-10" />
+        <div className="min-h-screen bg-[#0a0e1a] text-white pb-32 font-sans overflow-x-hidden">
+            {/* Background Atmosphere */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] bg-orange-500/5 blur-[120px]" />
+                <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-red-600/5 blur-[100px]" />
+            </div>
 
-                {/* Create Tournament Button (Floating) */}
-                <div className="absolute top-6 right-6 z-30">
-                    <button
-                        onClick={handleCreateTournament}
-                        className="group relative px-6 py-3 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl overflow-hidden transition-all hover:bg-white/20 hover:scale-105 active:scale-95"
-                    >
-                        <div className="absolute inset-0 bg-gradient-to-r from-orange-500/20 to-red-500/20 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        <div className="relative flex items-center gap-2">
-                            <Plus className="w-5 h-5 text-orange-400 group-hover:text-orange-300" />
-                            <span className="font-black text-sm uppercase tracking-wider text-white">Create Tournament</span>
-                        </div>
-                    </button>
-                </div>
+            {/* Premium Sticky Header */}
+            <div className="sticky top-0 z-50 bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/5 p-4 flex items-center justify-between">
+                <button
+                    onClick={() => navigate('/dashboard')}
+                    className="p-2 hover:bg-white/5 rounded-xl transition-all group"
+                >
+                    <ChevronRight className="rotate-180 text-zinc-500 group-hover:text-white" size={24} />
+                </button>
+                <h1 className="text-sm font-black uppercase tracking-[0.3em] italic flex items-center gap-2">
+                    <Target size={18} className="text-orange-500" />
+                    Free Fire Sector
+                </h1>
+                <button
+                    onClick={handleCreateTournament}
+                    className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center hover:bg-orange-500 transition-all border border-orange-500/20 group"
+                >
+                    <Plus size={18} className="text-orange-500 group-hover:text-black" />
+                </button>
+            </div>
 
+            {/* Hero Image Section */}
+            <div className="relative h-[45vh] md:h-[55vh] overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#0a0e1a] via-transparent to-transparent z-10" />
+                <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-all duration-700 z-10" />
                 <img
                     src="https://wallpapers.com/images/featured/free-fire-4k-can3125e197h2989.jpg"
                     alt="Free Fire"
-                    className="w-full h-full object-cover scale-110"
+                    className="w-full h-full object-cover scale-105 group-hover:scale-110 transition-transform duration-1000"
                 />
-
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center text-center px-4">
+                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-4">
                     <motion.div
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
-                        className="mb-6"
+                        className="text-center space-y-2"
                     >
-                        <h1 className="text-6xl md:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 italic tracking-tighter drop-shadow-[0_0_30px_rgba(234,88,12,0.5)]">
-                            FREE FIRE
-                        </h1>
-                        <span className="text-white text-xl md:text-3xl font-bold tracking-[0.5em] uppercase mt-2 block">
-                            Battle Arena
-                        </span>
+                        <h2 className="text-6xl md:text-9xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-orange-400 via-orange-600 to-red-600 drop-shadow-2xl">
+                            BOOYAH<span className="text-white">.</span>
+                        </h2>
+                        <span className="text-[10px] md:text-xs font-black text-white/50 uppercase tracking-[0.8em] block">Restricted Engagement Sector</span>
                     </motion.div>
                 </div>
             </div>
 
-            <div className="relative z-20 -mt-24 px-5 max-w-7xl mx-auto space-y-12">
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <StatCard
-                        icon={<Trophy className="w-8 h-8 text-yellow-400" />}
+            <div className="relative z-20 -mt-20 px-4 max-w-7xl mx-auto space-y-12">
+                {/* Stats Summary antisocial antisocial */}
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <ArenaStat
+                        label="Deployment Budget"
                         value="₹50L+"
-                        label="Monthly Prize Pool"
-                        gradient="from-yellow-500/20 to-orange-500/5"
+                        icon={<Trophy className="text-orange-500" />}
+                        gradient="from-orange-500/10 to-transparent"
                     />
-                    <StatCard
-                        icon={<Users className="w-8 h-8 text-cyan-400" />}
+                    <ArenaStat
+                        label="Elite Personnel"
                         value="10K+"
-                        label="Active Players"
-                        gradient="from-cyan-500/20 to-blue-500/5"
+                        icon={<Users className="text-orange-400" />}
+                        gradient="from-orange-500/10 to-transparent"
+                        className="hidden md:flex"
                     />
-                    <StatCard
-                        icon={<Crown className="w-8 h-8 text-purple-400" />}
+                    <ArenaStat
+                        label="Daily Sorties"
                         value="500+"
-                        label="Daily Tournaments"
-                        gradient="from-purple-500/20 to-pink-500/5"
+                        icon={<Shield className="text-orange-400" />}
+                        gradient="from-orange-500/10 to-transparent"
                     />
                 </div>
 
-                {/* Main Content */}
-                <div>
-                    {/* Tab Navigation */}
-                    <div className="flex justify-center mb-8">
-                        <div className="flex bg-zinc-900/50 backdrop-blur-md p-1.5 rounded-2xl border border-white/5 relative">
-                            {tabs.map((tab) => {
-                                const Icon = tab.icon
-                                const isActive = activeTab === tab.id
-                                return (
-                                    <button
-                                        key={tab.id}
-                                        onClick={() => setActiveTab(tab.id)}
-                                        className={`relative px-6 py-3 rounded-xl flex items-center gap-2 text-sm font-black uppercase tracking-wider transition-all z-10 ${isActive ? 'text-white' : 'text-zinc-500 hover:text-zinc-300'
-                                            }`}
-                                    >
-                                        {isActive && (
-                                            <motion.div
-                                                layoutId="activeArenaTab"
-                                                className="absolute inset-0 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl shadow-lg"
-                                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                                            />
-                                        )}
-                                        <Icon className={`w-4 h-4 relative z-10`} />
-                                        <span className="relative z-10">{tab.label}</span>
-                                    </button>
-                                )
-                            })}
-                        </div>
+                {/* Tactical Tabs */}
+                <div className="flex justify-center">
+                    <div className="flex p-1.5 bg-[#0E1424]/60 backdrop-blur-md border border-white/5 rounded-2xl gap-2 shadow-2xl">
+                        {tabs.map((tab) => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`px-8 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all relative ${activeTab === tab.id
+                                    ? 'text-black'
+                                    : 'text-zinc-500 hover:text-white'
+                                    }`}
+                            >
+                                {activeTab === tab.id && (
+                                    <motion.div
+                                        layoutId="activeArenaTab"
+                                        className="absolute inset-0 bg-orange-500 rounded-xl shadow-[0_5px_15px_rgba(249,115,22,0.3)]"
+                                        transition={{ type: 'spring', bounce: 0.1, duration: 0.5 }}
+                                    />
+                                )}
+                                <span className="relative z-10">{tab.label}</span>
+                            </button>
+                        ))}
                     </div>
+                </div>
 
-                    {/* Tournament Grid */}
+                {/* Engagement Grid */}
+                <motion.div layout className="min-h-[500px]">
                     {loading ? (
-                        <div className="flex justify-center items-center py-20 min-h-[400px]">
-                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+                        <div className="flex flex-col items-center justify-center py-40 gap-6">
+                            <div className="w-16 h-16 border-2 border-orange-500/10 border-t-orange-500 rounded-full animate-spin" />
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.5em]">Synchronizing Battle Feeds...</p>
                         </div>
-                    ) : (
-                        <motion.div
-                            layout
-                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[400px] content-start"
-                        >
+                    ) : tournaments.length > 0 ? (
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 pb-20">
                             <AnimatePresence mode="popLayout">
-                                {tournaments.map((tournament, index) => (
-                                    <TournamentCard key={tournament.id} tournament={tournament} index={index} />
+                                {tournaments.map((tournament, idx) => (
+                                    <TournamentCard
+                                        key={tournament.id}
+                                        tournament={tournament}
+                                        index={idx}
+                                        compact
+                                    />
                                 ))}
                             </AnimatePresence>
-
-                            {tournaments.length === 0 && (
-                                <div className="col-span-3 flex flex-col items-center justify-center py-20 text-center opacity-50">
-                                    <Trophy className="w-16 h-16 text-zinc-600 mb-4" />
-                                    <h3 className="text-xl font-bold text-white mb-2">No {activeTab} tournaments found</h3>
-                                    <p className="text-zinc-400">Check back later for new events!</p>
-                                </div>
-                            )}
-                        </motion.div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-40 text-center bg-white/5 rounded-[2.5rem] border border-dashed border-white/5">
+                            <h3 className="text-2xl font-black text-white italic mb-3 tracking-tighter uppercase">No Operations Active</h3>
+                            <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em]">Check the archive or wait for new deployments.</p>
+                        </div>
                     )}
-                </div>
+                </motion.div>
             </div>
         </div>
     )
 }
 
-const StatCard = ({ icon, value, label, gradient }: any) => (
-    <motion.div
-        whileHover={{ y: -5 }}
-        className={`relative p-8 rounded-3xl bg-zinc-900/50 backdrop-blur-xl border border-white/5 overflow-hidden group`}
-    >
-        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-20 group-hover:opacity-30 transition-opacity`} />
-        <div className="relative z-10">
-            <div className="mb-4 p-3 bg-black/20 rounded-2xl w-fit backdrop-blur-md border border-white/5">{icon}</div>
-            <h3 className="text-4xl font-black text-white italic tracking-tight mb-1">{value}</h3>
-            <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest">{label}</p>
+// Subcomponent antisocial antisocial antisocial
+const ArenaStat = ({ label, value, icon, gradient, className }: any) => (
+    <div className={`p-8 rounded-[2.5rem] bg-[#0E1424]/40 backdrop-blur-xl border border-white/5 relative overflow-hidden group flex flex-col justify-end min-h-[160px] ${className}`}>
+        <div className={`absolute inset-0 bg-gradient-to-br ${gradient} opacity-50`} />
+        <div className="relative z-10 space-y-2">
+            <div className="w-10 h-10 rounded-2xl bg-black/20 flex items-center justify-center border border-white/5 mb-2 group-hover:scale-110 transition-transform">
+                {icon}
+            </div>
+            <p className="text-sm font-black text-zinc-600 uppercase tracking-widest leading-none">{label}</p>
+            <h3 className="text-4xl font-black text-white italic tracking-tighter">{value}</h3>
         </div>
-    </motion.div>
+    </div>
 )
 
 export default FreeFireArena

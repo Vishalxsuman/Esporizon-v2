@@ -22,7 +22,7 @@ export class BadgeAwarder {
                 tournamentName,
                 placement: 1
             })
-            console.log(`🏆 Awarded Tournament Winner badge to ${userId}`)
+            import.meta.env.MODE !== 'production' && console.log(`🏆 Awarded Tournament Winner badge to ${userId}`)
         }
     }
 
@@ -41,7 +41,7 @@ export class BadgeAwarder {
             tournamentName,
             killCount
         })
-        console.log(`🎯 Awarded Top Frag badge to ${userId} (${killCount} kills)`)
+        import.meta.env.MODE !== 'production' && console.log(`🎯 Awarded Top Frag badge to ${userId} (${killCount} kills)`)
     }
 
     /**
@@ -64,7 +64,7 @@ export class BadgeAwarder {
             await warRoomService.awardBadge(userId, 'team_leader', {
                 successfulRecruitments
             })
-            console.log(`🧠 Awarded Team Leader badge to ${userId}`)
+            import.meta.env.MODE !== 'production' && console.log(`🧠 Awarded Team Leader badge to ${userId}`)
         }
     }
 
@@ -74,7 +74,7 @@ export class BadgeAwarder {
      */
     static async awardVerifiedHost(userId: string): Promise<void> {
         await warRoomService.awardBadge(userId, 'verified_host')
-        console.log(`🛡 Awarded Verified Host badge to ${userId}`)
+        import.meta.env.MODE !== 'production' && console.log(`🛡 Awarded Verified Host badge to ${userId}`)
     }
 
     /**
@@ -106,7 +106,7 @@ export class BadgeAwarder {
                 monthlyTournaments,
                 month: new Date().toISOString()
             })
-            console.log(`🔥 Awarded Consistent Player badge to ${userId}`)
+            import.meta.env.MODE !== 'production' && console.log(`🔥 Awarded Consistent Player badge to ${userId}`)
         }
     }
 

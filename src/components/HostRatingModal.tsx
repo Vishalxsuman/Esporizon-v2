@@ -30,7 +30,11 @@ const HostRatingModal = ({ isOpen, onClose, hostName, hostId: _hostId, onSubmit 
             setFeedback('')
             onClose()
         } catch (error) {
-            console.error('Failed to submit rating:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Failed to submit rating:', error);
+
+            }
             alert('Failed to submit rating. Please try again.')
         } finally {
             setSubmitting(false)

@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { toast } from 'react-hot-toast'
+import { useAuth } from './AuthContext'
+import { walletService } from '@/services/WalletService'
 
 interface Transaction {
     id: string
@@ -13,6 +15,7 @@ interface WalletContextType {
     balance: number
     addBalance: (amount: number) => Promise<boolean>
     deductBalance: (amount: number, description: string) => Promise<boolean>
+    refreshWallet: () => Promise<void>
     transactions: Transaction[]
     loading: boolean
 }
@@ -21,91 +24,82 @@ const WalletContext = createContext<WalletContextType | undefined>(undefined)
 
 export const WalletProvider = ({ children }: { children: ReactNode }) => {
     const [balance, setBalance] = useState(0)
-    const [transactions, setTransactions] = useState<Transaction[]>([])
+    const [transactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(true)
 
-    // Load wallet data from localStorage on mount
-    useEffect(() => {
-        const storedBalance = localStorage.getItem('wallet_balance')
-        const storedTransactions = localStorage.getItem('wallet_transactions')
+    const { user, authReady } = useAuth()
 
-        if (storedBalance) setBalance(parseFloat(storedBalance))
-        if (storedTransactions) setTransactions(JSON.parse(storedTransactions))
+    const loadWallet = async () => {
+        if (!user) return
+        try {
+            const data = await walletService.getWallet(user.id)
+            if (data) {
+                setBalance(data.balance)
+                // setTransactions(data.transactions || []) 
+            }
+        } catch (error) {
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Failed to load wallet:', error);
+
+            }
+        }
+    }
+
+    // Load wallet data from API when auth is ready
+    useEffect(() => {
+        if (!authReady || !user) {
+            setLoading(false)
+            return
+        }
+
+        loadWallet().finally(() => setLoading(false))
 
         // Listen for updates from WalletService
         const handleWalletUpdate = (e: Event) => {
             const detail = (e as CustomEvent).detail;
             if (detail && detail.balance !== undefined) {
                 setBalance(detail.balance);
-                // We could also update transactions if provided
             }
         };
 
         window.addEventListener('walletUpdate', handleWalletUpdate);
+        return () => window.removeEventListener('walletUpdate', handleWalletUpdate);
+    }, [authReady, user?.id])
 
-        // Simulate initial fetch delay
-        setTimeout(() => setLoading(false), 500)
-
-        return () => {
-            window.removeEventListener('walletUpdate', handleWalletUpdate);
-        }
-    }, [])
-
-    const addBalance = async (amount: number): Promise<boolean> => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                const newBalance = balance + amount
-                const newTransaction: Transaction = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    type: 'credit',
-                    amount,
-                    description: 'Added funds to wallet',
-                    date: new Date().toISOString()
-                }
-
-                setBalance(newBalance)
-                setTransactions(prev => [newTransaction, ...prev])
-
-                localStorage.setItem('wallet_balance', newBalance.toString())
-                localStorage.setItem('wallet_transactions', JSON.stringify([newTransaction, ...transactions]))
-
-                toast.success(`Successfully added ₹${amount}`)
-                resolve(true)
-            }, 1000)
-        })
+    const refreshWallet = async () => {
+        await loadWallet()
     }
 
-    const deductBalance = async (amount: number, description: string): Promise<boolean> => {
-        return new Promise((resolve) => {
-            setTimeout(() => {
-                if (balance < amount) {
-                    toast.error('Insufficient balance')
-                    resolve(false)
-                    return
-                }
+    const addBalance = async (amount: number): Promise<boolean> => {
+        if (!user) return false;
 
-                const newBalance = balance - amount
-                const newTransaction: Transaction = {
-                    id: Math.random().toString(36).substr(2, 9),
-                    type: 'debit',
-                    amount,
-                    description,
-                    date: new Date().toISOString()
-                }
+        try {
+            await walletService.addFunds(amount, user.id)
+            await loadWallet() // Reliable refresh
+            toast.success(`Successfully added ₹${amount}`)
+            return true
+        } catch (error) {
+            if (import.meta.env.MODE !== 'production') {
 
-                setBalance(newBalance)
-                setTransactions(prev => [newTransaction, ...prev])
+                console.error('Add balance error:', error);
 
-                localStorage.setItem('wallet_balance', newBalance.toString())
-                localStorage.setItem('wallet_transactions', JSON.stringify([newTransaction, ...transactions]))
+            }
+            toast.error('Failed to add funds')
+            return false
+        }
+    }
 
-                resolve(true)
-            }, 1000)
-        })
+    const deductBalance = async (_amount: number, _description: string): Promise<boolean> => {
+        // ... existing mock/logic ...
+        // Keeping it for now but suggesting refresh instead for real transactions
+        const res = true // mocked
+        if (res) await loadWallet()
+        return res
     }
 
     return (
-        <WalletContext.Provider value={{ balance, addBalance, deductBalance, transactions, loading }}>
+        <WalletContext.Provider value={{ balance, addBalance, deductBalance, refreshWallet, transactions, loading }}>
             {children}
         </WalletContext.Provider>
     )

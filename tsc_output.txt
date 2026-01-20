@@ -1,0 +1,5 @@
+src/services/WarRoomService.ts(146,34): error TS6133: 'tournamentId' is declared but its value is never read.
+src/services/WarRoomService.ts(146,56): error TS6133: 'eventType' is declared but its value is never read.
+src/services/WarRoomService.ts(146,88): error TS6133: 'tournamentData' is declared but its value is never read.
+src/services/WarRoomService.ts(211,13): error TS6133: 'getGameName' is declared but its value is never read.
+src/services/WarRoomService.ts(221,13): error TS6133: 'getRoleName' is declared but its value is never read.

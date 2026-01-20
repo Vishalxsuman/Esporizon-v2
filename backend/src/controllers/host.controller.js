@@ -2,6 +2,43 @@ const hostService = require('../services/HostService');
 const userService = require('../services/UserService');
 
 const hostController = {
+    /**
+     * POST /activate
+     * Activate user as host (FREE)
+     */
+    activate: async (req, res, next) => {
+        try {
+            const userId = req.user?.id;
+
+            if (!userId) {
+                return res.status(401).json({
+                    success: false,
+                    message: 'User authentication required'
+                });
+            }
+
+            // Update user role to 'host'
+            const user = await userService.updateUserRole(userId, 'host');
+
+            // Ensure host profile exists
+            const hostProfile = await hostService.ensureHostProfile(userId);
+
+            res.json({
+                success: true,
+                message: 'Host activated successfully',
+                isHost: true,
+                hostId: userId,
+                hostProfile: hostProfile
+            });
+        } catch (err) {
+            console.error('Host activation error:', err);
+            res.status(200).json({
+                success: false,
+                message: 'Failed to activate host status'
+            });
+        }
+    },
+
     getProfile: async (req, res, next) => {
         try {
             const host = await hostService.getHostProfile(req.params.hostId);

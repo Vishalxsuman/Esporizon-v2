@@ -4,7 +4,7 @@ import { ArrowLeft, Wallet, TrendingUp, Download, DollarSign, Clock } from 'luci
 import { useNavigate } from 'react-router-dom';
 import { walletService } from '../services/WalletService';
 import { useAuth } from '../contexts/AuthContext';
-import toast from 'react-hot-toast';
+
 
 interface Transaction {
     type: string;
@@ -39,8 +39,12 @@ const HostWallet = () => {
 
             // Transactions fetch omitted as it's handled by internal polling or separate endpoint
         } catch (error) {
-            console.error('Error fetching wallet:', error);
-            toast.error('Failed to load wallet data');
+            if (import.meta.env.MODE !== 'production') {
+
+                console.warn('Wallet data unavailable:', error);
+
+            }
+            // Use defaults - balance already set to 0
         } finally {
             setLoading(false);
         }

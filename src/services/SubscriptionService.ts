@@ -1,42 +1,49 @@
-import axios from 'axios';
-import { auth } from '@/config/firebaseConfig';
-import { API_URL } from '@/config/api';
-
-/**
- * Get auth headers with Firebase token
- */
-const getAuthHeaders = async () => {
-    const token = await auth?.currentUser?.getIdToken();
-    return {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-    };
-};
+import { api } from '@/services/api';
+import { waitForAuth } from '@/utils/authGuard';
 
 export const activateSubscription = async () => {
     try {
-        const headers = await getAuthHeaders();
-        const response = await axios.post(`${API_URL}/subscription/activate`, {}, { headers });
+        await waitForAuth();
+        const response = await api.post('/api/subscription/activate');
+
+        if (!response || !response.data) {
+            return { success: false, message: 'Activation failed (Network)' };
+        }
+
         return response.data;
     } catch (error) {
-        console.warn('Backend currently unavailable, simulating successful activation');
-        return { success: true, message: 'Subscription activated (Mock)' };
+        if (import.meta.env.MODE !== 'production') {
+
+            console.error('Subscription activation failed:', error);
+
+        }
+        return { success: false, message: 'Activation failed' };
     }
 };
 
 /**
- * Get subscription status
+ * Get subscription status - SUBSCRIPTION IS FREE BY DEFAULT
  */
 export const getSubscriptionStatus = async () => {
     try {
-        const headers = await getAuthHeaders();
-        const response = await axios.get(`${API_URL}/subscription/status`, { headers });
+        await waitForAuth();
+        const response = await api.get('/api/subscription/status');
+
+        // Handle null response (timeout/network error)
+        if (!response || !response.data) {
+            // FREE SUBSCRIPTION: Default to active
+            return { active: true, plan: 'free' };
+        }
+
         return response.data;
     } catch (error) {
-        console.warn('Backend currently unavailable, returning mock status');
-        // Return mock host status if local storage says so, otherwise false
-        const isHost = localStorage.getItem('user_is_host') === 'true';
-        return { isHost };
+        if (import.meta.env.MODE !== 'production') {
+
+            console.error('Failed to get subscription status:', error);
+
+        }
+        // FREE SUBSCRIPTION: Returns active by default
+        return { active: true, plan: 'free' };
     }
 };
 

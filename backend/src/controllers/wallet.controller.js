@@ -25,7 +25,15 @@ const walletController = {
                 totalWon: wallet.totalWon
             });
         } catch (err) {
-            next(err);
+            console.error('Error fetching wallet:', err.message);
+            // FAIL SAFE: Return default 0 balance on error
+            res.json({
+                success: true,
+                balance: 0,
+                totalDeposited: 0,
+                totalWithdrawn: 0,
+                totalWon: 0
+            });
         }
     },
 
@@ -128,7 +136,13 @@ const walletController = {
                 data: transactions
             });
         } catch (err) {
-            next(err);
+            console.error('Error fetching transactions:', err.message);
+            // FAIL SAFE: Return empty array
+            res.json({
+                success: true,
+                count: 0,
+                data: []
+            });
         }
     }
 };

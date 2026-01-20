@@ -1,289 +1,66 @@
-# Esporizon - Professional Esports Tournament Platform
+# Esporizon 🎮
 
-[![TypeScript](https://img.shields.io/badge/TypeScript-4.9-blue)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-18-61DAFB)](https://reactjs.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18-green)](https://nodejs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-6.0-green)](https://www.mongodb.com/)
+Esporizon is a premium, production-ready esports tournament platform designed for seamless tournament hosting, joining, and social interaction.
 
-A production-ready esports tournament platform supporting Free Fire, BGMI, Valorant, and Minecraft with real-money prize distribution, automated wallet management, and comprehensive host tools.
+## 🚀 Key Features
 
-## 🚀 Quick Start
+- **Automated Tournaments**: Create and join tournaments for BMGI, Free Fire, Valorant, and Minecraft.
+- **Combat Wallet**: Secure, atomic balance management with transaction history (Mock payments enabled).
+- **Pro Feed**: Social hub for global announcements, LFG requests, and community events.
+- **War Room integration**: Contextual chat and management for every tournament.
+- **Host Dashboard**: Professional tools for host verification, tournament management, and result verification.
 
-### Prerequisites
-- Node.js 18+ 
-- MongoDB 6.0+
-- Firebase Project (for authentication)
+## 🛠 Tech Stack
 
-### installation
+- **Frontend**: Vite + React + TypeScript + TailwindCSS + Framer Motion
+- **Backend**: Node.js + Express.js
+- **Database**: MongoDB (Atlas recommended for production)
+- **Authentication**: Firebase Auth
+- **Icons & UI**: Lucide React + Custom Design System
 
+## 💻 Local Development
+
+### 1. Clone the Repository
 ```bash
-# Clone repository
 git clone <repository-url>
 cd esporizon
-
-# Install frontend dependencies
-npm install
-
-# Install backend dependencies
-cd backend-standalone
-npm install
-cd ..
 ```
 
-### Environment Configuration
-
-1. **Frontend (.env.development)**
-```env
-VITE_API_URL=http://localhost:5000
-VITE_FIREBASE_API_KEY=your_api_key
-VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-VITE_FIREBASE_PROJECT_ID=your_project_id
-VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-VITE_FIREBASE_APP_ID=your_app_id
-```
-
-2. **Backend (backend/.env)**
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/esporizon
-FIREBASE_PROJECT_ID=your_project_id
-FIREBASE_CLIENT_EMAIL=your_client_email
-FIREBASE_PRIVATE_KEY="your_private_key"
-NODE_ENV=development
-```
-
-### Running the Application
-
+### 2. Backend Setup
 ```bash
-# Terminal 1: Start MongoDB
-mongod
-
-# Terminal 2: Start Backend
 cd backend
-npm run dev
+npm install
+# Configure .env based on .env.example
+npm start
+```
 
-# Terminal 3: Start Frontend
+### 3. Frontend Setup
+```bash
+# From root
+npm install
+# Configure .env based on .env.example
 npm run dev
 ```
 
-Access the application at `http://localhost:3000`
+## ☁️ Deployment Guide (AWS)
 
-## 📚 Features
+### Backend (EC2 / ECS)
+1. **Node Version**: 18+
+2. **Process Manager**: Use PM2 to keep the server running.
+3. **Nginx**: Configure as a reverse proxy for SSL and port forwarding.
+4. **Environment**: Ensure all variables from `.env.example` are set in the AWS Environment.
 
-### For Players
-- ✅ **Multi-Game Support**: Free Fire, BGMI, Valorant, Minecraft
-- ✅ **Wallet System**: Deposit funds, pay entry fees, receive prizes automatically
-- ✅ **Tournament Discovery**: Browse upcoming/ongoing/completed tournaments
-- ✅ **Team Registration**: Solo, Duo, Squad modes
-- ✅ **Real-time Chat**: Tournament-specific chat rooms
-- ✅ **Profile Management**: Game-wise stats and rank tracking
-- ✅ **Report System**: Submit disputes against tournaments/hosts
+### Frontend (S3 + CloudFront)
+1. **Build**: `npm run build`
+2. **Hosting**: Upload `dist/` folder to S3.
+3. **Distribution**: Use CloudFront for HTTPS and performance.
 
-### For Hosts
-- ✅ **Tournament Creation**: Custom prize structures, entry fees, game rooms
-- ✅ **Prize Distribution**: Winner-based (98% split) or Kill-based rewards
-- ✅ **Auto-Finance**: 2% service fee auto-credited to host wallet
-- ✅ **Room Management**: Game-specific credentials (Room ID, Password, Lobby ID)
-- ✅ **Result Publishing**: AI-assisted result extraction and validation
-- ✅ **Dispute Resolution**: View and resolve player reports
-- ✅ **Earnings Dashboard**: Track service fees and tournament performance
+## 🔒 Production Notes
 
-## 🏗️ Tech Stack
-
-### Frontend
-- **Framework**: React 18 + TypeScript
-- **Build Tool**: Vite 4
-- **Styling**: Tailwind CSS
-- **Animation**: Framer Motion
-- **Routing**: React Router v6
-- **HTTP Client**: Axios
-- **State Management**: Context API
-- **Icons**: Lucide React
-
-### Backend
-- **Runtime**: Node.js 18
-- **Framework**: Express.js
-- **Database**: MongoDB (Mongoose ODM)
-- **Authentication**: Firebase Admin SDK
-- **Validation**: Express Validator
-
-### Authentication
-- **System**: Firebase Authentication
-- **Methods**: Email/Password, Google OAuth
-
-## 📁 Project Structure
-
-```
-esporizon/
-├── src/
-│   ├── components/        # Reusable UI components
-│   ├── pages/             # Route components
-│   ├── services/          # API service layers
-│   ├── contexts/          # React context providers
-│   ├── types/             # TypeScript type definitions
-│   └── config/            # Configuration files
-├── backend/
-│   ├── src/
-│   │   ├── models/        # MongoDB schemas
-│   │   ├── controllers/   # Request handlers
-│   │   ├── routes/        # API routes
-│   │   ├── services/      # Business logic
-│   │   ├── middleware/    # Authentication, validation
-│   │   └── utils/         # Helper functions
-│   └── server.js          # Express server entry
-└── public/                # Static assets
-```
-
-## 🔐 Security Features
-
-- **Firebase Authentication**: Secure JWT-based auth
-- **Route Protection**: Middleware-based access control
-- **Host Verification**: Subscription status validation
-- **Wallet Security**: Atomic transactions with MongoDB sessions
-- **Input Validation**: Server-side validation for all endpoints
-- **CORS Configuration**: Environment-specific origins
-
-## 💰 Prize Distribution System
-
-### 98/2 Split Model
-- **98%** goes to players (configurable distribution)
-- **2%** platform service fee (auto-credited to host)
-
-### Distribution Types
-1. **Winner-Based**: Fixed percentages to top 3 (e.g., 60%, 25%, 13%)
-2. **Kill-Based**: Dynamic payout per kill (e.g., ₹3/kill)
-
-### Validation
-- Backend enforces 98% player distribution
-- Frontend UI shows real-time validation
-- Results immutable after publishing
-
-## 🎮 Game-Specific Features
-
-### Free Fire / BGMI
-- Room ID + Password
-- Match time scheduling
-- Server region selection
-
-### Valorant
-- Custom Lobby ID
-- Match Code
-- Team slot configuration
-
-### Minecraft
-- Server Name
-- World Name
-- Game Mode specification
-
-## 🗄️ Database Models
-
-### Core Models
-- **User**: Player profiles, authentication
-- **Host**: Host accounts, subscription status
-- **Tournament**: Event details, configuration, participants
-- **Wallet**: Balance, transaction history, stats
-- **Report**: Dispute system, message threads
-- **PlayerProfile**: Game stats, rankings, match history
-
-## 🔄 API Endpoints
-
-See [Backend README](./backend/README.md) for complete API documentation.
-
-### Key Endpoints
-- `GET /wallet` - Get user wallet balance
-- `POST /wallet/deposit` - Deposit funds to wallet
-- `POST /wallet/withdraw` - Request withdrawal from wallet
-- `GET /wallet/transactions` - Get transaction history
-- `POST /tournaments` - Create tournament
-- `POST /tournaments/:id/register` - Register for tournament
-- `POST /results/publish` - Publish results (auto-credits wallets)
-- `POST /reports` - Create dispute report
-- `GET /host/reports` - View player reports
-
-## 🧪 Testing
-
-```bash
-# Frontend tests
-npm run test
-
-# Backend tests
-cd backend-standalone
-npm test
-
-# E2E tests
-npm run test:e2e
-```
-
-See [TESTING.md](./TESTING.md) for detailed testing guide.
-
-## 📦 Build & Deployment
-
-```bash
-# Build frontend
-npm run build
-
-# Preview production build
-npm run preview
-
-# Build backend
-cd backend
-npm run build
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Port Already in Use**
-```bash
-# Frontend will automatically try ports 3000-3010
-# Backend: Change PORT in .env
-```
-
-**MongoDB Connection Failed**
-```bash
-# Ensure MongoDB is running
-mongod --dbpath=/path/to/data
-
-# Check connection string in backend/.env
-```
-
-**Firebase Auth Errors**
-- Verify Firebase credentials in `.env`
-- Check Firebase console project settings
-- Ensure service account has correct permissions
-
-## 📝 License
-
-MIT License - see [LICENSE](./LICENSE) for details
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Open Pull Request
-
-## 📧 Support
-
-For issues and questions:
-- GitHub Issues: [Create Issue](https://github.com/your-repo/issues)
-- Email: support@esporizon.com
-
-## 🎯 Roadmap
-
-- [x] Multi-game tournament support
-- [x] Automated wallet system
-- [x] Prize distribution (98/2 split)
-- [x] Report/dispute system
-- [ ] AI result extraction
-- [ ] Mobile apps (iOS/Android)
-- [ ] Live streaming integration
-- [ ] Sponsor management
-- [ ] Advanced analytics dashboard
+- **Wallet**: Currently uses mock-payment logic for simulation. High-priority for Stripe/Razorpay integration.
+- **Atomic Operations**: All financial and join operations use MongoDB atomic operators to ensure data integrity without replica-set overhead.
+- **Security**: CORS is restricted to production domains. Firebase Private Keys must be loaded via Environment Variables.
 
 ---
 
-**Built with ❤️ for the esports community**
+*Esporizon - Squad Up. Dominate.*

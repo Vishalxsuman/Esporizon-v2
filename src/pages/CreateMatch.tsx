@@ -82,7 +82,11 @@ const CreateMatch = () => {
             toast.success('Match created!')
             navigate(`/play/match/${match.id}`)
         } catch (error) {
-            console.error('Error creating match:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error creating match:', error);
+
+            }
             toast.error(error instanceof Error ? error.message : 'Failed to create match')
         } finally {
             setLoading(false)

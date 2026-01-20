@@ -1,8 +1,40 @@
 import { ArrowLeft, DollarSign, Shield, Wrench, Star, Headphones } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { hostService } from '@/services/HostService';
+import { useAuth } from '@/contexts/AuthContext';
+import toast from 'react-hot-toast';
 
 const HostBenefits = () => {
     const navigate = useNavigate();
+    const { updateUserHostStatus } = useAuth();
+    const [activating, setActivating] = useState(false);
+
+    const handleBecomeHost = async () => {
+        setActivating(true);
+        try {
+            const result = await hostService.activateHost();
+
+            if (result.success) {
+                // Update user status locally
+                updateUserHostStatus(true);
+                toast.success('🎉 You are now a verified host!');
+                // Redirect to host dashboard
+                navigate('/host/dashboard');
+            } else {
+                toast.error(result.message || 'Failed to activate host status');
+            }
+        } catch (error) {
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Host activation error:', error);
+
+            }
+            toast.error('Something went wrong. Please try again.');
+        } finally {
+            setActivating(false);
+        }
+    };
 
     const benefits = [
         {
@@ -93,13 +125,16 @@ const HostBenefits = () => {
                 {/* CTA Section */}
                 <div className="animate-float-subtle">
                     <button
-                        onClick={() => navigate('/arena/freefire/host-subscription')}
-                        className="w-full relative group overflow-hidden bg-zinc-900 border border-white/10 rounded-2xl px-6 py-5 shadow-2xl transition-all active:scale-[0.98]"
+                        onClick={handleBecomeHost}
+                        disabled={activating}
+                        className="w-full relative group overflow-hidden bg-gradient-to-r from-teal-500 to-cyan-500 rounded-2xl px-6 py-5 shadow-2xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                        <div className="absolute inset-0 bg-gradient-to-r from-teal-500/0 via-teal-500/10 to-teal-500/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+                        <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                         <div className="relative flex items-center justify-center gap-3">
-                            <span className="text-sm font-black tracking-[0.3em] text-white">VIEW HOSTING PLANS</span>
-                            <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                            <span className="text-sm font-black tracking-[0.3em] text-black">
+                                {activating ? 'ACTIVATING...' : 'BECOME A HOST (FREE)'}
+                            </span>
+                            {!activating && <div className="w-2 h-2 rounded-full bg-black animate-pulse" />}
                         </div>
                     </button>
                 </div>

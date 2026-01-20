@@ -23,7 +23,11 @@ const AuthPage = () => {
       await signInWithGoogle()
       navigate('/dashboard')
     } catch (error) {
-      console.error(error)
+      if (import.meta.env.MODE !== 'production') {
+
+          console.error(error);
+
+      }
       toast.error('Failed to sign in with Google')
     } finally {
       setIsLoading(false)
@@ -41,7 +45,11 @@ const AuthPage = () => {
       }
       navigate('/dashboard')
     } catch (error: any) {
-      console.error(error)
+      if (import.meta.env.MODE !== 'production') {
+
+          console.error(error);
+
+      }
       toast.error(error.message || (isLogin ? 'Invalid email or password' : 'Failed to create account'))
     } finally {
       setIsLoading(false)

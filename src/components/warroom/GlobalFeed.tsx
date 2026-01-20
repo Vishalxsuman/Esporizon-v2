@@ -1,92 +1,120 @@
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { postService } from '@/services/PostService'
-import { warRoomService } from '@/services/WarRoomService'
-import { Post } from '@/types/Post'
-import { TournamentCard as TournamentCardType } from '@/types/WarRoomTypes'
-import PostCard from '@/components/PostCard'
-import TournamentCard from './TournamentCard'
-import { Loader2 } from 'lucide-react'
+import { Post } from '@/services/FeedService'
+import FeedItem from '@/components/feed/FeedItem'
 
-const GlobalFeed = () => {
+interface GlobalFeedProps {
+    type: string
+}
+
+const GlobalFeed = ({ type }: GlobalFeedProps) => {
     const [posts, setPosts] = useState<Post[]>([])
-    const [tournamentCards, setTournamentCards] = useState<TournamentCardType[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        setLoading(true)
+        const loadPosts = async () => {
+            setLoading(true)
+            try {
+                // Mocking data for now as per specific requirements
+                // In production, uncomment: const data = await feedService.getPosts(type);
 
-        // Subscribe to regular posts
-        const unsubPosts = postService.subscribePublicPosts(10, (newPosts) => {
-            setPosts(newPosts)
-        })
+                const mockData: Post[] = [
+                    {
+                        _id: '1',
+                        type: 'live_pulse',
+                        tournamentName: 'Free Fire Squad Clash',
+                        game: 'Free Fire',
+                        content: 'Semi-Finals LIVE! Team Soul vs Godlike',
+                        tournamentId: 't1',
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        _id: '2',
+                        type: 'join_alert',
+                        tournamentName: 'BGMI Weekend War',
+                        slotsLeft: 12,
+                        tournamentId: 't2',
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        _id: '3',
+                        type: 'friend_activity',
+                        authorName: 'Vishal',
+                        authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Vishal',
+                        activityText: 'joined a tournament',
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        _id: '4',
+                        type: 'result',
+                        winnerName: 'Team Alpha',
+                        prizeWon: 500,
+                        game: 'Valorant',
+                        createdAt: new Date().toISOString()
+                    },
+                    {
+                        _id: '5',
+                        type: 'user_post',
+                        authorName: 'ProGamer123',
+                        authorUsername: 'progamer',
+                        authorAvatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix',
+                        content: 'Looking for a sniper for upcoming BGMI tournament. Min KD 3.0 required.',
+                        createdAt: new Date().toISOString(),
+                        likes: ['u1', 'u2'],
+                        comments: []
+                    }
+                ];
 
-        // Subscribe to tournament cards
-        const unsubTournaments = warRoomService.subscribeToTournamentCards((cards) => {
-            setTournamentCards(cards)
-            setLoading(false)
-        })
+                // If type is 'global', show only global relevant stuff? 
+                // For now, showing diversity.
 
-        return () => {
-            unsubPosts()
-            unsubTournaments()
+                setPosts(mockData)
+            } catch (err) {
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.error(err);
+
+                }
+            } finally {
+                setLoading(false)
+            }
         }
-    }, [])
-
-    // Merge and sort by priority/recency
-    const mergedFeed = [
-        ...tournamentCards.map(card => ({ type: 'tournament', data: card, createdAt: card.createdAt })),
-        ...posts.map(post => ({ type: 'post', data: post, createdAt: post.createdAt }))
-    ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        loadPosts()
+    }, [type])
 
     if (loading) {
         return (
             <div className="flex flex-col items-center justify-center py-20 space-y-4">
-                <Loader2 className="w-8 h-8 text-[#00ff88] animate-spin" />
-                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00ff88] animate-pulse">
-                    Loading Intel...
+                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-teal-500 animate-pulse">
+                    Scanning Feed...
                 </p>
             </div>
         )
     }
 
-    if (mergedFeed.length === 0) {
+    if (posts.length === 0) {
         return (
-            <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="p-12 text-center rounded-2xl bg-[#141414]/40 border border-dashed border-[#00ff88]/20 backdrop-blur-3xl overflow-hidden relative mt-6"
-            >
-                <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(0,255,136,0.02)_10px,rgba(0,255,136,0.02)_20px)] pointer-events-none" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-[#00ff88]/60">War Room Silent</h3>
-                <p className="text-[10px] text-zinc-600 font-bold uppercase tracking-tighter mt-1">
-                    No active coordination • Stand by
+            <div className="p-12 text-center mt-6 border border-dashed border-zinc-800 rounded-2xl">
+                <h3 className="text-xs font-black uppercase tracking-widest text-zinc-600">Feed Silent</h3>
+                <p className="text-[10px] text-zinc-700 font-bold uppercase tracking-tighter mt-1">
+                    No active posts • Be the first
                 </p>
-            </motion.div>
+            </div>
         )
     }
 
     return (
-        <div className="space-y-6 mt-6">
-            <AnimatePresence mode="popLayout">
-                {mergedFeed.map((item, index) => (
-                    <motion.div
-                        key={item.type === 'tournament' ? (item.data as TournamentCardType).id : (item.data as Post).id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ delay: index * 0.05 }}
-                    >
-                        {item.type === 'tournament' ? (
-                            <TournamentCard card={item.data as TournamentCardType} />
-                        ) : (
-                            <PostCard post={item.data as Post} index={index} />
-                        )}
-                    </motion.div>
-                ))}
-            </AnimatePresence>
+        <div className="space-y-6 mt-6 pb-20">
+            {posts.map((post) => (
+                <FeedItem key={post._id} post={post} />
+            ))}
+
+            <div className="text-center py-8 text-zinc-600 text-xs uppercase tracking-widest border-t border-white/5 mt-8">
+                End of Transmission
+            </div>
         </div>
     )
 }
 
 export default GlobalFeed
+
+

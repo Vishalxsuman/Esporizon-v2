@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { X, Trophy, Users, Calendar, Clock, Shield, Star, IndianRupee, Loader2 } from 'lucide-react';
-import { Tournament } from '../data/mockTournaments';
+import { Tournament } from '@/types/tournament';
 
 interface TournamentModalProps {
     tournament: Tournament;
@@ -36,13 +36,13 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
     // Status badge colors
     const getStatusColor = (status: Tournament['status']) => {
         switch (status) {
-            case 'Open':
+            case 'upcoming':
                 return 'bg-teal-500/20 text-teal-400 border-teal-500/40';
-            case 'Live':
+            case 'live':
                 return 'bg-cyan-500/20 text-cyan-400 border-cyan-500/40 animate-pulse';
-            case 'Locked':
-                return 'bg-violet-500/20 text-violet-400 border-violet-500/40';
-            case 'Completed':
+            case 'cancelled':
+                return 'bg-red-500/20 text-red-400 border-red-500/40';
+            case 'completed':
                 return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
             default:
                 return 'bg-gray-500/20 text-gray-400 border-gray-500/40';
@@ -51,14 +51,21 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
 
     const handleJoinClick = async () => {
         setError('');
-        if (tournament.mode !== 'Solo' && !teamName.trim()) {
+        if (tournament.format !== 'solo' && !teamName.trim()) {
             setError('Team Name is required for Duo/Squad');
             return;
         }
         await onJoin(tournament.id, teamName);
     };
 
-    const isJoinable = tournament.status === 'Open';
+    const isJoinable = tournament.status === 'upcoming';
+
+    // Safely access properties that might be missing or different
+    const tournamentName = tournament.title || 'Tournament';
+    const tournamentFormat = tournament.format ? tournament.format.charAt(0).toUpperCase() + tournament.format.slice(1) : 'Unknown';
+    const organizerName = tournament.organizerName || 'Unknown Host';
+    // @ts-ignore - Check if rules exist on the object even if not in type
+    const rules = (tournament as any).rules || [];
 
     return (
         <>
@@ -74,7 +81,7 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                     {/* Header */}
                     <div className="sticky top-0 bg-[var(--bg-primary)]/95 backdrop-blur-xl border-b border-white/10 px-6 py-4 flex items-center justify-between z-10">
                         <div className="flex-1">
-                            <h2 className="text-xl font-bold text-white mb-1">{tournament.name}</h2>
+                            <h2 className="text-xl font-bold text-white mb-1">{tournamentName}</h2>
                             <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(tournament.status)}`}>
                                 {tournament.status.toUpperCase()}
                             </span>
@@ -109,7 +116,7 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                                     <span>Entry Fee</span>
                                 </div>
                                 <div className="text-white font-bold text-2xl">
-                                    ₹{tournament.entryFee}
+                                    {tournament.entryFee === 0 ? 'FREE' : `₹${tournament.entryFee}`}
                                 </div>
                             </div>
 
@@ -119,7 +126,7 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                                     <span>Slots</span>
                                 </div>
                                 <div className="text-white font-bold text-xl">
-                                    {tournament.slots.filled} / {tournament.slots.total}
+                                    {tournament.currentTeams} / {tournament.maxTeams}
                                 </div>
                             </div>
 
@@ -129,7 +136,7 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                                     <span>Mode</span>
                                 </div>
                                 <div className="text-white font-bold text-xl">
-                                    {tournament.mode}
+                                    {tournamentFormat}
                                 </div>
                             </div>
                         </div>
@@ -142,7 +149,7 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                                     Join Tournament
                                 </h3>
 
-                                {tournament.mode !== 'Solo' && (
+                                {tournament.format !== 'solo' && (
                                     <div className="mb-4">
                                         <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Team Name</label>
                                         <input
@@ -187,7 +194,7 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
                             <div className="flex items-center gap-2 text-gray-400 text-sm mb-2">
                                 <Calendar className="w-4 h-4" />
-                                <span>Schedule</span>
+                                <span className="text-sm font-bold text-gray-400">Schedule</span>
                             </div>
                             <div className="flex items-center gap-2 text-white font-medium">
                                 <Clock className="w-4 h-4 text-teal-400" />
@@ -199,13 +206,13 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                         <div className="bg-white/5 rounded-xl p-4 border border-white/5">
                             <div className="flex items-center gap-2 text-gray-400 text-sm mb-3">
                                 <Users className="w-4 h-4" />
-                                <span>Hosted By</span>
+                                <span className="text-sm font-bold text-gray-400">Hosted By</span>
                             </div>
                             <div className="flex items-center justify-between">
-                                <span className="text-white font-semibold">{tournament.host?.name || tournament.organizerName || 'Unknown Host'}</span>
+                                <span className="text-white font-semibold">{organizerName}</span>
                                 <div className="flex items-center gap-1.5 bg-yellow-500/10 border border-yellow-500/30 px-3 py-1.5 rounded-full">
                                     <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                                    <span className="text-yellow-400 font-bold text-sm">{tournament.host?.rating?.toFixed(1) || '5.0'}</span>
+                                    <span className="text-yellow-400 font-bold text-sm">5.0</span>
                                 </div>
                             </div>
                         </div>
@@ -217,14 +224,14 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                                 Tournament Rules
                             </h3>
                             <ul className="space-y-2">
-                                {tournament.rules?.map((rule, index) => (
+                                {rules.length > 0 ? rules.map((rule: string, index: number) => (
                                     <li key={index} className="flex items-start gap-3 text-gray-300 text-sm">
                                         <span className="text-teal-400 font-bold mt-0.5">•</span>
                                         <span>{rule}</span>
                                     </li>
-                                )) || (
-                                        <li className="text-gray-500 text-sm italic">No specific rules listed. Play fair!</li>
-                                    )}
+                                )) : (
+                                    <li className="text-gray-500 text-sm italic">No specific rules listed. Play fair!</li>
+                                )}
                             </ul>
                         </div>
 
@@ -235,18 +242,20 @@ const TournamentModal: React.FC<TournamentModalProps> = ({ tournament, isOpen, o
                                 Prize Distribution
                             </h3>
                             <div className="space-y-2">
-                                {Array.isArray(tournament.prizeDistribution) ? tournament.prizeDistribution.map((prize, index) => (
-                                    <div
-                                        key={index}
-                                        className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5"
-                                    >
-                                        <span className="text-gray-300 font-medium">{prize.position ? `${prize.position} Place` : `#${index + 1}`}</span>
-                                        <div className="flex items-center gap-1 text-teal-400 font-bold">
-                                            <IndianRupee className="w-4 h-4" />
-                                            <span>{Number(prize.amount || prize).toLocaleString('en-IN')}</span>
+                                {tournament.prizeDistribution ? (
+                                    Object.entries(tournament.prizeDistribution).map(([position, amount], index) => (
+                                        <div
+                                            key={index}
+                                            className="flex items-center justify-between p-3 bg-white/5 rounded-lg border border-white/5"
+                                        >
+                                            <span className="text-gray-300 font-medium capitalize">{position} Place</span>
+                                            <div className="flex items-center gap-1 text-teal-400 font-bold">
+                                                <IndianRupee className="w-4 h-4" />
+                                                <span>{Number(amount).toLocaleString('en-IN')}</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                )) : (
+                                    ))
+                                ) : (
                                     <div className="text-gray-500 text-sm">Check description for prize details.</div>
                                 )}
                             </div>

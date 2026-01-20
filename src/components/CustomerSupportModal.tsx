@@ -54,7 +54,11 @@ const CustomerSupportModal = ({
             setCategory('General Support');
             onClose();
         } catch (error: any) {
-            console.error('Submit ticket error:', error);
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Submit ticket error:', error);
+
+            }
             toast.error(error.message || 'Failed to submit support ticket');
         } finally {
             setIsSubmitting(false);

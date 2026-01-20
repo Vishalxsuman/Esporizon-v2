@@ -1,20 +1,31 @@
 import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
+import { subscriptionService } from '@/services/SubscriptionService';
+import toast, { Toaster } from 'react-hot-toast';
 
 const HostSubscription = () => {
     const navigate = useNavigate();
     const [isProcessing, setIsProcessing] = useState(false);
 
-    const handleBecomeHost = () => {
+    const handleBecomeHost = async () => {
         setIsProcessing(true);
-        // Mock subscription action
-        setTimeout(() => {
-            console.log('Host subscription initiated');
-            localStorage.setItem('user_is_host', 'true');
+        try {
+            await subscriptionService.activateSubscription();
+            toast.success('Subscription activated successfully!');
+            setTimeout(() => {
+                navigate('/arena/host-dashboard');
+            }, 1000);
+        } catch (error) {
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Subscription failed:', error);
+
+            }
+            toast.error('Failed to activate subscription. Please try again.');
+        } finally {
             setIsProcessing(false);
-            navigate('/arena/host-dashboard');
-        }, 1500);
+        }
     };
 
     const planFeatures = [
@@ -29,6 +40,7 @@ const HostSubscription = () => {
     return (
         <div className="min-h-screen bg-black pb-24 animate-fadeIn bg-cyber-grid bg-fixed overflow-x-hidden">
             {/* Background Atmosphere Layers */}
+            <Toaster position="top-center" />
             <div className="fixed inset-0 pointer-events-none">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-teal-500/10 blur-[120px] opacity-50" />
                 <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-cyan-600/5 blur-[100px] opacity-30" />

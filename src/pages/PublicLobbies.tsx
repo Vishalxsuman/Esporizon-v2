@@ -28,7 +28,11 @@ const PublicLobbies = () => {
             const publicMatches = await matchService.getPublicLobbies(gameId)
             setLobbies(publicMatches)
         } catch (error) {
-            console.error('Error loading lobbies:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error loading lobbies:', error);
+
+            }
         } finally {
             setLoading(false)
         }
@@ -66,7 +70,11 @@ const PublicLobbies = () => {
             toast.success('Joined match!')
             navigate(`/play/match/${matchId}`)
         } catch (error) {
-            console.error('Error joining match:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error joining match:', error);
+
+            }
             toast.error(error instanceof Error ? error.message : 'Failed to join match')
         }
     }

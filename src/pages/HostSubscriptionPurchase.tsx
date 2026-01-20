@@ -24,7 +24,11 @@ const HostSubscriptionPurchase = () => {
                     navigate('/host/dashboard');
                 }, 1500);
             } catch (error) {
-                console.error('Subscription error:', error);
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.error('Subscription error:', error);
+
+                }
                 setStatus('error');
                 toast.error('Failed to activate subscription. Please try again.');
             }

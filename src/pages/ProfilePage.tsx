@@ -2,28 +2,39 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
     ArrowLeft,
-    Target,
-    Flame,
-    Clock,
-    MoreVertical,
-    Swords,
-    Edit3,
-    LogOut,
+    Trophy,
+    Wallet,
+    Users,
+    UserPlus,
     Settings,
-    MessageSquare,
-    Zap
+    Bell,
+    ChevronRight,
+    HelpCircle,
+    MessageCircle
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
-import { useTheme } from '@/contexts/ThemeContext'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Toaster, toast } from 'react-hot-toast'
-import { Sun, Moon } from 'lucide-react'
 import ProfileService from '@/services/ProfileService'
 import AvatarWithFrame from '@/components/AvatarWithFrame'
 import EditProfileModal from '@/components/EditProfileModal'
 import CustomerSupportModal from '@/components/CustomerSupportModal'
+import { useWallet } from '@/contexts/WalletContext'
+
+// Sub-Components
+import OverviewTab from '@/components/profile/OverviewTab'
+import ProfileTab from '@/components/profile/ProfileTab'
+import TournamentsTab from '@/components/profile/TournamentsTab'
+import WalletTab from '@/components/profile/WalletTab'
+import TeamsTab from '@/components/profile/TeamsTab'
+import FriendsTab from '@/components/profile/FriendsTab'
+import SettingsTab from '@/components/profile/SettingsTab'
+import HelpTab from '@/components/profile/HelpTab'
+import ChatPanel from '@/components/ChatPanel' // Added ChatPanel import
+import FriendRequestPanel from '@/components/FriendRequestPanel' // Added FriendRequestPanel import
 
 // --- Types ---
+
 interface ProfileData {
     user: {
         id: string;
@@ -40,6 +51,10 @@ interface ProfileData {
         socialLinks: Record<string, string>;
         themeColor: string;
         currentStreak?: number;
+        country?: string;
+        languages?: string[];
+        bannerUrl?: string;
+        gameAccounts?: Record<string, string>;
     };
     stats: Record<string, {
         game: string;
@@ -71,37 +86,62 @@ interface ProfileData {
 }
 
 const ProfilePage = () => {
-    const { user, signOut } = useAuth()
-    const { theme, toggleTheme } = useTheme()
+    const { user } = useAuth()
     const { userId: paramId } = useParams()
     const navigate = useNavigate()
+    const { balance } = useWallet()
 
     const targetUserId = paramId || user?.uid
 
     const [data, setData] = useState<ProfileData | null>(null)
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [activeTab, setActiveTab] = useState<'overview' | 'matches'>('overview')
-    const [showSettingsMenu, setShowSettingsMenu] = useState(false)
+
+    // Modals & Panels State
+    const [showChatPanel, setShowChatPanel] = useState(false)
+    const [activeChatFriend, setActiveChatFriend] = useState<string | null>(null)
+    const [showFriendPanel, setShowFriendPanel] = useState(false)
     const [showEditModal, setShowEditModal] = useState(false)
     const [showSupportModal, setShowSupportModal] = useState(false)
 
+    const handleOpenChat = (friendId?: string) => {
+        if (friendId) setActiveChatFriend(friendId)
+        setShowChatPanel(true)
+    }
+
+    // View Management ('hub' is the main dashboard)
+    const [currentView, setCurrentView] = useState('hub')
+
     const fetchProfile = async () => {
         if (!targetUserId) {
-            setError('No user ID available');
             setLoading(false);
             return;
         }
 
         try {
             setLoading(true)
-            const profileData = await ProfileService.getProfileByUserId(targetUserId);
+            let profileData;
+
+            // If viewing own profile, use getMyProfile for better sync/creation
+            if (user && ((!paramId) || (paramId === user.uid))) {
+                profileData = await ProfileService.getMyProfile(user.uid!, user.id);
+            } else {
+                profileData = await ProfileService.getProfileByUserId(targetUserId);
+            }
+
+            if (!profileData) {
+                throw new Error('Profile not found');
+            }
+
             setData(profileData)
             setError(null)
         } catch (err) {
-            console.error('Failed to load profile:', err)
-            setError('Could not load profile data. Please ensure the backend is running.')
-            toast.error('Failed to load profile')
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Failed to load profile:', err);
+
+            }
+            setError('Could not load profile data.')
         } finally {
             setLoading(false)
         }
@@ -113,386 +153,335 @@ const ProfilePage = () => {
 
     const isOwnProfile = (user?.uid === data?.user?.firebaseUid) || (!paramId && !!user)
 
-    const handleLogout = async () => {
-        try {
-            await signOut();
-            toast.success('Logged out successfully');
-            navigate('/auth');
-        } catch (error) {
-            console.error('Logout error:', error);
-            toast.error('Failed to logout');
-        }
-    };
-
-    // Helper for Rank Colors
-    const getRankColor = (rank: string) => {
-        switch (rank?.toLowerCase()) {
-            case 'elite': return 'from-yellow-400 via-orange-500 to-red-600';
-            case 'pro': return 'from-purple-400 to-pink-600';
-            case 'diamond': return 'from-blue-400 to-cyan-500';
-            case 'platinum': return 'from-teal-400 to-emerald-500';
-            case 'gold': return 'from-yellow-300 to-amber-500';
-            case 'silver': return 'from-slate-300 to-slate-400';
-            default: return 'from-stone-500 to-stone-700';
-        }
-    };
-
-    const gameIcons: Record<string, string> = {
-        freefire: '🔥',
-        bgmi: '🎯',
-        valorant: '⚡',
-        minecraft: '⛏️'
-    };
-
     if (loading) {
         return (
-            <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col items-center justify-center p-4">
-                <div className="relative">
-                    <div className="w-16 h-16 border-4 border-[var(--accent)]/10 border-t-[var(--accent)] rounded-full animate-spin"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <Target className="text-[var(--accent)] animate-pulse" size={20} />
+            <div className="min-h-screen bg-[#0a0e1a] flex flex-col items-center justify-center p-4">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-teal-500/20 border-t-teal-500 rounded-full animate-spin"></div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.4em] text-teal-500 animate-pulse">Initializing Hub...</p>
+                </div>
+            </div>
+        )
+    }
+
+    if (error || !data) {
+        return (
+            <div className="min-h-screen bg-[#0a0e1a] flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-20 h-20 bg-red-500/10 rounded-full flex items-center justify-center mb-6">
+                    <Trophy className="w-10 h-10 text-red-500 opacity-50" />
+                </div>
+                <h2 className="text-xl font-black text-white uppercase italic tracking-tighter mb-2">
+                    Profile Data Restricted
+                </h2>
+                <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest max-w-xs mb-8 leading-relaxed">
+                    We couldn't retrieve profile details for this operative. Please ensure your connection is secure.
+                </p>
+                <div className="flex flex-col gap-3 w-full max-w-xs">
+                    <button
+                        onClick={() => fetchProfile()}
+                        className="py-4 bg-teal-500 text-black rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-lg shadow-teal-500/20 active:scale-95"
+                    >
+                        Retry Protocol
+                    </button>
+                    <button
+                        onClick={() => navigate('/dashboard')}
+                        className="py-4 bg-white/5 text-zinc-400 rounded-2xl font-black text-xs uppercase tracking-[0.2em] border border-white/5 hover:text-white transition-all"
+                    >
+                        Return to Base
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
+    const { profile, user: profileUser, stats, aggregate } = data;
+
+    // --- HUB VIEW COMPONENTS ---
+
+    const TopStrip = () => (
+        <div className="flex items-center justify-between py-2">
+            <div className="flex items-center gap-3">
+                <AvatarWithFrame
+                    username={profileUser.username}
+                    rank={profile.title}
+                    avatarType={profile.avatarType || 'initials'}
+                    size="medium"
+                    showBadge={false}
+                    className="ring-2 ring-white/10 rounded-full shadow-lg"
+                />
+                <div>
+                    <h2 className="text-lg font-black uppercase tracking-wide text-white flex items-center gap-2 leading-none">
+                        {profileUser.username}
+                        <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]" title="Online" />
+                    </h2>
+                    <button
+                        onClick={() => setCurrentView('profile')}
+                        className="text-[10px] font-bold text-teal-500 hover:text-teal-400 uppercase tracking-wider flex items-center gap-1 mt-1 transition-colors"
+                    >
+                        View Profile <ChevronRight size={10} />
+                    </button>
+                </div>
+            </div>
+            <div className="flex items-center gap-3">
+                <button
+                    onClick={() => handleOpenChat()}
+                    className="p-2.5 bg-white/5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-all relative"
+                >
+                    <MessageCircle size={20} />
+                    {/* Unread indicator mockup - Real logic via ChatService later */}
+                    <span className="absolute top-2 right-2.5 w-1.5 h-1.5 bg-teal-500 rounded-full border border-[#0a0e1a] animate-pulse"></span>
+                </button>
+                <button
+                    onClick={() => setShowFriendPanel(true)}
+                    className="p-2.5 bg-white/5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-all relative"
+                >
+                    <UserPlus size={20} />
+                    {/* Pending requests indicator mockup */}
+                </button>
+                <button
+                    onClick={() => toast('No new notifications')}
+                    className="p-2.5 bg-white/5 rounded-full text-zinc-400 hover:text-white hover:bg-white/10 transition-all"
+                >
+                    <Bell size={20} />
+                </button>
+            </div>
+        </div>
+    )
+
+    const WalletPanel = () => (
+        <div className="bg-gradient-to-br from-[#1a1f2e] to-[#141925] border border-white/5 rounded-2xl p-6 relative overflow-hidden shadow-xl group">
+            {/* Wallet Icon Background */}
+            <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.05] transition-opacity">
+                <Wallet size={120} className="transform -rotate-12" />
+            </div>
+
+            <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Total Balance</span>
+                </div>
+
+                <h1 className="text-4xl font-black italic tracking-tighter text-white mb-6 flex items-baseline gap-1">
+                    <span className="text-2xl text-zinc-500 font-normal not-italic">€</span>
+                    {balance.toFixed(2)}
+                </h1>
+
+                <div className="grid grid-cols-2 gap-3">
+                    <button
+                        onClick={() => setCurrentView('wallet')}
+                        className="py-3 bg-teal-500 hover:bg-teal-400 text-black rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-teal-500/20 active:scale-95"
+                    >
+                        Add Funds
+                    </button>
+                    <div className="relative group/tooltip">
+                        <button
+                            disabled
+                            className="w-full py-3 bg-white/5 text-zinc-500 rounded-xl font-black text-xs uppercase tracking-wider border border-white/5 cursor-not-allowed"
+                        >
+                            Withdraw
+                        </button>
+                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-black text-white text-[10px] rounded opacity-0 group-hover/tooltip:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                            Coming Soon
+                        </div>
                     </div>
                 </div>
-                <p className="mt-4 text-[10px] font-black uppercase tracking-[0.4em] text-[var(--accent)]">Loading Intel...</p>
             </div>
-        )
-    }
+        </div>
+    )
 
-    if (error && !data) {
-        return (
-            <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col items-center justify-center p-4">
-                <div className="text-red-500 font-bold mb-4">{error || 'Profile not found'}</div>
-                <button onClick={() => navigate('/')} className="px-4 py-2 bg-[var(--surface)] rounded-lg text-sm">Go Home</button>
+    const GridMenu = () => (
+        <div className="grid grid-cols-2 gap-3">
+            <NavCard
+                icon={Trophy}
+                label="Tournaments"
+                subtitle="Active Engagements"
+                onClick={() => setCurrentView('tournaments')}
+                delay={0.1}
+                color="text-yellow-500"
+            />
+            <NavCard
+                icon={Users}
+                label="My Teams"
+                subtitle="Manage Rosters"
+                onClick={() => setCurrentView('teams')}
+                delay={0.2}
+                color="text-blue-500"
+            />
+            <NavCard
+                icon={UserPlus}
+                label="Friends"
+                subtitle="Social Connections"
+                onClick={() => setCurrentView('friends')}
+                delay={0.3}
+                color="text-pink-500"
+            />
+            <NavCard
+                icon={Settings}
+                label="Settings"
+                subtitle="Preferences"
+                onClick={() => setCurrentView('settings')}
+                delay={0.4}
+            />
+            <NavCard
+                icon={HelpCircle}
+                label="Help Center"
+                subtitle="Support & FAQs"
+                onClick={() => setCurrentView('help')}
+                delay={0.5}
+                fullWidth
+            />
+        </div>
+    )
+
+    const NavCard = ({ icon: Icon, label, subtitle, onClick, delay, color = "text-zinc-400", fullWidth }: any) => (
+        <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay, duration: 0.3 }}
+            onClick={onClick}
+            className={`
+                group relative overflow-hidden
+                bg-[#1a1f2e] border border-white/5 rounded-2xl
+                hover:bg-[#23293a] hover:border-white/10 transition-all
+                text-left p-4
+                ${fullWidth
+                    ? 'col-span-2 flex items-center gap-4'
+                    : 'flex flex-col items-start gap-4'
+                }
+            `}
+        >
+            <div className={`
+                p-3 rounded-xl bg-white/5 ${color} 
+                group-hover:scale-110 group-hover:bg-white/10 transition-all
+            `}>
+                <Icon size={22} className="stroke-[1.5]" />
             </div>
-        )
-    }
 
-    if (!data) return null;
+            <div className="relative z-10">
+                <div className="text-sm font-bold text-white group-hover:text-teal-400 transition-colors leading-tight">
+                    {label}
+                </div>
+                {subtitle && (
+                    <div className="text-[10px] text-zinc-500 font-medium mt-1 group-hover:text-zinc-400 transition-colors">
+                        {subtitle}
+                    </div>
+                )}
+            </div>
 
-    const { profile, stats, aggregate, history, user: profileUser } = data;
+            {/* Subtle Gradient Hover Effect */}
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        </motion.button>
+    )
+
+    // --- SUB-VIEW WRAPPER ---
+
+    const PageWrapper = ({ children, title, subtitle }: any) => (
+        <div className="min-h-screen bg-[#0a0e1a] pb-24 animate-in fade-in slide-in-from-right duration-300">
+            <div className="sticky top-0 z-50 bg-[#0a0e1a]/95 backdrop-blur-xl border-b border-white/5 px-4 py-4 flex items-center gap-4">
+                <button
+                    onClick={() => setCurrentView('hub')}
+                    className="p-2 hover:bg-white/5 rounded-full transition-colors text-zinc-400 hover:text-white"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <div>
+                    <h2 className="text-lg font-black text-white leading-none">{title}</h2>
+                    {subtitle && <p className="text-[10px] uppercase font-bold text-zinc-500 tracking-wider mt-0.5">{subtitle}</p>}
+                </div>
+            </div>
+            <div className="p-5">
+                {children}
+            </div>
+        </div>
+    )
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] pb-32 relative overflow-hidden">
+        <div className="min-h-screen bg-[#0a0e1a] text-white overflow-x-hidden font-sans pb-24">
             <Toaster position="top-center" />
 
-            {/* Background Atmosphere */}
-            <div className="fixed inset-0 pointer-events-none opacity-20">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-[var(--accent)]/10 blur-[150px]" />
-            </div>
-
-            {/* Header */}
-            <div className="sticky top-0 z-50 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border)]">
-                <div className="max-w-md mx-auto px-5 py-4 flex items-center justify-between">
-                    <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] min-w-[44px] min-h-[44px] -ml-2 flex items-center justify-center">
-                        <ArrowLeft className="w-5 h-5" />
-                    </button>
-                    <div className="text-center">
-                        <div className="text-[8px] font-bold uppercase tracking-[0.3em] text-[var(--accent)]">ESPORIZON</div>
-                        <div className="text-[10px] font-black italic text-[var(--text-primary)]">OPERATIVE DOSSIER</div>
-                    </div>
-                    <div className="flex gap-1">
-                        <button onClick={toggleTheme} className="p-2.5 hover:bg-[var(--surface-hover)] rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center">
-                            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                        </button>
-                        {isOwnProfile && (
-                            <div className="relative">
-                                <button
-                                    onClick={() => setShowSettingsMenu(!showSettingsMenu)}
-                                    className="p-2.5 hover:bg-[var(--surface-hover)] rounded-lg min-w-[44px] min-h-[44px] flex items-center justify-center"
-                                >
-                                    <MoreVertical size={18} />
-                                </button>
-                                <AnimatePresence>
-                                    {showSettingsMenu && (
-                                        <motion.div
-                                            initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                                            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                            className="absolute right-0 mt-2 w-48 bg-[var(--surface)] border border-[var(--border)] rounded-xl shadow-2xl overflow-hidden z-10"
-                                        >
-                                            <button
-                                                onClick={() => {
-                                                    setShowEditModal(true);
-                                                    setShowSettingsMenu(false);
-                                                }}
-                                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition-colors text-left"
-                                            >
-                                                <Edit3 size={16} className="text-[var(--accent)]" />
-                                                <span className="text-sm font-bold">Edit Profile</span>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setShowSupportModal(true);
-                                                    setShowSettingsMenu(false);
-                                                }}
-                                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition-colors text-left border-t border-[var(--border)]"
-                                            >
-                                                <MessageSquare size={16} className="text-[var(--accent)]" />
-                                                <span className="text-sm font-bold">Customer Support</span>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setShowSettingsMenu(false);
-                                                    navigate('/settings');
-                                                }}
-                                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-[var(--surface-hover)] transition-colors text-left border-t border-[var(--border)]"
-                                            >
-                                                <Settings size={16} className="text-[var(--text-secondary)]" />
-                                                <span className="text-sm font-bold">Settings</span>
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setShowSettingsMenu(false);
-                                                    handleLogout();
-                                                }}
-                                                className="w-full px-4 py-3 flex items-center gap-3 hover:bg-red-500/10 transition-colors text-left border-t border-[var(--border)]"
-                                            >
-                                                <LogOut size={16} className="text-red-500" />
-                                                <span className="text-sm font-bold text-red-500">Logout</span>
-                                            </button>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </div>
-
-            <div className="max-w-md mx-auto px-5 pt-6 space-y-8 relative z-10">
-
-                {/* IDENTITY SECTION */}
-                <div className="flex flex-col items-center text-center">
-                    <AvatarWithFrame
-                        username={profileUser.username}
-                        rank={profile.title}
-                        avatarType={profile.avatarType || 'initials'}
-                        size="large"
-                        showBadge={true}
-                        className="mb-4"
-                    />
-
-                    <h1 className="text-3xl font-black italic tracking-wide uppercase text-white mb-2">
-                        {profileUser.username}
-                    </h1>
-
-                    <div className="flex items-center gap-2 mb-4">
-                        <span className={`px-4 py-1 rounded-full text-xs font-black uppercase tracking-widest bg-gradient-to-r ${getRankColor(profile.title)} text-black shadow-lg shadow-[var(--accent)]/20`}>
-                            {profile.title}
-                        </span>
-                    </div>
-
-                    {profile.bio && (
-                        <p className="text-sm text-[var(--text-secondary)] italic max-w-[300px] leading-relaxed">
-                            "{profile.bio}"
-                        </p>
-                    )}
-
-                    {/* Quick Actions (Mobile-optimized) */}
-                    {isOwnProfile && (
-                        <div className="flex gap-3 mt-6 w-full max-w-sm">
-                            <button
-                                onClick={() => setShowEditModal(true)}
-                                className="flex-1 px-4 py-3 bg-[var(--accent)] text-black rounded-xl font-bold uppercase text-xs tracking-wide hover:opacity-90 transition-opacity flex items-center justify-center gap-2 min-h-[48px]"
-                            >
-                                <Edit3 size={16} />
-                                Edit Profile
-                            </button>
-                            <button
-                                onClick={handleLogout}
-                                className="px-4 py-3 bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] rounded-xl font-bold uppercase text-xs tracking-wide hover:bg-[var(--surface-hover)] transition-colors flex items-center justify-center gap-2 min-h-[48px]"
-                            >
-                                <LogOut size={16} />
-                                Logout
-                            </button>
-                        </div>
-                    )}
-                </div>
-
-                {/* PERFORMANCE SNAPSHOT */}
-                <div className="space-y-4">
-                    <div className="grid grid-cols-3 gap-0 border border-[var(--border)] bg-[var(--surface)]/50 rounded-2xl overflow-hidden divide-x divide-[var(--border)]">
-                        <div className="p-4 text-center group hover:bg-[var(--surface-hover)] transition-colors">
-                            <div className="text-[var(--text-secondary)] mb-1 text-[10px] font-bold uppercase tracking-wider">Matches</div>
-                            <div className="text-2xl font-black italic text-[var(--text-primary)]">{aggregate.totalMatches}</div>
-                        </div>
-                        <div className="p-4 text-center group hover:bg-[var(--surface-hover)] transition-colors">
-                            <div className="text-[var(--text-secondary)] mb-1 text-[10px] font-bold uppercase tracking-wider">Wins</div>
-                            <div className="text-2xl font-black italic text-[var(--accent)]">{aggregate.totalWins}</div>
-                        </div>
-                        <div className="p-4 text-center group hover:bg-[var(--surface-hover)] transition-colors">
-                            <div className="text-[var(--text-secondary)] mb-1 text-[10px] font-bold uppercase tracking-wider">Win Rate</div>
-                            <div className={`text-2xl font-black italic ${aggregate.overallWinRate > 50 ? 'text-green-500' : 'text-yellow-500'}`}>
-                                {aggregate.overallWinRate}%
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Current Streak */}
-                    {profile.currentStreak !== undefined && profile.currentStreak !== 0 && (
-                        <div className={`p-4 rounded-xl border flex items-center justify-between ${profile.currentStreak > 0
-                            ? 'bg-green-500/5 border-green-500/20'
-                            : 'bg-red-500/5 border-red-500/20'
-                            }`}>
-                            <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${profile.currentStreak > 0 ? 'bg-green-500/20' : 'bg-red-500/20'
-                                    }`}>
-                                    <Flame size={20} className={profile.currentStreak > 0 ? 'text-green-500' : 'text-red-500'} />
-                                </div>
-                                <div>
-                                    <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
-                                        {profile.currentStreak > 0 ? 'Win Streak' : 'Loss Streak'}
-                                    </div>
-                                    <div className="text-xl font-black italic text-[var(--text-primary)]">
-                                        {Math.abs(profile.currentStreak)} {Math.abs(profile.currentStreak) === 1 ? 'Match' : 'Matches'}
-                                    </div>
-                                </div>
-                            </div>
-                            {profile.currentStreak > 0 && (
-                                <Zap size={24} className="text-green-500 animate-pulse" />
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* NAVIGATION TABS */}
-                <div className="flex p-1 bg-[var(--surface)] rounded-xl border border-[var(--border)]">
-                    {[
-                        { id: 'overview', label: 'Overview', icon: Target },
-                        { id: 'matches', label: 'History', icon: Clock },
-                    ].map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id as any)}
-                            className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all min-h-[48px] ${activeTab === tab.id
-                                ? 'bg-[var(--accent)] text-black shadow-lg'
-                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-                                }`}
-                        >
-                            <tab.icon size={16} />
-                            {tab.label}
-                        </button>
-                    ))}
-                </div>
-
-                <AnimatePresence mode="wait">
+            <AnimatePresence mode="wait">
+                {currentView === 'hub' ? (
                     <motion.div
-                        key={activeTab}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.2 }}
+                        key="hub"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0, x: -20 }}
+                        className="px-5 py-6 space-y-8"
                     >
-                        {activeTab === 'overview' ? (
-                            <div className="space-y-6">
-                                {/* GAME RANKS */}
-                                <div className="space-y-3">
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <Swords size={18} className="text-[var(--accent)]" />
-                                        <h3 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Combat Records</h3>
-                                    </div>
+                        <TopStrip />
+                        <WalletPanel />
 
-                                    {Object.values(stats).map((stat) => (
-                                        <motion.div
-                                            key={stat.game}
-                                            className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-5 relative overflow-hidden group hover:border-[var(--accent)]/40 transition-all"
-                                            whileHover={{ scale: 1.02 }}
-                                            transition={{ type: 'spring', stiffness: 300 }}
-                                        >
-                                            {/* Rank Progress Background */}
-                                            <div className="absolute bottom-0 left-0 h-1.5 bg-[var(--accent)]/20 w-full">
-                                                <motion.div
-                                                    className="h-full bg-[var(--accent)]"
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: `${Math.min((stat.rankScore / 5000) * 100, 100)}%` }}
-                                                    transition={{ duration: 1, ease: 'easeOut' }}
-                                                />
-                                            </div>
+                        <div>
+                            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-4 px-1">Menu</h3>
+                            <GridMenu />
+                        </div>
 
-                                            <div className="flex justify-between items-center relative z-10 mb-3">
-                                                <div className="flex items-center gap-4">
-                                                    {/* Game Icon */}
-                                                    <div className="w-12 h-12 rounded-xl bg-[var(--surface)] flex items-center justify-center text-2xl">
-                                                        {gameIcons[stat.game] || '🎮'}
-                                                    </div>
-
-                                                    <div>
-                                                        <div className="text-base font-black uppercase italic tracking-wide text-white capitalize">{stat.game}</div>
-                                                        <div className={`text-sm font-bold bg-gradient-to-r ${getRankColor(stat.currentRank)} bg-clip-text text-transparent`}>
-                                                            {stat.currentRank} <span className="text-[var(--text-secondary)] text-[0.7rem] font-normal">({stat.rankScore} PTS)</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div className="text-right">
-                                                    <div className="text-[0.65rem] uppercase tracking-wider text-[var(--text-secondary)] font-bold">K/D Ratio</div>
-                                                    <div className="text-xl font-black italic text-[var(--text-primary)]">{stat.kdRatio}</div>
-                                                </div>
-                                            </div>
-
-                                            {/* Mini Stats */}
-                                            <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-[var(--border)]">
-                                                <div>
-                                                    <div className="text-[0.65rem] text-[var(--text-secondary)] font-bold uppercase">Played</div>
-                                                    <div className="text-sm font-black text-[var(--text-primary)]">{stat.matchesPlayed}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="text-[0.65rem] text-[var(--text-secondary)] font-bold uppercase">Won</div>
-                                                    <div className="text-sm font-black text-green-500">{stat.matchesWon}</div>
-                                                </div>
-                                                <div>
-                                                    <div className="text-[0.65rem] text-[var(--text-secondary)] font-bold uppercase">Win %</div>
-                                                    <div className="text-sm font-black text-[var(--accent)]">{stat.winRate}%</div>
-                                                </div>
-                                            </div>
-                                        </motion.div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Clock size={18} className="text-[var(--accent)]" />
-                                    <h3 className="text-sm font-black uppercase tracking-[0.2em] text-[var(--text-secondary)]">Recent Operations</h3>
-                                </div>
-
-                                {history.length === 0 ? (
-                                    <div className="text-center py-12 text-[var(--text-secondary)] text-sm italic">
-                                        No combat history found.
-                                    </div>
-                                ) : (
-                                    history.map((match) => (
-                                        <div key={match._id} className="bg-[var(--card-bg)] border border-[var(--card-border)] rounded-xl p-4 flex items-center justify-between hover:bg-[var(--surface-hover)] transition-colors">
-                                            <div className="flex items-center gap-4">
-                                                <div className={`w-1.5 h-14 rounded-full ${match.result === 'Victory' ? 'bg-green-500' : (match.result === 'Defeat' ? 'bg-red-500' : 'bg-gray-500')}`} />
-                                                <div>
-                                                    <div className="text-sm font-bold uppercase text-[var(--text-primary)] capitalize">{match.game}</div>
-                                                    <div className="text-xs text-[var(--text-secondary)]">{new Date(match.playedAt).toLocaleDateString()}</div>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex items-center gap-4">
-                                                <div className="text-center">
-                                                    <div className="text-[0.65rem] uppercase tracking-wider text-[var(--text-secondary)]">Rank</div>
-                                                    <div className="text-base font-black text-white">#{match.rank}</div>
-                                                </div>
-                                                <div className="text-center">
-                                                    <div className="text-[0.65rem] uppercase tracking-wider text-[var(--text-secondary)]">Kills</div>
-                                                    <div className="text-base font-black text-white">{match.kills}</div>
-                                                </div>
-                                                <div className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase ${match.result === 'Victory' ? 'text-green-400 bg-green-400/10' : 'text-[var(--text-secondary)] bg-[var(--surface)]'}`}>
-                                                    {match.result}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
+                        <div className="text-center pt-4">
+                            <p className="text-[9px] font-bold text-zinc-700 uppercase tracking-widest">Esporizon Mobile v2.1.0</p>
+                        </div>
                     </motion.div>
-                </AnimatePresence>
+                ) : (
+                    <div key="subview">
+                        {currentView === 'profile' && (
+                            <PageWrapper key="profile" title="My Profile" subtitle="Edit & Preview">
+                                <ProfileTab profile={profile} user={profileUser} onEdit={() => setShowEditModal(true)} isOwnProfile={isOwnProfile} />
+                                <div className="mt-8 border-t border-white/5 pt-8">
+                                    <OverviewTab
+                                        stats={stats}
+                                        aggregate={aggregate}
+                                        profile={profile}
+                                        memberSince={profileUser.createdAt}
+                                        onEdit={() => setShowEditModal(true)}
+                                        onViewTournaments={() => setCurrentView('tournaments')}
+                                        onViewWallet={() => setCurrentView('wallet')}
+                                        isOwnProfile={isOwnProfile}
+                                    />
+                                </div>
+                            </PageWrapper>
+                        )}
+                        {currentView === 'tournaments' && (
+                            <PageWrapper key="tournaments" title="My Tournaments" subtitle="Active Engagements">
+                                <TournamentsTab userId={targetUserId} />
+                            </PageWrapper>
+                        )}
+                        {currentView === 'wallet' && (
+                            <PageWrapper key="wallet" title="Combat Wallet" subtitle="Funds & Transactions">
+                                <WalletTab />
+                            </PageWrapper>
+                        )}
+                        {currentView === 'teams' && (
+                            <PageWrapper key="teams" title="My Teams" subtitle="Manage Rosters">
+                                <TeamsTab />
+                            </PageWrapper>
+                        )}
+                        {currentView === 'friends' && (
+                            <PageWrapper key="friends" title="Friends" subtitle="Social Connections">
+                                <FriendsTab onChat={handleOpenChat} />
+                            </PageWrapper>
+                        )}
+                        {currentView === 'settings' && (
+                            <PageWrapper key="settings" title="Settings" subtitle="App Preferences">
+                                <SettingsTab />
+                            </PageWrapper>
+                        )}
+                        {currentView === 'help' && (
+                            <PageWrapper key="help" title="Help Center" subtitle="Support & FAQ">
+                                <HelpTab />
+                            </PageWrapper>
+                        )}
+                    </div>
+                )}
+            </AnimatePresence>
 
-            </div>
+            {/* Social Panels */}
+            <ChatPanel
+                isOpen={showChatPanel}
+                onClose={() => {
+                    setShowChatPanel(false)
+                    setActiveChatFriend(null)
+                }}
+                initialActiveChat={activeChatFriend}
+            />
+            <FriendRequestPanel isOpen={showFriendPanel} onClose={() => setShowFriendPanel(false)} />
 
             {/* Modals */}
             {isOwnProfile && (
@@ -500,8 +489,13 @@ const ProfilePage = () => {
                     <EditProfileModal
                         isOpen={showEditModal}
                         onClose={() => setShowEditModal(false)}
-                        profile={data as any}
+                        profile={{ ...data.profile, username: data.user.username } as any}
                         user={user}
+                        onSave={() => {
+                            fetchProfile();
+                            setShowEditModal(false);
+                            toast.success('Profile updated');
+                        }}
                     />
                     <CustomerSupportModal
                         isOpen={showSupportModal}

@@ -23,6 +23,15 @@ class UserService {
         }
         return user;
     }
+
+    async updateUserRole(userId, role) {
+        const user = await User.findOneAndUpdate(
+            { id: userId },
+            { role: role },
+            { new: true, upsert: true }
+        );
+        return user;
+    }
 }
 
 module.exports = new UserService();

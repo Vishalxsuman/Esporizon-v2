@@ -15,7 +15,7 @@ import { userService } from '@/services/UserService'
 import { Wallet as WalletType, Transaction, UserProfile } from '@/types'
 import WalletModal from '@/components/WalletModal'
 import { walletService } from '@/services/WalletService'
-import toast, { Toaster } from 'react-hot-toast'
+import toast from 'react-hot-toast'
 
 const WalletPage = () => {
     const { user } = useAuth()
@@ -34,13 +34,16 @@ const WalletPage = () => {
 
             try {
                 const w = await walletService.getWallet(userId)
-                setWallet(w)
-                setTransactions(w.transactions)
+                // Handle null wallet gracefully with safe defaults
+                setWallet(w ?? { balance: 0, espoCoins: 0, transactions: [] })
+                setTransactions(w?.transactions ?? [])
 
-                const p = await userService.getProfile(userId)
+                const p = await userService.getProfile()
                 setProfile(p)
             } catch (err) {
-                console.error('Initial fetch error:', err)
+                // Gracefully handle - set empty wallet state
+                setWallet({ balance: 0, espoCoins: 0, transactions: [] })
+                setTransactions([])
             }
         }
 
@@ -56,14 +59,8 @@ const WalletPage = () => {
 
         window.addEventListener('walletUpdate', handleWalletUpdate)
 
-        const userId = user?.id || user?.uid
-        const unsubscribeProfile = userId ? userService.subscribeToProfile(userId, (data) => {
-            setProfile(data)
-        }) : () => { }
-
         return () => {
             window.removeEventListener('walletUpdate', handleWalletUpdate)
-            unsubscribeProfile()
         }
     }, [user])
 
@@ -73,10 +70,9 @@ const WalletPage = () => {
 
         try {
             if (modalType === 'add') {
-                // Temporary: Directly add 500 as requested
-                const amountToAdd = 500;
-                await walletService.addFunds(amountToAdd, userId)
-                toast.success(`₹${amountToAdd} Added to Deployment Fund`)
+                // Verified: Backend expects { amount } in body
+                await walletService.addFunds(amount, userId)
+                toast.success(`₹${amount} Added to Deployment Fund`)
             } else {
                 await walletService.withdrawFunds(amount, userId, { method: 'default' })
                 toast.success(`Withdrawal Request of ₹${amount} Submitted`)
@@ -97,7 +93,7 @@ const WalletPage = () => {
 
     return (
         <div className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] pb-24 transition-colors duration-300">
-            <Toaster position="top-right" />
+
 
             {/* Premium Header */}
             <div className="sticky top-0 z-30 bg-[var(--bg-primary)]/80 backdrop-blur-xl border-b border-[var(--border)] p-4 flex items-center justify-between">

@@ -135,7 +135,11 @@ class MatchService {
                 id: docRef.id
             }
         } catch (error) {
-            console.error('Error creating match:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error creating match:', error);
+
+            }
             throw new Error('Failed to create match')
         }
     }
@@ -159,7 +163,11 @@ class MatchService {
                 userAvatar: player.avatar
             })
         } catch (error) {
-            console.error('Error joining room:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error joining room:', error);
+
+            }
             throw error
         }
     }
@@ -223,7 +231,13 @@ class MatchService {
                 const originalWinnerId = newHighestBid.playerId
                 const matcherId = userId
 
-                console.log(`[MatchService] ${matcherId} matched ${originalWinnerId} at ${amount} `)
+                if (import.meta.env.MODE !== 'production') {
+
+
+                    console.log(`[MatchService] ${matcherId} matched ${originalWinnerId} at ${amount} `);
+
+
+                }
 
                 // Set currentBidder to original winner
                 newCurrentBidder = players.findIndex(p => p.userId === originalWinnerId)
@@ -365,7 +379,11 @@ class MatchService {
                 ...(newStatus === 'locked' && { startsAt: new Date().toISOString() })
             }
         } catch (error) {
-            console.error('Error joining match:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error joining match:', error);
+
+            }
             throw error instanceof Error ? error : new Error('Failed to join match')
         }
     }
@@ -377,7 +395,11 @@ class MatchService {
             if (!matchDoc.exists()) return null
             return { id: matchDoc.id, ...matchDoc.data() } as Match
         } catch (error) {
-            console.error('Error getting match:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting match:', error);
+
+            }
             return null
         }
     }
@@ -409,7 +431,11 @@ class MatchService {
             const snapshot = await getDocs(q)
             return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match))
         } catch (error) {
-            console.error('Error getting public lobbies:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting public lobbies:', error);
+
+            }
             return []
         }
     }
@@ -424,7 +450,11 @@ class MatchService {
             }
             callback({ id: snapshot.id, ...snapshot.data() } as Match)
         }, (error) => {
-            console.error('Error listening to match:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error listening to match:', error);
+
+            }
             callback(null)
         })
     }
@@ -440,7 +470,11 @@ class MatchService {
                 completedAt: serverTimestamp()
             })
         } catch (error) {
-            console.error('Error submitting result:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error submitting result:', error);
+
+            }
             throw new Error('Failed to submit match result')
         }
     }
@@ -458,7 +492,11 @@ class MatchService {
                 status: 'cancelled'
             })
         } catch (error) {
-            console.error('Error cancelling match:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error cancelling match:', error);
+
+            }
             throw error instanceof Error ? error : new Error('Failed to cancel match')
         }
     }
@@ -475,7 +513,11 @@ class MatchService {
             const matches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match))
             return matches.filter(m => m.players.some(p => p.userId === userId))
         } catch (error) {
-            console.error('Error getting user matches:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting user matches:', error);
+
+            }
             return []
         }
     }
@@ -493,7 +535,11 @@ class MatchService {
             if (snapshot.empty) return null
             return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as Match
         } catch (error) {
-            console.error('Error getting match by code:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting match by code:', error);
+
+            }
             return null
         }
     }
@@ -536,7 +582,11 @@ class MatchService {
                 ...(newStatus === 'locked' && { startsAt: serverTimestamp() })
             })
         } catch (error) {
-            console.error('Error adding bot:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error adding bot:', error);
+
+            }
             throw new Error('Failed to add bot')
         }
     }
@@ -560,7 +610,11 @@ class MatchService {
                 status: newStatus
             })
         } catch (error) {
-            console.error('Error removing bot:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error removing bot:', error);
+
+            }
             throw new Error('Failed to remove bot')
         }
     }
@@ -569,11 +623,19 @@ class MatchService {
         // PREVENT MULTIPLE PLAYS OR WRONG TURN
         const currentPlayerIndex = players.findIndex(p => p.userId === playerId)
         if (gameState.currentPlayer !== currentPlayerIndex) {
-            console.warn(`[playCard29] ${playerId} tried to play out of turn. Current: ${gameState.currentPlayer}`)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.warn(`[playCard29] ${playerId} tried to play out of turn. Current: ${gameState.currentPlayer}`);
+
+            }
             return
         }
         if (gameState.currentTrick.some((t: any) => t.playerId === playerId)) {
-            console.warn(`[playCard29] ${playerId} already played in this trick.`)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.warn(`[playCard29] ${playerId} already played in this trick.`);
+
+            }
             return
         }
 

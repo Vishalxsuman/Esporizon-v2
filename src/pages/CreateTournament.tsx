@@ -1,36 +1,58 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { tournamentService } from '../services/TournamentService'
 import toast, { Toaster } from 'react-hot-toast'
-import { Trophy, Target, Shield, Zap, Swords, ChevronLeft } from 'lucide-react'
+import { Trophy, Target, Shield, Zap, Swords, ChevronLeft, IndianRupee, Map, Info, Clock, LayoutGrid, ArrowLeft } from 'lucide-react'
+import { useAuth } from '@/contexts/AuthContext'
 
 const CreateTournament = () => {
     const { gameId } = useParams<{ gameId: string }>()
     const navigate = useNavigate()
+    const { user, updateUserHostStatus } = useAuth()
     const [loading, setLoading] = useState(false)
 
-    // Verify host status on mount
+    // Verify host status on mount & Auto-Upgrade
     useEffect(() => {
         const verifyHost = async () => {
+            if (!user) return;
             const { subscriptionService } = await import('@/services/SubscriptionService');
+            const { hostService } = await import('@/services/HostService');
+
             const status = await subscriptionService.getSubscriptionStatus();
+
             if (!status.isHost) {
-                toast.error('Host privileges required');
-                navigate('/host/benefits');
+                toast.loading('Activating Host Privileges...', { id: 'host-activation' });
+                try {
+                    const result = await hostService.activateHost();
+                    if (result.success) {
+                        updateUserHostStatus(true);
+                        toast.success('You are now a Host!', { id: 'host-activation' });
+                    } else {
+                        toast.error('Failed to activate host status', { id: 'host-activation' });
+                        navigate('/host/benefits');
+                    }
+                } catch (error) {
+                    if (import.meta.env.MODE !== 'production') {
+
+                        console.error('Auto-upgrade error:', error);
+
+                    }
+                    navigate('/host/benefits');
+                }
             }
         };
         verifyHost();
-    }, [navigate]);
+    }, [navigate, updateUserHostStatus, user]);
 
     const gameConfigs: Record<string, { name: string, color: string, icon: any }> = {
-        freefire: { name: 'Free Fire', color: '#00ffc2', icon: Target },
+        freefire: { name: 'Free Fire', color: '#10b981', icon: Target },
         bgmi: { name: 'BGMI', color: '#fbbf24', icon: Shield },
         valorant: { name: 'Valorant', color: '#ff4655', icon: Zap },
         minecraft: { name: 'Minecraft', color: '#4ade80', icon: Swords }
     }
 
-    const config = gameConfigs[gameId || ''] || { name: 'Tournament', color: '#00ffc2', icon: Trophy }
+    const config = gameConfigs[gameId || ''] || { name: 'Tournament', color: '#14b8a6', icon: Trophy }
 
     const [formData, setFormData] = useState({
         title: '',
@@ -48,7 +70,6 @@ const CreateTournament = () => {
         prizeSecond: 25,
         prizeThird: 13,
         perKillAmount: 0,
-        // Game room config (optional - host can add later via chat)
         matchTime: '',
         customLobbyId: '',
         teamSlots: 0,
@@ -65,37 +86,34 @@ const CreateTournament = () => {
 
         try {
             if (new Date(formData.startDate) <= new Date()) {
-                throw new Error('Start date must be in the future')
+                throw new Error('Deployment must be in the future')
             }
             if (new Date(formData.registrationDeadline) >= new Date(formData.startDate)) {
-                throw new Error('Registration deadline must be before start date')
+                throw new Error('Registration must end before launch')
             }
 
+            const calculatedPrizePool = formData.entryFee * formData.maxTeams;
+
             const tournamentData = {
-                game: gameId!,
-                gameId: gameId!,
-                gameName: config.name,
-                title: formData.title,
-                description: formData.description,
-                startDate: new Date(formData.startDate),
-                registrationDeadline: new Date(formData.registrationDeadline),
-                maxSlots: formData.maxTeams,
-                maxTeams: formData.maxTeams,
-                teamSize: formData.teamSize,
-                entryFee: formData.entryFee,
+                name: formData.title.trim(),
+                game: gameId,
                 mode: formData.format,
-                prizeType: formData.prizeType,
-                perKillAmount: formData.prizeType === 'kill' ? formData.perKillAmount : 0,
+                entryFee: Number(formData.entryFee),
+                prizePool: Number(calculatedPrizePool),
+                maxSlots: Number(formData.maxTeams),
+                startTime: new Date(formData.startDate),
+                description: formData.description,
+                registrationDeadline: new Date(formData.registrationDeadline),
+                teamSize: Number(formData.teamSize),
                 prizeDistribution: formData.prizeType === 'winner' ? {
                     first: formData.prizeFirst,
                     second: formData.prizeSecond,
                     third: formData.prizeThird
                 } : undefined,
-                format: formData.format,
+                perKillAmount: formData.prizeType === 'kill' ? formData.perKillAmount : 0,
                 mapMode: formData.mapMode,
                 totalMatches: formData.totalMatches,
                 gameRoomConfig: {
-                    matchTime: formData.matchTime ? new Date(formData.matchTime) : undefined,
                     customLobbyId: formData.customLobbyId || undefined,
                     teamSlots: formData.teamSlots || undefined,
                     matchCode: formData.matchCode || undefined,
@@ -108,24 +126,24 @@ const CreateTournament = () => {
 
             await tournamentService.createTournament(tournamentData)
 
-            toast.success('Tournament LIVE!', {
+            toast.success('ARENA LIVE!', {
                 style: {
-                    background: '#09090b',
-                    border: `1px solid ${config.color}`,
+                    background: '#0E1424',
+                    border: '1px solid #14b8a6',
                     color: '#fff',
-                    fontWeight: 'bold',
+                    fontWeight: 'black',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.1em'
+                    letterSpacing: '0.2em'
                 },
             })
 
             setTimeout(() => {
-                navigate(`/arena/${gameId}`)
+                navigate('/host/dashboard')
             }, 1500)
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : 'Broadcast Failed', {
+            toast.error(error instanceof Error ? error.message : 'Uplink Failed', {
                 style: {
-                    background: '#09090b',
+                    background: '#0E1424',
                     border: '1px solid #ef4444',
                     color: '#fff',
                 },
@@ -135,110 +153,116 @@ const CreateTournament = () => {
         }
     }
 
-    const inputClasses = "w-full px-5 py-4 bg-[#18181b] border border-white/5 rounded-2xl focus:outline-none focus:border-white/20 transition-all text-white placeholder:text-gray-600 font-medium"
-    const labelClasses = "block text-[10px] font-black uppercase tracking-[0.2em] text-gray-500 mb-2 ml-1"
+    const inputClasses = "w-full px-6 py-4 bg-[#18181b]/40 border border-white/5 rounded-2xl focus:outline-none focus:border-teal-500/30 transition-all text-white placeholder:text-zinc-700 font-bold"
+    const labelClasses = "block text-[9px] font-black uppercase tracking-[0.3em] text-zinc-500 mb-2 ml-1"
 
     return (
-        <div className="min-h-screen bg-[#09090b] text-white py-12 px-4 selection:bg-[#00ffc2]/30">
-            <Toaster position="top-right" />
+        <div className="min-h-screen bg-[#0a0e1a] text-white pb-32 font-sans overflow-x-hidden">
+            <Toaster position="top-center" />
 
-            <div className="max-w-4xl mx-auto">
-                <Link
-                    to={`/arena/host-dashboard`}
-                    className="inline-flex items-center text-xs font-bold uppercase tracking-widest text-gray-500 hover:text-white transition-colors mb-8 group"
+            {/* Background Atmosphere */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-0 left-1/4 w-[600px] h-[400px] bg-teal-500/5 blur-[120px]" />
+                <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-cyan-600/5 blur-[120px]" />
+            </div>
+
+            {/* Premium Sticky Header */}
+            <div className="sticky top-0 z-50 bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/5 p-4 flex items-center justify-between">
+                <button
+                    onClick={() => navigate(-1)}
+                    className="p-2 hover:bg-white/5 rounded-xl transition-all group"
                 >
-                    <ChevronLeft className="w-4 h-4 mr-1 group-hover:-translate-x-1 transition-transform" />
-                    Back to Panel
-                </Link>
+                    <ChevronLeft className="text-zinc-500 group-hover:text-white" size={24} />
+                </button>
+                <h1 className="text-sm font-black uppercase tracking-[0.3em] italic flex items-center gap-2">
+                    <Shield size={18} className="text-teal-400" />
+                    Forge New Arena
+                </h1>
+                <div className="w-10 h-10" />
+            </div>
 
+            <div className="relative z-10 max-w-5xl mx-auto px-4 pt-10">
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-                    {/* Left: Branding */}
-                    <div className="lg:col-span-4">
+                    {/* Left: Branding & Status */}
+                    <div className="lg:col-span-4 space-y-8">
                         <motion.div
                             initial={{ opacity: 0, x: -20 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className="sticky top-12"
+                            className="sticky top-24 space-y-8"
                         >
-                            <div className="inline-flex p-4 rounded-3xl bg-white/5 border border-white/10 mb-6">
-                                <config.icon className="w-10 h-10" style={{ color: config.color }} />
+                            <div className="relative group w-fit">
+                                <div className="absolute inset-0 bg-teal-500/20 blur-2xl opacity-50 group-hover:opacity-100 transition-opacity" />
+                                <div className="relative p-6 rounded-[2rem] bg-[#0E1424] border border-white/10 shadow-2xl">
+                                    <config.icon className="w-12 h-12" style={{ color: config.color }} />
+                                </div>
                             </div>
-                            <h1 className="text-4xl font-black uppercase italic tracking-tighter leading-none mb-4">
-                                Host Your <span style={{ color: config.color }}>{config.name}</span> Event
-                            </h1>
-                            <p className="text-gray-500 text-sm leading-relaxed mb-8">
-                                Define the stakes, set the format, and broadcast your tournament to thousands of elite players.
-                            </p>
 
                             <div className="space-y-4">
-                                <div className="p-5 rounded-[2rem] bg-[#18181b] border border-white/5">
-                                    <div className={labelClasses}>Estimated Prize Pool</div>
-                                    <div className="text-3xl font-black italic tracking-tighter" style={{ color: config.color }}>
-                                        {formData.entryFee === 0
-                                            ? 'FREE TOURNAMENT'
-                                            : `₹${(formData.entryFee * (formData.maxTeams || 0)).toLocaleString()}`
-                                        }
-                                    </div>
-                                    <div className="text-[10px] text-gray-600 font-bold uppercase mt-1">
-                                        {formData.entryFee === 0
-                                            ? 'Host will fund prizes from wallet'
-                                            : 'Based on full registration'
-                                        }
-                                    </div>
+                                <h2 className="text-5xl font-black uppercase italic tracking-tighter leading-[0.9] text-white">
+                                    {config.name} <span className="text-teal-500">DEPLOYS</span>.
+                                </h2>
+                                <p className="text-zinc-500 font-bold text-base italic leading-relaxed">
+                                    Configure your battlefield parameters, set technical constraints, and broadcast to the elite sector.
+                                </p>
+                            </div>
+
+                            <div className="p-8 rounded-[2.5rem] bg-[#0E1424]/40 border border-white/5 shadow-inner space-y-4">
+                                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-600 block">Projected Bounty</span>
+                                <div className="text-5xl font-black italic tracking-tighter text-teal-400">
+                                    {formData.entryFee === 0
+                                        ? 'FREE'
+                                        : `₹${(formData.entryFee * (formData.maxTeams || 0)).toLocaleString()}`
+                                    }
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-teal-500 shadow-[0_0_8px_rgba(20,184,166,0.6)]" />
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Live Pool Estimation</span>
                                 </div>
                             </div>
                         </motion.div>
                     </div>
 
-                    {/* Right: Form */}
+                    {/* Right: Form Segments */}
                     <div className="lg:col-span-8">
                         <motion.form
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             onSubmit={handleSubmit}
-                            className="space-y-8"
+                            className="space-y-12"
                         >
-                            {/* Section: Basic Info */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-px bg-white/10" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00ffc2]">Basic Logistics</span>
-                                </div>
-
-                                <div>
-                                    <label className={labelClasses}>Tournament Title</label>
-                                    <input
-                                        type="text"
-                                        value={formData.title}
-                                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                        placeholder="e.g., SEASON 5: RADIANT CUP"
-                                        className={inputClasses}
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className={labelClasses}>Battle Objectives (Description)</label>
-                                    <textarea
-                                        value={formData.description}
-                                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                        placeholder="Rules, map info, and custom perks..."
-                                        rows={4}
-                                        className={`${inputClasses} resize-none`}
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Section: Timing */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-px bg-white/10" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00ffc2]">Deployment Window</span>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Section: Operational Intel */}
+                            <FormSection title="Operational Intel" icon={<Info size={14} />}>
+                                <div className="space-y-6">
                                     <div>
-                                        <label className={labelClasses}>Battle Start Time</label>
+                                        <label className={labelClasses}>Battle Designation (Title)</label>
+                                        <input
+                                            type="text"
+                                            value={formData.title}
+                                            onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                            placeholder="e.g., SECTOR 7: QUANTUM STRIKE"
+                                            className={inputClasses}
+                                            required
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className={labelClasses}>Combat Directives (Description)</label>
+                                        <textarea
+                                            value={formData.description}
+                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            placeholder="Define engagement rules, technical limits, and reward structures..."
+                                            rows={5}
+                                            className={`${inputClasses} resize-none py-6`}
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </FormSection>
+
+                            {/* Section: Deployment Window */}
+                            <FormSection title="Deployment Window" icon={<Clock size={14} />}>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div>
+                                        <label className={labelClasses}>Battle Launch Time</label>
                                         <input
                                             type="datetime-local"
                                             value={formData.startDate}
@@ -258,18 +282,13 @@ const CreateTournament = () => {
                                         />
                                     </div>
                                 </div>
-                            </div>
+                            </FormSection>
 
-                            {/* Section: Mechanics */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-px bg-white/10" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00ffc2]">Combat Mechanics</span>
-                                </div>
-
+                            {/* Section: Tactical Parameters */}
+                            <FormSection title="Tactical Parameters" icon={<LayoutGrid size={14} />}>
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
-                                        <label className={labelClasses}>Format</label>
+                                        <label className={labelClasses}>Squad Protocol</label>
                                         <select
                                             value={formData.format}
                                             onChange={(e) => setFormData({
@@ -279,13 +298,13 @@ const CreateTournament = () => {
                                             })}
                                             className={`${inputClasses} appearance-none cursor-pointer`}
                                         >
-                                            <option value="solo">SOLO</option>
-                                            <option value="duo">DUO</option>
-                                            <option value="squad">SQUAD</option>
+                                            <option value="solo">SOLO (1 UNIT)</option>
+                                            <option value="duo">DUO (2 UNITS)</option>
+                                            <option value="squad">SQUAD (4 UNITS)</option>
                                         </select>
                                     </div>
                                     <div>
-                                        <label className={labelClasses}>Max Squads</label>
+                                        <label className={labelClasses}>Deployment Limit</label>
                                         <input
                                             type="number"
                                             value={formData.maxTeams}
@@ -297,7 +316,7 @@ const CreateTournament = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label className={labelClasses}>Match Count</label>
+                                        <label className={labelClasses}>Engagement Rounds</label>
                                         <input
                                             type="number"
                                             value={formData.totalMatches}
@@ -310,268 +329,137 @@ const CreateTournament = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
                                     <div>
-                                        <label className={labelClasses}>Entry Stake (₹)</label>
-                                        <input
-                                            type="number"
-                                            value={formData.entryFee}
-                                            onChange={(e) => setFormData({ ...formData, entryFee: parseInt(e.target.value) })}
-                                            min="0"
-                                            step="1"
-                                            className={inputClasses}
-                                            required
-                                        />
+                                        <label className={labelClasses}>Access Stake (Entry ₹)</label>
+                                        <div className="relative">
+                                            <IndianRupee className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-700 w-4 h-4" />
+                                            <input
+                                                type="number"
+                                                value={formData.entryFee}
+                                                onChange={(e) => setFormData({ ...formData, entryFee: parseInt(e.target.value) })}
+                                                min="0"
+                                                className={`${inputClasses} pl-14`}
+                                                required
+                                            />
+                                        </div>
                                     </div>
                                     <div>
-                                        <label className={labelClasses}>Combat Map/Mode</label>
-                                        <input
-                                            type="text"
-                                            value={formData.mapMode}
-                                            onChange={(e) => setFormData({ ...formData, mapMode: e.target.value })}
-                                            placeholder="BERMUDA / ERANGEL / BIND"
-                                            className={inputClasses}
-                                            required
-                                        />
+                                        <label className={labelClasses}>Area of Operation (Map)</label>
+                                        <div className="relative">
+                                            <Map className="absolute left-6 top-1/2 -translate-y-1/2 text-zinc-700 w-4 h-4" />
+                                            <input
+                                                type="text"
+                                                value={formData.mapMode}
+                                                onChange={(e) => setFormData({ ...formData, mapMode: e.target.value })}
+                                                placeholder="ERANGEL / BIND / BERMUDA"
+                                                className={`${inputClasses} pl-14`}
+                                                required
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            </FormSection>
 
-                            {/* Section: Prize Configuration */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-px bg-white/10" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00ffc2]">Prize Structure</span>
-                                </div>
-
-                                {/* Prize Type Selector */}
-                                <div className="mb-6">
-                                    <label className={labelClasses}>Prize Type</label>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, prizeType: 'winner' })}
-                                            className={`px-4 py-3 rounded-xl font-bold text-sm transition-all ${formData.prizeType === 'winner'
-                                                ? 'bg-teal-500 text-black'
-                                                : 'bg-[#18181b] text-gray-400 border border-white/10 hover:border-white/20'
-                                                }`}
-                                        >
-                                            Winner-Based
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setFormData({ ...formData, prizeType: 'kill' })}
-                                            className={`px-4 py-3 rounded-xl font-bold text-sm transition-all ${formData.prizeType === 'kill'
-                                                ? 'bg-teal-500 text-black'
-                                                : 'bg-[#18181b] text-gray-400 border border-white/10 hover:border-white/20'
-                                                }`}
-                                        >
-                                            Kill-Based
-                                        </button>
+                            {/* Section: Bounty Logic */}
+                            <FormSection title="Bounty logic" icon={<Trophy size={14} />}>
+                                <div className="bg-teal-500/5 border border-teal-500/10 rounded-3xl p-6 mb-8">
+                                    <div className="flex items-center gap-4 mb-3">
+                                        <div className="px-3 py-1 bg-teal-500 text-black font-black text-[9px] rounded-full uppercase">Verified protocol</div>
+                                        <span className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">98% Deployment Pool • 2% Protocol (Cap ₹10)</span>
                                     </div>
-                                </div>
-
-                                {/* 98/2 Split Info with ₹10 Cap */}
-                                <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-6">
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="text-blue-400 font-black text-sm">98% TO PLAYERS</div>
-                                        <div className="text-gray-600">|</div>
-                                        <div className="text-orange-400 font-black text-sm">2% PLATFORM FEE (CAP: ₹10)</div>
-                                    </div>
-                                    <p className="text-xs text-gray-400 mb-2">
-                                        Platform fee is 2% of total pool, capped at ₹10. Configure how the remaining 98% is distributed.
+                                    <p className="text-[11px] font-bold text-zinc-500 italic leading-relaxed">
+                                        Free tournaments waive platform deductions. You are responsible for bounty provision.
                                     </p>
-                                    <p className="text-[10px] text-gray-500 italic">
-                                        If pool × 2% ≤ ₹10 → full 2% applies | If pool × 2% &gt; ₹10 → only ₹10 deducted
-                                    </p>
-                                    {formData.entryFee === 0 && (
-                                        <p className="text-[10px] text-teal-400 font-bold mt-2">
-                                            ✓ FREE TOURNAMENT: No platform fee, you fund the prizes
-                                        </p>
-                                    )}
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4 mb-8">
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, prizeType: 'winner' })}
+                                        className={`py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${formData.prizeType === 'winner'
+                                            ? 'bg-teal-500 border-teal-400 text-black shadow-lg shadow-teal-500/20'
+                                            : 'bg-white/5 border-transparent text-zinc-500 hover:text-white'
+                                            }`}
+                                    >
+                                        Placement Logic
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, prizeType: 'kill' })}
+                                        className={`py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all border ${formData.prizeType === 'kill'
+                                            ? 'bg-teal-500 border-teal-400 text-black shadow-lg shadow-teal-500/20'
+                                            : 'bg-white/5 border-transparent text-zinc-500 hover:text-white'
+                                            }`}
+                                    >
+                                        Elimination Logic
+                                    </button>
                                 </div>
 
                                 {formData.prizeType === 'winner' ? (
-                                    <>
-                                        <div className="grid grid-cols-3 gap-6">
-                                            <div>
-                                                <label className={labelClasses}>1st Place (%)</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.prizeFirst}
-                                                    onChange={(e) => setFormData({ ...formData, prizeFirst: parseInt(e.target.value) || 0 })}
-                                                    className={inputClasses}
-                                                    min="0"
-                                                    max="98"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={labelClasses}>2nd Place (%)</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.prizeSecond}
-                                                    onChange={(e) => setFormData({ ...formData, prizeSecond: parseInt(e.target.value) || 0 })}
-                                                    className={inputClasses}
-                                                    min="0"
-                                                    max="98"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={labelClasses}>3rd Place (%)</label>
-                                                <input
-                                                    type="number"
-                                                    value={formData.prizeThird}
-                                                    onChange={(e) => setFormData({ ...formData, prizeThird: parseInt(e.target.value) || 0 })}
-                                                    className={inputClasses}
-                                                    min="0"
-                                                    max="98"
-                                                />
-                                            </div>
+                                    <div className="grid grid-cols-3 gap-6 animate-fadeIn">
+                                        <div>
+                                            <label className={labelClasses}>1st (%)</label>
+                                            <input
+                                                type="number"
+                                                value={formData.prizeFirst}
+                                                onChange={(e) => setFormData({ ...formData, prizeFirst: parseInt(e.target.value) || 0 })}
+                                                className={inputClasses}
+                                                min="0"
+                                                max="98"
+                                            />
                                         </div>
-
-                                        <div className="flex items-center justify-between px-1 mt-4">
-                                            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                                                Total: {formData.prizeFirst + formData.prizeSecond + formData.prizeThird}%
-                                            </div>
-                                            {formData.prizeFirst + formData.prizeSecond + formData.prizeThird !== 98 && (
-                                                <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">⚠ Must equal 98%</span>
-                                            )}
-                                            {formData.prizeFirst + formData.prizeSecond + formData.prizeThird === 98 && (
-                                                <span className="text-[10px] font-bold text-green-500 uppercase tracking-widest">✓ Valid</span>
-                                            )}
+                                        <div>
+                                            <label className={labelClasses}>2nd (%)</label>
+                                            <input
+                                                type="number"
+                                                value={formData.prizeSecond}
+                                                onChange={(e) => setFormData({ ...formData, prizeSecond: parseInt(e.target.value) || 0 })}
+                                                className={inputClasses}
+                                                min="0"
+                                                max="98"
+                                            />
                                         </div>
-                                    </>
+                                        <div>
+                                            <label className={labelClasses}>3rd (%)</label>
+                                            <input
+                                                type="number"
+                                                value={formData.prizeThird}
+                                                onChange={(e) => setFormData({ ...formData, prizeThird: parseInt(e.target.value) || 0 })}
+                                                className={inputClasses}
+                                                min="0"
+                                                max="98"
+                                            />
+                                        </div>
+                                    </div>
                                 ) : (
-                                    <div>
-                                        <label className={labelClasses}>Prize Per Kill (₹)</label>
+                                    <div className="animate-fadeIn">
+                                        <label className={labelClasses}>Elimination Bounty (₹ / Kill)</label>
                                         <input
                                             type="number"
                                             value={formData.perKillAmount}
                                             onChange={(e) => setFormData({ ...formData, perKillAmount: parseInt(e.target.value) || 0 })}
-                                            placeholder="e.g. 3"
                                             className={inputClasses}
                                             min="0"
                                             required
                                         />
-                                        <p className="text-xs text-gray-500 mt-2">Each player will receive ₹{formData.perKillAmount} per kill from the 98% player pool.</p>
                                     </div>
                                 )}
-                            </div>
-
-                            {/* Section: Game Room Configuration */}
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3 mb-8">
-                                    <div className="w-8 h-px bg-white/10" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-[#00ffc2]">Room Configuration</span>
-                                </div>
-
-                                {(gameId === 'freefire' || gameId === 'bgmi') && (
-                                    <>
-                                        <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
-                                            <p className="text-xs text-blue-300 font-bold mb-1">📢 Room Info Not Required</p>
-                                            <p className="text-xs text-gray-400">
-                                                You can share Room ID & Password via tournament chat 10 minutes before match start.
-                                            </p>
-                                        </div>
-                                        <div>
-                                            <label className={labelClasses}>Match Time</label>
-                                            <input
-                                                type="datetime-local"
-                                                value={formData.matchTime}
-                                                onChange={(e) => setFormData({ ...formData, matchTime: e.target.value })}
-                                                className={inputClasses}
-                                            />
-                                        </div>
-                                    </>
-                                )}
-
-                                {gameId === 'valorant' && (
-                                    <div className="grid grid-cols-2 gap-6">
-                                        <div>
-                                            <label className={labelClasses}>Custom Lobby ID</label>
-                                            <input
-                                                type="text"
-                                                value={formData.customLobbyId}
-                                                onChange={(e) => setFormData({ ...formData, customLobbyId: e.target.value })}
-                                                placeholder="VAL-LOBBY-2024"
-                                                className={inputClasses}
-                                                required
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className={labelClasses}>Match Code</label>
-                                            <input
-                                                type="text"
-                                                value={formData.matchCode}
-                                                onChange={(e) => setFormData({ ...formData, matchCode: e.target.value })}
-                                                placeholder="CODE123"
-                                                className={inputClasses}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {gameId === 'minecraft' && (
-                                    <>
-                                        <div className="grid grid-cols-2 gap-6">
-                                            <div>
-                                                <label className={labelClasses}>Server Name</label>
-                                                <input
-                                                    type="text"
-                                                    value={formData.serverName}
-                                                    onChange={(e) => setFormData({ ...formData, serverName: e.target.value })}
-                                                    placeholder="play.esporizon.net"
-                                                    className={inputClasses}
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className={labelClasses}>World Name</label>
-                                                <input
-                                                    type="text"
-                                                    value={formData.worldName}
-                                                    onChange={(e) => setFormData({ ...formData, worldName: e.target.value })}
-                                                    placeholder="SkyWars Arena"
-                                                    className={inputClasses}
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className={labelClasses}>Game Mode</label>
-                                            <input
-                                                type="text"
-                                                value={formData.gameMode}
-                                                onChange={(e) => setFormData({ ...formData, gameMode: e.target.value })}
-                                                placeholder="Survival / Creative / Skyblock"
-                                                className={inputClasses}
-                                            />
-                                        </div>
-                                    </>
-                                )}
-                            </div>
+                            </FormSection>
 
                             <button
                                 type="submit"
                                 disabled={loading || (formData.prizeType === 'winner' && formData.prizeFirst + formData.prizeSecond + formData.prizeThird !== 98) || (formData.prizeType === 'kill' && formData.perKillAmount <= 0)}
-                                className="group relative w-full h-16 bg-white text-black font-black uppercase tracking-[0.3em] rounded-2xl overflow-hidden transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:grayscale shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
-                                style={{ borderBottom: `4px solid ${config.color}` }}
+                                className={`w-full h-20 rounded-[2rem] font-black uppercase tracking-[0.4em] text-sm transition-all duration-500 flex items-center justify-center gap-4 shadow-3xl ${loading ? 'bg-zinc-800' : 'bg-white text-black hover:bg-teal-500'
+                                    } disabled:opacity-30 disabled:grayscale active:scale-[0.98] group`}
                             >
-                                <div
-                                    className="absolute inset-0 translate-y-full group-hover:translate-y-0 transition-transform duration-500"
-                                    style={{ background: config.color }}
-                                />
-                                <span className="relative z-10 flex items-center justify-center gap-3">
-                                    {loading ? (
-                                        <>
-                                            <motion.div
-                                                animate={{ rotate: 360 }}
-                                                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                                                className="w-5 h-5 border-2 border-black border-t-transparent rounded-full"
-                                            />
-                                            TRANSMITTING...
-                                        </>
-                                    ) : 'BROADCAST EVENT'}
-                                </span>
+                                {loading ? (
+                                    <div className="w-6 h-6 border-4 border-teal-500/20 border-t-teal-500 rounded-full animate-spin" />
+                                ) : (
+                                    <>
+                                        Authorize & Deploy Arena <ArrowLeft rotate={180} className="group-hover:translate-x-2 transition-transform" />
+                                    </>
+                                )}
                             </button>
                         </motion.form>
                     </div>
@@ -580,5 +468,20 @@ const CreateTournament = () => {
         </div>
     )
 }
+
+// Layout Helper antisocial antisocial
+const FormSection = ({ title, icon, children }: any) => (
+    <div className="space-y-8">
+        <div className="flex items-center gap-3 px-2">
+            <div className="w-8 h-8 rounded-xl bg-teal-500/10 flex items-center justify-center border border-teal-500/20 text-teal-400">
+                {icon}
+            </div>
+            <h3 className="text-[11px] font-black uppercase tracking-[0.4em] text-zinc-500 italic">{title}</h3>
+        </div>
+        <div className="p-10 bg-[#0E1424]/40 backdrop-blur-3xl border border-white/5 rounded-[2.5rem] shadow-2xl">
+            {children}
+        </div>
+    </div>
+)
 
 export default CreateTournament

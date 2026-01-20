@@ -6,6 +6,8 @@ import TournamentCard from '@/components/TournamentCard'
 import HostRatingModal from '@/components/HostRatingModal'
 import { HostProfile as HostProfileType, Tournament } from '@/types/tournament'
 import { tournamentService } from '@/services/TournamentService'
+import { userService } from '@/services/UserService'
+import { dossierService } from '@/services/DossierService'
 
 // Sample host rating interface
 interface HostRating {
@@ -32,67 +34,76 @@ const HostProfile = () => {
     }, [id])
 
     const fetchHostData = async () => {
+        if (!id) return;
         setLoading(true)
         try {
-            // Sample host data
-            const mockHost: HostProfileType = {
-                id: id || '1',
-                name: 'EspoHost Pro',
-                avatar: '',
-                rating: 4.7,
-                reviewCount: 23,
-                tournamentsHosted: 47,
-                verified: true,
-                memberSince: '2024-06-15',
-                stats: {
-                    totalTournaments: 47,
-                    activeTournaments: 3,
-                    completedTournaments: 42,
-                    totalParticipants: 3840,
-                    averageRating: 4.7,
-                    successRate: 97.8,
-                    responseTime: '< 1 hour',
-                    cancellationRate: 2.2
-                }
-            }
-            setHost(mockHost)
-
-            // Sample ratings
-            const mockRatings: HostRating[] = [
-                {
-                    id: '1',
-                    userId: 'user1',
-                    userName: 'ProGamer123',
-                    rating: 5,
-                    feedback: 'Excellent host! Tournament was well organized and fair play was enforced. Prize distributed within hours of completion.',
-                    createdAt: '2026-01-15T10:30:00Z'
-                },
-                {
-                    id: '2',
-                    userId: 'user2',
-                    userName: 'eSportsKing',
-                    rating: 4,
-                    feedback: 'Good tournament overall. Room details were shared on time. Would participate again.',
-                    createdAt: '2026-01-12T15:45:00Z'
-                },
-                {
-                    id: '3',
-                    userId: 'user3',
-                    userName: 'CompetitivePlayer',
-                    rating: 5,
-                    feedback: 'Best host on the platform! Professional setup and quick response to queries.',
-                    createdAt: '2026-01-10T18:20:00Z'
-                }
-            ]
-            setRatings(mockRatings)
+            // Fetch basic profile
+            const userProfile = await userService.getProfile(id);
+            // Fetch host metrics
+            const hostMetrics = await dossierService.getHostMetrics(id);
 
             // Fetch tournaments
             const allTournaments = await tournamentService.getTournaments()
             // Filter tournaments by this host
             const hostTournaments = allTournaments.filter(t => t.organizerId === id)
             setTournaments(hostTournaments)
+
+            if (hostMetrics) {
+                const hostData: HostProfileType = {
+                    id: id,
+                    name: 'Host', // API might need to return name, or we fetch simplistic
+                    avatar: '',
+                    rating: hostMetrics.hostingRating || 0,
+                    reviewCount: 0,
+                    tournamentsHosted: hostMetrics.tournamentsCompleted + hostMetrics.activeTournaments,
+                    verified: userProfile.isVerifiedHost || false,
+                    memberSince: new Date().toISOString(), // User profile missing create date in types currently
+                    stats: {
+                        totalTournaments: hostMetrics.tournamentsCompleted + hostMetrics.activeTournaments + hostMetrics.upcomingTournaments,
+                        activeTournaments: hostMetrics.activeTournaments,
+                        completedTournaments: hostMetrics.tournamentsCompleted,
+                        totalParticipants: 0, // Metric missing
+                        averageRating: hostMetrics.hostingRating || 0,
+                        successRate: 0, // Metric missing
+                        responseTime: 'N/A',
+                        cancellationRate: 0
+                    }
+                }
+                setHost(hostData)
+            } else {
+                // Fallback if not a host or no metrics
+                const fallbackHost: HostProfileType = {
+                    id: id,
+                    name: 'User',
+                    avatar: '',
+                    rating: 0,
+                    reviewCount: 0,
+                    tournamentsHosted: 0,
+                    verified: false,
+                    memberSince: new Date().toISOString(),
+                    stats: {
+                        totalTournaments: 0,
+                        activeTournaments: 0,
+                        completedTournaments: 0,
+                        totalParticipants: 0,
+                        averageRating: 0,
+                        successRate: 0,
+                        responseTime: 'N/A',
+                        cancellationRate: 0
+                    }
+                }
+                setHost(fallbackHost)
+            }
+
+            // Ratings - currently no API, so empty
+            setRatings([])
+
         } catch (error) {
-            console.error('Error fetching host data:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error fetching host data:', error);
+
+            }
         } finally {
             setLoading(false)
         }
@@ -100,29 +111,13 @@ const HostProfile = () => {
 
     const handleSubmitRating = async (rating: number, feedback: string) => {
         // TODO: Submit to backend
-        console.log('Submitting rating:', { hostId: id, rating, feedback })
+        if (import.meta.env.MODE !== 'production') {
 
-        // Add to local state for demonstration
-        const newRating: HostRating = {
-            id: Math.random().toString(),
-            userId: 'currentUser',
-            userName: 'You',
-            rating,
-            feedback,
-            createdAt: new Date().toISOString()
-        }
-        setRatings([newRating, ...ratings])
+            console.log('Submitting rating:', { hostId: id, rating, feedback });
 
-        // Update host rating
-        if (host) {
-            const totalRating = ratings.reduce((sum, r) => sum + r.rating, 0) + rating
-            const newAverageRating = totalRating / (ratings.length + 1)
-            setHost({
-                ...host,
-                rating: Math.round(newAverageRating * 10) / 10,
-                reviewCount: ratings.length + 1
-            })
         }
+
+        // Optimistic update would go here if we had API
     }
 
     // Calculate rating distribution
@@ -145,6 +140,7 @@ const HostProfile = () => {
         )
     }
 
+    // Filter logic remains same
     const filteredTournaments = tournaments.filter((t) => {
         if (activeTab === 'upcoming') return t.status === 'upcoming'
         if (activeTab === 'live') return t.status === 'live'
@@ -384,9 +380,9 @@ const HostProfile = () => {
 
                     {/* Tournament List */}
                     {filteredTournaments.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
                             {filteredTournaments.map((tournament, idx) => (
-                                <TournamentCard key={tournament.id} tournament={tournament} index={idx} />
+                                <TournamentCard key={tournament.id} tournament={tournament} index={idx} compact />
                             ))}
                         </div>
                     ) : (

@@ -6,12 +6,14 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { user, loading } = useAuth()
+  const { user, authReady } = useAuth()
 
-  if (loading) {
+  // Wait for auth to be fully resolved
+  if (!authReady) {
     return (
       <div className="min-h-screen bg-charcoal flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-electric-purple"></div>
+        <span className="sr-only">Loading authentication...</span>
       </div>
     )
   }

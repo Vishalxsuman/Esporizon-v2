@@ -156,7 +156,24 @@ const PostCard = forwardRef<HTMLDivElement, PostCardProps>(({ post, index }, ref
 
             {/* Content */}
             <div className="px-8 pb-6 relative z-10">
-                <p className="text-sm leading-relaxed text-[var(--text-primary)] font-medium whitespace-pre-wrap tracking-tight">{post.content}</p>
+                <p className="text-sm leading-relaxed text-[var(--text-primary)] font-medium whitespace-pre-wrap tracking-tight">
+                    {post.content.split(/(https?:\/\/[^\s]+)/g).map((part, i) => (
+                        part.match(/https?:\/\/[^\s]+/) ? (
+                            <a
+                                key={i}
+                                href={part}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[var(--accent)] hover:underline break-all"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {part}
+                            </a>
+                        ) : (
+                            part
+                        )
+                    ))}
+                </p>
             </div>
 
             {/* Media */}
@@ -182,7 +199,7 @@ const PostCard = forwardRef<HTMLDivElement, PostCardProps>(({ post, index }, ref
                         className={`flex items-center gap-3 transition-all duration-300 ${isLiked ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-white'}`}
                     >
                         <Heart size={18} className={isLiked ? 'fill-current shadow-[0_0_15px_var(--accent)]' : ''} />
-                        <span className="text-[10px] font-black tracking-widest">{post.likeCount ?? post.likes?.length ?? 0}</span>
+                        <span className="text-[10px] font-black tracking-widest">{post.likes?.length || 0}</span>
                     </motion.button>
 
                     <button
@@ -190,7 +207,7 @@ const PostCard = forwardRef<HTMLDivElement, PostCardProps>(({ post, index }, ref
                         className={`flex items-center gap-3 transition-all duration-300 ${showComments ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)] hover:text-white'}`}
                     >
                         <MessageCircle size={18} className={showComments ? 'shadow-[0_0_15px_var(--accent)]' : ''} />
-                        <span className="text-[10px] font-black tracking-widest">{post.commentCount ?? 0}</span>
+                        <span className="text-[10px] font-black tracking-widest">{post.comments?.length || 0}</span>
                     </button>
 
                     <button

@@ -1,193 +1,138 @@
-import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Trophy, Calendar, Target, Award } from 'lucide-react'
-import { useAuth } from '@/contexts/AuthContext'
-import { Tournament } from '@/types/tournament'
-import TournamentCard from '@/components/TournamentCard'
-import { tournamentService } from '@/services/TournamentService'
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Trophy, ChevronRight } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '@/contexts/AuthContext';
+import { tournamentService } from '@/services/TournamentService';
+import TournamentCard from '@/components/TournamentCard';
+
 
 const MyTournaments = () => {
-    const { user } = useAuth()
-    const navigate = useNavigate()
-    const [tournaments, setTournaments] = useState<Tournament[]>([])
-    const [loading, setLoading] = useState(true)
-    const [activeTab, setActiveTab] = useState<'upcoming' | 'live' | 'completed'>('upcoming')
+    const { user } = useAuth();
+    const navigate = useNavigate();
+    const [tournaments, setTournaments] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!user) {
-            navigate('/auth')
-            return
-        }
-        fetchMyTournaments()
-    }, [user])
+        if (!user) return;
+        fetchData();
+    }, [user]);
 
-    const fetchMyTournaments = async () => {
-        setLoading(true)
+    const fetchData = async () => {
+        setLoading(true);
         try {
-            // In production, this would fetch user's joined tournaments
-            // For now, using sample data
-            const allTournaments = await tournamentService.getTournaments()
-            // Simulate user has joined first 3 tournaments
-            const myTournaments = allTournaments.slice(0, 6)
-            setTournaments(myTournaments)
+            const response = await tournamentService.getMyTournamentHistory(user!.id);
+            // Only show active joined tournaments (not completed, not hosted)
+            setTournaments(response.joined.filter((t: any) => t.status !== 'completed'));
         } catch (error) {
-            console.error('Error fetching my tournaments:', error)
+            if (import.meta.env.MODE !== 'production') {
+                console.error('Error fetching tournament history:', error);
+            }
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
-
-    const filteredTournaments = tournaments.filter((t) => {
-        if (activeTab === 'upcoming') return t.status === 'upcoming'
-        if (activeTab === 'live') return t.status === 'live'
-        if (activeTab === 'completed') return t.status === 'completed'
-        return true
-    })
-
-    const stats = {
-        upcoming: tournaments.filter(t => t.status === 'upcoming').length,
-        live: tournaments.filter(t => t.status === 'live').length,
-        completed: tournaments.filter(t => t.status === 'completed').length,
-        total: tournaments.length
-    }
+    };
 
     return (
-        <div className="min-h-screen bg-black pb-24 animate-fadeIn bg-cyber-grid bg-fixed overflow-x-hidden">
-            {/* Background */}
+        <div className="min-h-screen bg-[#0a0e1a] text-white pb-32 font-sans overflow-x-hidden">
+            {/* Background Atmosphere */}
             <div className="fixed inset-0 pointer-events-none">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-teal-500/10 blur-[120px] opacity-50" />
+                <div className="absolute top-0 left-1/4 w-[600px] h-[400px] bg-teal-500/5 blur-[120px]" />
+                <div className="absolute bottom-0 right-1/4 w-[600px] h-[400px] bg-cyan-600/5 blur-[120px]" />
             </div>
 
-            <div className="relative z-10 px-5 pt-8 pb-6 max-w-7xl mx-auto">
-                {/* Header */}
-                <motion.div
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-8"
+            {/* Premium Sticky Header */}
+            <div className="sticky top-0 z-50 bg-[#0a0e1a]/80 backdrop-blur-xl border-b border-white/5 p-4 flex items-center justify-between">
+                <button
+                    onClick={() => navigate('/tournaments')}
+                    className="p-2 hover:bg-white/5 rounded-xl transition-all group"
                 >
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-zinc-800 to-zinc-950 border border-white/5 flex items-center justify-center shadow-2xl">
-                            <Trophy className="w-6 h-6 text-teal-400 drop-shadow-[0_0_12px_rgba(20,184,166,0.6)]" />
-                        </div>
+                    <ChevronRight className="rotate-180 text-zinc-500 group-hover:text-white" size={24} />
+                </button>
+                <h1 className="text-sm font-black uppercase tracking-[0.3em] italic flex items-center gap-2">
+                    <Trophy size={18} className="text-teal-400" />
+                    Combat Deployments
+                </h1>
+                <div className="w-10 h-10" />
+            </div>
+
+            <div className="relative z-10 max-w-7xl mx-auto px-4 pt-10 space-y-12">
+                {/* Hero Header */}
+                <div className="text-center space-y-4">
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 block">Tactical Records</span>
+                    <h1 className="text-5xl md:text-7xl font-black italic tracking-tighter uppercase leading-none">
+                        PERSONAL ARENA<span className="text-teal-500 italic">.</span>
+                    </h1>
+                </div>
+
+                {/* Sub-Stat Grid (Wallet Aesthetic) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-4xl mx-auto px-2">
+                    <div className="p-5 bg-[#0E1424]/40 border border-white/5 rounded-[2rem] text-center">
+                        <span className="text-[8px] font-black uppercase tracking-widest text-zinc-600 block mb-2">Engagements</span>
+                        <span className="text-3xl font-black italic tracking-tighter text-white">{tournaments.length}</span>
+                    </div>
+                    <div className="p-5 bg-[#0E1424]/40 border border-white/5 rounded-[2rem] flex items-center justify-center gap-6">
                         <div>
-                            <h1 className="text-4xl font-black text-white tracking-tighter italic leading-none">
-                                MY TOURNAMENTS<span className="text-teal-500 italic text-5xl">.</span>
-                            </h1>
-                            <p className="text-[10px] font-black tracking-[0.3em] text-zinc-500 uppercase">
-                                Your tournament history and active matches
-                            </p>
+                            <span className="text-[8px] font-black uppercase tracking-widest text-zinc-600 block mb-1 text-center">Combat Status</span>
+                            <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                                <span className="text-sm font-black italic uppercase tracking-widest text-zinc-300">Active Duty</span>
+                            </div>
                         </div>
                     </div>
-                </motion.div>
+                </div>
 
-                {/* Stats Cards */}
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
-                >
-                    <StatsCard icon={<Trophy className="w-5 h-5" />} label="Total" value={stats.total} color="teal" />
-                    <StatsCard icon={<Calendar className="w-5 h-5" />} label="Upcoming" value={stats.upcoming} color="teal" />
-                    <StatsCard icon={<Target className="w-5 h-5" />} label="Live" value={stats.live} color="red" />
-                    <StatsCard icon={<Award className="w-5 h-5" />} label="Completed" value={stats.completed} color="zinc" />
-                </motion.div>
+                <div className="hidden">
+                    {/* Tabs removed as per request for regular user view */}
+                </div>
 
-                {/* Tabs */}
+                {/* Content */}
                 <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.2 }}
-                    className="mb-8"
-                >
-                    <div className="flex justify-center gap-8 border-b border-zinc-800/50 max-w-md mx-auto">
-                        {['upcoming', 'live', 'completed'].map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab as any)}
-                                className={`relative pb-3 font-black text-[11px] uppercase tracking-[0.2em] transition-all ${activeTab === tab
-                                    ? 'text-teal-400 drop-shadow-[0_0_8px_rgba(20,184,166,0.4)]'
-                                    : 'text-zinc-500 hover:text-zinc-300'
-                                    }`}
-                            >
-                                {tab}
-                                {activeTab === tab && (
-                                    <motion.div
-                                        layoutId="myTournamentsTab"
-                                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-teal-500 rounded-full shadow-[0_0_10px_rgba(20,184,166,0.8)]"
-                                    />
-                                )}
-                            </button>
-                        ))}
-                    </div>
-                </motion.div>
-
-                {/* Tournament List */}
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
+                    layout
+                    className="min-h-[500px]"
                 >
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center py-20">
-                            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-teal-500 mb-4" />
-                            <p className="text-zinc-500 font-bold text-sm">Loading your tournaments...</p>
+                        <div className="flex flex-col items-center justify-center py-32 gap-6">
+                            <div className="w-12 h-12 border-2 border-teal-500/10 border-t-teal-500 rounded-full animate-spin" />
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.4em]">Retrieving Battlefield Logs...</p>
                         </div>
-                    ) : filteredTournaments.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {filteredTournaments.map((tournament, idx) => (
-                                <div key={tournament.id} className="relative">
-                                    <TournamentCard tournament={tournament} index={idx} />
-
-                                    {/* Result Button Overlay for Completed */}
-                                    {tournament.status === 'completed' && (
-                                        <div className="absolute bottom-4 left-4 right-4">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation()
-                                                    navigate(`/tournament/${tournament.id}/results`)
-                                                }}
-                                                className="w-full py-2 bg-yellow-500 hover:bg-yellow-400 rounded-lg font-black text-xs uppercase tracking-widest text-black transition-all shadow-lg"
-                                            >
-                                                View Results
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                    ) : tournaments.length > 0 ? (
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 pb-20">
+                            <AnimatePresence mode="popLayout">
+                                {tournaments.map((tournament, idx) => (
+                                    <TournamentCard
+                                        key={tournament.id}
+                                        tournament={tournament}
+                                        index={idx}
+                                        compact
+                                    />
+                                ))}
+                            </AnimatePresence>
                         </div>
                     ) : (
-                        <div className="text-center py-20">
-                            <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center mx-auto mb-4">
-                                <Trophy className="w-10 h-10 text-zinc-700" />
+                        <div className="flex flex-col items-center justify-center py-48 text-center bg-white/5 rounded-[2.5rem] border border-dashed border-white/5">
+                            <div className="relative mb-8">
+                                <div className="w-24 h-24 rounded-full bg-zinc-900/40 border border-white/5 flex items-center justify-center">
+                                    <Trophy className="w-10 h-10 text-zinc-900" />
+                                </div>
+                                <div className="absolute inset-0 bg-teal-500/5 blur-3xl rounded-full" />
                             </div>
-                            <h3 className="text-zinc-400 font-bold mb-2">No {activeTab} tournaments</h3>
-                            <p className="text-zinc-600 text-sm mb-6">
-                                {activeTab === 'upcoming' && "You haven't joined any upcoming tournaments yet"}
-                                {activeTab === 'live' && "You don't have any active tournaments right now"}
-                                {activeTab === 'completed' && "You haven't completed any tournaments yet"}
+                            <h3 className="text-xl font-black text-white italic mb-3 tracking-tighter uppercase">Records Empty</h3>
+                            <p className="text-zinc-600 text-[10px] font-black uppercase tracking-[0.2em] max-w-xs mx-auto leading-relaxed">
+                                Your combat deployments history is currently minimal.
                             </p>
                             <button
                                 onClick={() => navigate('/tournaments')}
-                                className="px-6 py-3 bg-teal-500 hover:bg-teal-400 rounded-xl font-black text-sm uppercase tracking-widest text-black transition-all"
+                                className="mt-10 px-10 py-4 bg-teal-500 text-black font-black text-[10px] uppercase tracking-[0.3em] rounded-2xl hover:bg-teal-400 transition-all shadow-[0_10px_30px_rgba(20,184,166,0.3)] active:scale-95"
                             >
-                                Browse Tournaments
+                                Deploy to Arena
                             </button>
                         </div>
                     )}
                 </motion.div>
             </div>
         </div>
-    )
+    );
 }
 
-const StatsCard = ({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number; color: string }) => (
-    <div className="bg-zinc-900/60 backdrop-blur-3xl border border-white/5 rounded-2xl p-4 group hover:border-teal-500/30 transition-all">
-        <div className={`flex items-center gap-2 mb-2 text-${color}-400`}>{icon}</div>
-        <p className="text-3xl font-black text-white italic mb-1">{value}</p>
-        <p className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">{label}</p>
-    </div>
-)
-
-export default MyTournaments
+export default MyTournaments;

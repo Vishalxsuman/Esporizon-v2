@@ -1,93 +1,83 @@
-import { getFirebaseDb } from '@/config/firebaseConfig'
-import {
-    collection,
-    addDoc,
-    query,
-    orderBy,
-    limit,
-    onSnapshot,
-    doc,
-    runTransaction,
-    getDocs,
-    deleteDoc,
-    where
-} from 'firebase/firestore'
+import { api } from '@/services/api'
 import { Post, Comment } from '@/types/Post'
 
-const POSTS_COLLECTION = 'posts'
-
 class PostService {
-    async getTodaysPosts(maxPosts: number = 20): Promise<Post[]> {
+    // Get latest posts (public)
+    async getTodaysPosts(limit: number = 20): Promise<Post[]> {
         try {
-            const postsRef = collection(getFirebaseDb(), POSTS_COLLECTION)
-            const q = query(postsRef, orderBy('createdAt', 'desc'), limit(maxPosts))
-            const snapshot = await getDocs(q)
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Post))
+            const response = await api.get(`/api/posts?type=all&limit=${limit}`)
+            return response.data
         } catch (error) {
-            console.error("Error fetching posts:", error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error("Error fetching posts:", error);
+
+            }
             return []
         }
     }
 
-    subscribePublicPosts(
-        maxPosts: number = 20,
-        callback: (posts: Post[]) => void
-    ): () => void {
-        const postsRef = collection(getFirebaseDb(), POSTS_COLLECTION)
-        // Simplify query to avoid composite index requirement (visibility + createdAt)
-        const q = query(
-            postsRef,
-            orderBy('createdAt', 'desc'),
-            limit(maxPosts * 2) // Fetch a few extra to account for private ones
-        )
-
-        return onSnapshot(q, (snapshot) => {
-            const posts = snapshot.docs
-                .map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                } as Post))
-                .filter(post => post.visibility !== 'private') // Client-side filter
-                .slice(0, maxPosts)
-            callback(posts)
-        }, (error) => {
-            console.error("Firestore [subscribePublicPosts] error:", error)
-        })
-    }
-
+    // Get posts by user
     subscribeUserPosts(
         userId: string,
         maxPosts: number = 20,
         callback: (posts: Post[]) => void
     ): () => void {
-        const postsRef = collection(getFirebaseDb(), POSTS_COLLECTION)
-        const q = query(
-            postsRef,
-            where('userId', '==', userId),
-            orderBy('createdAt', 'desc'),
-            limit(maxPosts)
-        )
+        const interval = setInterval(async () => {
+            try {
+                // We'll need a way to filter by user on backend.
+                // Currently backend doesn't support ?userId=... but we can add it or filter client side if needed.
+                // For now, let's just fetch all and filter or assume backend will be updated.
+                // Ideally: api.get(`/api/posts?userId=${userId}`)
+                // Given the current backend routes, we might need to rely on what we have.
+                // Let's use 'all' for now and filter here if needed, or better, add user filter to backend.
+                // Wait, let's check backend route... it uses `Post.find(query)`.
+                // So adding ?userId=... to backend would be easy.
+                // For now, I'll stick to 'all' type and client side filter if needed, or just fetch once.
+                // Actually, let's just do a single fetch for now to replace the subscription pattern.
+                // Re-implementing subscription with polling for now.
 
-        return onSnapshot(q, (snapshot) => {
-            const posts = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Post))
-            callback(posts)
-        }, (error) => {
-            console.error("Firestore [subscribeUserPosts] error:", error)
-            // Fallback: search without orderBy if index is missing (common in new projects)
-            if (error.code === 'failed-precondition') {
-                const simpleQ = query(postsRef, where('userId', '==', userId))
-                onSnapshot(simpleQ, (snap) => {
-                    const posts = snap.docs
-                        .map(d => ({ id: d.id, ...d.data() } as Post))
-                        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-                        .slice(0, maxPosts)
-                    callback(posts)
-                })
+                const response = await api.get(`/api/posts?type=all&limit=${maxPosts}`)
+                const userPosts = response.data.filter((p: Post) => p.userId === userId)
+                callback(userPosts)
+            } catch (error) {
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.error(error);
+
+                }
             }
+        }, 5000)
+
+        // Initial fetch
+        this.getTodaysPosts(maxPosts).then(posts => {
+            callback(posts.filter(p => p.userId === userId))
         })
+
+        return () => clearInterval(interval)
+    }
+
+    // Public feed subscription (Polling)
+    subscribePublicPosts(
+        maxPosts: number = 20,
+        callback: (posts: Post[]) => void
+    ): () => void {
+        const fetchPosts = async () => {
+            try {
+                const posts = await this.getTodaysPosts(maxPosts)
+                callback(posts)
+            } catch (error) {
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.error(error);
+
+                }
+            }
+        }
+
+        fetchPosts() // Initial
+        const interval = setInterval(fetchPosts, 10000) // Poll every 10s
+        return () => clearInterval(interval)
     }
 
     subscribeToPostsByRange(
@@ -98,50 +88,79 @@ class PostService {
         return this.subscribePublicPosts(maxPosts, callback)
     }
 
-    // Atomic Like Toggle using Transaction
-    async toggleLike(postId: string, userId: string): Promise<void> {
-        if (!userId) throw new Error("Authentication Required")
-
+    // Get Single Post
+    async getPostById(postId: string): Promise<Post | null> {
         try {
-            const postRef = doc(getFirebaseDb(), POSTS_COLLECTION, postId)
-
-            await runTransaction(getFirebaseDb(), async (transaction) => {
-                const postDoc = await transaction.get(postRef)
-                if (!postDoc.exists()) throw new Error("Post does not exist")
-
-                const data = postDoc.data() as Post
-                const likes = data.likes || []
-                const hasLiked = likes.includes(userId)
-
-                const currentCount = typeof data.likeCount === 'number' ? data.likeCount : likes.length
-
-                if (hasLiked) {
-                    // Unlike
-                    const newLikes = likes.filter(id => id !== userId)
-                    transaction.update(postRef, {
-                        likes: newLikes,
-                        likeCount: Math.max(0, currentCount - 1)
-                    })
-                } else {
-                    // Like
-                    const newLikes = [...likes, userId]
-                    transaction.update(postRef, {
-                        likes: newLikes,
-                        likeCount: currentCount + 1
-                    })
-                }
-            })
+            const response = await api.get(`/api/posts/${postId}`)
+            return response.data
         } catch (error) {
-            console.error("Error toggling like:", error)
-            throw error // Re-throw to let UI handle if needed, or suppress if just logging
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error("Error fetching post:", error);
+
+            }
+            return null
         }
     }
 
-    // Deprecated but kept for safety if called elsewhere with old signature
-    async toggleLikeStatus(postId: string, userId: string, _isLiked: boolean): Promise<void> {
-        return this.toggleLike(postId, userId)
+    // Create Post
+    async createPost(
+        content: string,
+        imageUrl: string | null,
+        _userId: string,
+        _userName: string,
+        _userAvatar: string,
+        _visibility: 'public' | 'private' = 'public'
+    ): Promise<Post> {
+        const response = await api.post('/api/posts', {
+            content,
+            image: imageUrl,
+            type: 'global', // Default type
+            // extra fields handled by backend or ignored
+        })
+        return response.data
     }
 
+    // Toggle Like
+    async toggleLike(postId: string, _userId: string): Promise<void> {
+        await api.post(`/api/posts/${postId}/like`)
+    }
+
+    // Add Comment
+    async addComment(
+        postId: string,
+        _userId: string,
+        _userName: string,
+        content: string,
+        _userAvatar?: string
+    ): Promise<void> {
+        await api.post(`/api/posts/${postId}/comment`, { text: content })
+    }
+
+    // Get Comments (via single post fetch)
+    async getComments(postId: string): Promise<Comment[]> {
+        const post = await this.getPostById(postId)
+        return post?.comments || []
+    }
+
+    // Subscribe to Comments (Polling)
+    subscribeToComments(postId: string, callback: (comments: Comment[]) => void): () => void {
+        const fetchComments = async () => {
+            const comments = await this.getComments(postId)
+            callback(comments)
+        }
+
+        fetchComments()
+        const interval = setInterval(fetchComments, 3000) // Fast polling for chat
+        return () => clearInterval(interval)
+    }
+
+    // Delete Post
+    async deletePost(postId: string): Promise<void> {
+        await api.delete(`/api/posts/${postId}`)
+    }
+
+    // Share Post
     async sharePost(post: Post): Promise<void> {
         const shareData = {
             title: 'ESPO V2 Post',
@@ -156,102 +175,18 @@ class PostService {
                 await navigator.clipboard.writeText(shareData.url)
             }
         } catch (error) {
-            console.error('Share failed', error)
-        }
-    }
+            if (import.meta.env.MODE !== 'production') {
 
-    async deletePost(postId: string): Promise<void> {
-        const postRef = doc(getFirebaseDb(), POSTS_COLLECTION, postId)
-        // Note: Comments subcollection is not deleted automatically.
-        // In a production app, we would use a Cloud Function or recursive loop.
-        // For this task, we delete the main doc as requested.
-        await deleteDoc(postRef)
-    }
+                console.error('Share failed', error);
 
-    async addComment(postId: string, userId: string, userName: string, content: string, userAvatar?: string): Promise<void> {
-        if (!userId || !content.trim()) return
-
-        const postRef = doc(getFirebaseDb(), POSTS_COLLECTION, postId)
-        const commentsRef = collection(postRef, 'comments')
-
-        const newComment = {
-            userId,
-            userName,
-            userAvatar: userAvatar || '',
-            content,
-            createdAt: new Date().toISOString()
-        }
-
-        // We use a transaction to ensure count and doc creation are synced
-        // NOTE: In Firestore, we can't reliably use transaction.set with auto-ID 
-        // without knowing the ID. We can pre-generate a doc ref.
-        const newCommentRef = doc(commentsRef)
-
-        await runTransaction(getFirebaseDb(), async (transaction) => {
-            const postDoc = await transaction.get(postRef)
-            if (!postDoc.exists()) throw new Error("Post does not exist")
-
-            const data = postDoc.data() as Post
-            const currentCount = typeof data.commentCount === 'number' ? data.commentCount : 0
-
-            transaction.set(newCommentRef, newComment)
-            transaction.update(postRef, {
-                commentCount: currentCount + 1
-            })
-        })
-    }
-
-    // Real-time comments for a specific post
-    subscribeToComments(postId: string, callback: (comments: Comment[]) => void): () => void {
-        const commentsRef = collection(getFirebaseDb(), POSTS_COLLECTION, postId, 'comments')
-        const q = query(commentsRef, orderBy('createdAt', 'desc'))
-
-        return onSnapshot(q, (snapshot) => {
-            const comments = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Comment))
-            callback(comments)
-        })
-    }
-
-    async getComments(postId: string): Promise<Comment[]> {
-        const commentsRef = collection(getFirebaseDb(), POSTS_COLLECTION, postId, 'comments')
-        const q = query(commentsRef, orderBy('createdAt', 'desc'))
-        const snapshot = await getDocs(q)
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Comment))
-    }
-
-    async createPost(
-        content: string,
-        imageUrl: string | null,
-        userId: string,
-        userName: string,
-        userAvatar: string,
-        visibility: 'public' | 'private' = 'public'
-    ): Promise<void> {
-        try {
-            const postsRef = collection(getFirebaseDb(), POSTS_COLLECTION)
-            const newPost = {
-                userId,
-                userName,
-                userAvatar: userAvatar || '',
-                content,
-                imageUrl: imageUrl || '',
-                likes: [],
-                likeCount: 0,
-                shares: [],
-                commentCount: 0,
-                visibility,
-                createdAt: new Date().toISOString()
             }
-            await addDoc(postsRef, newPost)
-        } catch (error) {
-            console.error("Error creating post:", error)
-            throw error
         }
+    }
+
+    // Deprecated compat
+    async toggleLikeStatus(postId: string, userId: string, _isLiked: boolean): Promise<void> {
+        return this.toggleLike(postId, userId)
     }
 }
 
 export const postService = new PostService()
-

@@ -1,12 +1,12 @@
 import { UserProfile } from '@/types'
-
-const STORAGE_KEY_PREFIX = 'espo_profile_'
+import { api } from '@/services/api'
+import { waitForAuth } from '@/utils/authGuard'
 
 const DEFAULT_PROFILE: UserProfile = {
     tournamentsPlayed: 0,
     tournamentsWon: 0,
     totalEarnings: 0,
-    referralCode: 'ESPO' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+    referralCode: '',
     referralEarnings: 0,
     gameAccounts: {},
     settings: {
@@ -18,43 +18,62 @@ const DEFAULT_PROFILE: UserProfile = {
 }
 
 class UserService {
-    async getProfile(userId: string): Promise<UserProfile> {
-        const key = STORAGE_KEY_PREFIX + userId
-        const stored = localStorage.getItem(key)
-        if (stored) {
-            return JSON.parse(stored)
-        }
-        localStorage.setItem(key, JSON.stringify(DEFAULT_PROFILE))
-        return DEFAULT_PROFILE
-    }
+    async getProfile(userId?: string): Promise<UserProfile> {
+        try {
+            await waitForAuth();
 
-    subscribeToProfile(userId: string, callback: (profile: UserProfile) => void): () => void {
-        const fetchAndCallback = async () => {
-            const profile = await this.getProfile(userId)
-            callback(profile)
-        }
+            let response;
+            if (userId) {
+                // Fetch public profile for specific user
+                response = await api.get(`/api/player/${userId}/profile`);
+            } else {
+                // Fetch private profile for authenticated user (inferred from token)
+                response = await api.get('/api/user/profile');
+            }
 
-        fetchAndCallback()
-        window.addEventListener('profileUpdate', fetchAndCallback)
-        return () => window.removeEventListener('profileUpdate', fetchAndCallback)
+            if (!response || !response.data) {
+                return DEFAULT_PROFILE;
+            }
+            return response.data;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error fetching profile:', error);
+
+            }
+            return DEFAULT_PROFILE;
+        }
     }
 
     async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<void> {
-        const current = await this.getProfile(userId)
-        const updated = {
-            ...current,
-            ...updates,
-            gameAccounts: { ...current.gameAccounts, ...updates.gameAccounts },
-            settings: { ...current.settings, ...updates.settings }
+        try {
+            await api.patch(`/api/users/${userId}/profile`, updates);
+        } catch (error) {
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error updating profile:', error);
+
+            }
+            throw error;
         }
-        localStorage.setItem(STORAGE_KEY_PREFIX + userId, JSON.stringify(updated))
-        window.dispatchEvent(new CustomEvent('profileUpdate'))
     }
 
     async searchUsers(query: string): Promise<(UserProfile & { uid: string })[]> {
-        // Return a simulated search result for the demo
-        console.log('Searching users locally:', query)
-        return []
+        try {
+            const response = await api.get(`/api/user/search?q=${encodeURIComponent(query)}`);
+            // Handle null response
+            if (!response || !response.data) {
+                return [];
+            }
+            return response.data;
+        } catch (error) {
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error searching users:', error);
+
+            }
+            return [];
+        }
     }
 }
 

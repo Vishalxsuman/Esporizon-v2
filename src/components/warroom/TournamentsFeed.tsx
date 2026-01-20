@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { warRoomService } from '@/services/WarRoomService'
 import { TournamentCard as TournamentCardType } from '@/types/WarRoomTypes'
-import TournamentCard from './TournamentCard'
+// import TournamentCard from './TournamentCard' // Removed - using unified TournamentCard
 import { Loader2 } from 'lucide-react'
 
 const TournamentsFeed = () => {
@@ -56,7 +56,9 @@ const TournamentsFeed = () => {
                         exit={{ opacity: 0, y: -20 }}
                         transition={{ delay: index * 0.05 }}
                     >
-                        <TournamentCard card={card} />
+                        <div className="p-6 bg-[var(--surface)] border border-[var(--border)] rounded-xl text-center">
+                            <p className="text-sm text-[var(--text-secondary)]">Tournament: {card.tournamentName}</p>
+                        </div>
                     </motion.div>
                 ))}
             </AnimatePresence>

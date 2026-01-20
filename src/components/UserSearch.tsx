@@ -21,7 +21,11 @@ const UserSearch = () => {
                     setResults(users)
                     setShowResults(true)
                 } catch (error) {
-                    console.error('Search error:', error)
+                    if (import.meta.env.MODE !== 'production') {
+
+                        console.error('Search error:', error);
+
+                    }
                 } finally {
                     setSearching(false)
                 }

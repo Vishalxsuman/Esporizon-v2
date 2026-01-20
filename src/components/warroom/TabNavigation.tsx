@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion'
-import { Globe, Users, Trophy, Video, Megaphone } from 'lucide-react'
+import { Globe, Users, Trophy, Megaphone } from 'lucide-react'
 
-type WarRoomTab = 'global' | 'recruitment' | 'tournaments' | 'clips' | 'host_updates'
+type WarRoomTab = 'all' | 'global' | 'lfg' | 'events'
 
 interface TabNavigationProps {
     activeTab: WarRoomTab
@@ -10,11 +10,10 @@ interface TabNavigationProps {
 
 const TabNavigation = ({ activeTab, onTabChange }: TabNavigationProps) => {
     const tabs: Array<{ id: WarRoomTab; label: string; icon: React.ReactNode }> = [
-        { id: 'global', label: 'Global', icon: <Globe className="w-4 h-4" /> },
-        { id: 'recruitment', label: 'Recruitment', icon: <Users className="w-4 h-4" /> },
-        { id: 'tournaments', label: 'Tournaments', icon: <Trophy className="w-4 h-4" /> },
-        { id: 'clips', label: 'Clips', icon: <Video className="w-4 h-4" /> },
-        { id: 'host_updates', label: 'Host Updates', icon: <Megaphone className="w-4 h-4" /> }
+        { id: 'all', label: 'All', icon: <Globe className="w-4 h-4" /> },
+        { id: 'global', label: 'Global', icon: <Megaphone className="w-4 h-4" /> },
+        { id: 'lfg', label: 'LFG', icon: <Users className="w-4 h-4" /> },
+        { id: 'events', label: 'Events', icon: <Trophy className="w-4 h-4" /> }
     ]
 
     return (

@@ -27,29 +27,25 @@ class WalletService {
             throw new Error('Deposit amount must be greater than 0');
         }
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        const transaction = {
+            type: 'deposit',
+            amount,
+            description,
+            status: 'completed',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
 
-        try {
-            const wallet = await this.getOrCreateWallet(userId);
+        const wallet = await Wallet.findOneAndUpdate(
+            { userId },
+            {
+                $inc: { balance: amount, totalDeposited: amount },
+                $push: { transactions: transaction }
+            },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        );
 
-            // Update balance
-            wallet.balance += amount;
-            wallet.totalDeposited += amount;
-
-            // Add transaction
-            wallet.addTransaction('deposit', amount, description);
-
-            await wallet.save({ session });
-            await session.commitTransaction();
-
-            return wallet;
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
-        }
+        return wallet;
     }
 
     /**
@@ -60,33 +56,30 @@ class WalletService {
             throw new Error('Withdrawal amount must be greater than 0');
         }
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        const transaction = {
+            type: 'withdraw',
+            amount,
+            description,
+            status: 'pending', // Usually pending admin approval or gateway
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
 
-        try {
-            const wallet = await this.getOrCreateWallet(userId);
+        // Check balance atomically
+        const wallet = await Wallet.findOneAndUpdate(
+            { userId, balance: { $gte: amount } },
+            {
+                $inc: { balance: -amount, totalWithdrawn: amount },
+                $push: { transactions: transaction }
+            },
+            { new: true }
+        );
 
-            if (wallet.balance < amount) {
-                throw new Error('Insufficient balance');
-            }
-
-            // Update balance
-            wallet.balance -= amount;
-            wallet.totalWithdrawn += amount;
-
-            // Add transaction
-            wallet.addTransaction('withdraw', amount, description, { status: 'pending' });
-
-            await wallet.save({ session });
-            await session.commitTransaction();
-
-            return wallet;
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
+        if (!wallet) {
+            throw new Error('Insufficient balance');
         }
+
+        return wallet;
     }
 
     /**
@@ -97,29 +90,30 @@ class WalletService {
             throw new Error('Fee amount must be greater than 0');
         }
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        const transaction = {
+            type: 'tournament_fee',
+            amount,
+            description: `Entry fee for tournament`,
+            metadata: { tournamentId },
+            status: 'completed',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
 
-        try {
-            const wallet = await this.getOrCreateWallet(userId);
+        const wallet = await Wallet.findOneAndUpdate(
+            { userId, balance: { $gte: amount } },
+            {
+                $inc: { balance: -amount },
+                $push: { transactions: transaction }
+            },
+            { new: true }
+        );
 
-            if (wallet.balance < amount) {
-                throw new Error('Insufficient balance for tournament entry');
-            }
-
-            wallet.balance -= amount;
-            wallet.addTransaction('tournament_fee', amount, `Entry fee for tournament`, { tournamentId });
-
-            await wallet.save({ session });
-            await session.commitTransaction();
-
-            return wallet;
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
+        if (!wallet) {
+            throw new Error('Insufficient balance for tournament entry');
         }
+
+        return wallet;
     }
 
     /**
@@ -130,26 +124,26 @@ class WalletService {
             throw new Error('Prize amount must be greater than 0');
         }
 
-        const session = await mongoose.startSession();
-        session.startTransaction();
+        const transaction = {
+            type: 'prize_won',
+            amount,
+            description,
+            metadata: { tournamentId },
+            status: 'completed',
+            createdAt: new Date(),
+            updatedAt: new Date()
+        };
 
-        try {
-            const wallet = await this.getOrCreateWallet(userId);
+        const wallet = await Wallet.findOneAndUpdate(
+            { userId },
+            {
+                $inc: { balance: amount, totalWon: amount },
+                $push: { transactions: transaction }
+            },
+            { new: true, upsert: true }
+        );
 
-            wallet.balance += amount;
-            wallet.totalWon += amount;
-            wallet.addTransaction('prize_won', amount, description, { tournamentId });
-
-            await wallet.save({ session });
-            await session.commitTransaction();
-
-            return wallet;
-        } catch (error) {
-            await session.abortTransaction();
-            throw error;
-        } finally {
-            session.endSession();
-        }
+        return wallet;
     }
 
     /**
@@ -158,7 +152,7 @@ class WalletService {
     async getTransactions(userId, limit = 50) {
         const wallet = await this.getOrCreateWallet(userId);
         return wallet.transactions
-            .sort((a, b) => b.createdAt - a.createdAt)
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
             .slice(0, limit);
     }
 }

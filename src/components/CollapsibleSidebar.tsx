@@ -32,11 +32,10 @@ const CollapsibleSidebar = () => {
     ]
 
     const navigation: SidebarItem[] = [
-        { id: 'social', label: 'Social Hub', icon: '✍️', route: '/social' },
-        { id: 'play', label: 'Play Games', icon: '🎮', route: '/play' },
+        { id: 'home', label: 'Home', icon: '🏠', route: '/dashboard' },
         { id: 'tournaments', label: 'Tournaments', icon: '🏆', route: '/tournaments' },
-        { id: 'support', label: 'Support', icon: '💬', route: '/support' },
-        { id: 'settings', label: 'Settings', icon: '⚙️', route: '/profile' },
+        { id: 'feed', label: 'Feed', icon: '📰', route: '/feed' },
+        { id: 'you', label: 'You', icon: '👤', route: '/profile' },
     ]
 
     const isActive = (route: string) => {

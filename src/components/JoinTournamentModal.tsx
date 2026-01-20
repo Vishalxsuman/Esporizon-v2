@@ -5,6 +5,7 @@ import { Tournament } from '@/types/tournament'
 import { useAuth } from '@/contexts/AuthContext'
 import { useWallet } from '../contexts/WalletContext';
 import { useNavigate } from 'react-router-dom'
+import ProfileService from '@/services/ProfileService'
 import toast from 'react-hot-toast'
 
 interface JoinTournamentModalProps {
@@ -16,7 +17,7 @@ interface JoinTournamentModalProps {
 
 const JoinTournamentModal = ({ isOpen, onClose, tournament, onJoin }: JoinTournamentModalProps) => {
     const { user } = useAuth()
-    const { balance, deductBalance } = useWallet()
+    const { balance } = useWallet()
     const navigate = useNavigate()
     const [step, setStep] = useState(1) // 1: Details, 2: Players, 3: Payment
     const [loading, setLoading] = useState(false)
@@ -31,21 +32,43 @@ const JoinTournamentModal = ({ isOpen, onClose, tournament, onJoin }: JoinTourna
 
     // Initialize players based on team size
     useEffect(() => {
-        if (isOpen) {
+        const initData = async () => {
+            if (!isOpen || !user) return
+
+            // Get profile data for the most accurate current details
+            let currentProfile = null
+            try {
+                currentProfile = await ProfileService.getMyProfile(user.uid || user.id, user.id)
+            } catch (err) {
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.warn('Failed to fetch profile for pre-fill', err);
+
+                }
+            }
+
+            // Determine initial name for player 1
+            const gameType = tournament.gameId?.toLowerCase() || ''
+            const gameIdFromProfile = currentProfile?.profile?.gameAccounts?.[gameType] || ''
+            const fallbackName = currentProfile?.profile?.displayName || user?.displayName || ''
+            const initialName = gameIdFromProfile || fallbackName
+
             const initialPlayers = Array(teamSize).fill(null).map((_, i) => ({
-                name: i === 0 && !isTeamTournament && user?.displayName ? user.displayName : '',
+                name: i === 0 ? initialName : '',
                 role: i === 0 ? 'Leader' : `Member ${i + 1}`
             }))
             setPlayers(initialPlayers)
 
             // Auto-fill team name if solo, or keep empty
             if (!isTeamTournament) {
-                setTeamName(user?.displayName || 'Solo Player')
+                setTeamName(initialName || 'Solo Player')
             } else {
                 setTeamName('')
             }
             setStep(1)
         }
+
+        initData()
     }, [isOpen, teamSize, isTeamTournament, user, tournament])
 
     const handlePlayerChange = (index: number, name: string) => {
@@ -67,19 +90,16 @@ const JoinTournamentModal = ({ isOpen, onClose, tournament, onJoin }: JoinTourna
 
         setLoading(true)
         try {
-            if (tournament.entryFee > 0) {
-                const success = await deductBalance(tournament.entryFee, `Entry Fee: ${tournament.title}`)
-                if (!success) {
-                    throw new Error("Transaction failed")
-                }
-            }
-
             await onJoin(teamName, players)
             toast.success("Successfully joined tournament!")
             onClose()
-        } catch (error) {
-            console.error('Payment failed:', error)
-            toast.error('Payment failed. Please try again.')
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Join failed:', error);
+
+            }
+            toast.error(error.message || 'Join failed. Please try again.')
         } finally {
             setLoading(false)
         }

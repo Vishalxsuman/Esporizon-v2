@@ -16,10 +16,10 @@ const TournamentList = lazy(() => import('./pages/TournamentList'))
 const CreateTournament = lazy(() => import('./pages/CreateTournament'))
 const TournamentDetails = lazy(() => import('./pages/TournamentDetails'))
 // const SocialPage = lazy(() => import('./pages/SocialPage'))
-const WarRoomPage = lazy(() => import('./pages/WarRoomPage'))
+// const WarRoomPage = lazy(() => import('./pages/WarRoomPage'))
 const WalletPage = lazy(() => import('./pages/WalletPage'))
 const ProfilePage = lazy(() => import('./pages/ProfilePage'))
-const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'))
+// const PlaceholderPage = lazy(() => import('./pages/PlaceholderPage'))
 const PlayHub = lazy(() => import('./pages/PlayHub'))
 const CreateMatch = lazy(() => import('./pages/CreateMatch'))
 const MatchLobby = lazy(() => import('./pages/MatchLobby'))
@@ -38,6 +38,7 @@ const TournamentResultsPage = lazy(() => import('./pages/TournamentResultsPage')
 const MyTournaments = lazy(() => import('./pages/MyTournaments'))
 const HostReports = lazy(() => import('./pages/HostReports'))
 const HostWallet = lazy(() => import('./pages/HostWallet'))
+const FeedPage = lazy(() => import('./pages/FeedPage'))
 
 // Loading component for suspense
 const PageLoader = () => (
@@ -197,18 +198,10 @@ function App() {
                   }
                 />
                 <Route
-                  path="/social"
+                  path="/feed"
                   element={
                     <ProtectedRoute>
-                      <WarRoomPage />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/war-room"
-                  element={
-                    <ProtectedRoute>
-                      <WarRoomPage />
+                      <FeedPage />
                     </ProtectedRoute>
                   }
                 />
@@ -222,7 +215,7 @@ function App() {
                 />
                 <Route
                   path="/create-post"
-                  element={<Navigate to="/war-room" replace />}
+                  element={<Navigate to="/feed" replace />}
                 />
                 <Route
                   path="/play"
@@ -249,30 +242,18 @@ function App() {
                   path="/play/game/:id"
                   element={<GameRouter />}
                 />
+
+                {/* 
                 <Route
                   path="/notifications"
                   element={
                     <ProtectedRoute>
-                      <PlaceholderPage title="Notifications" />
+                      <Dashboard />
                     </ProtectedRoute>
                   }
-                />
-                <Route
-                  path="/earnings"
-                  element={
-                    <ProtectedRoute>
-                      <PlaceholderPage title="Earnings" />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/support"
-                  element={
-                    <ProtectedRoute>
-                      <PlaceholderPage title="Support" />
-                    </ProtectedRoute>
-                  }
-                />
+                /> 
+                */}
+
                 <Route
                   path="/profile"
                   element={

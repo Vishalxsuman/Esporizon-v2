@@ -36,7 +36,11 @@ const PlayHub = () => {
                     const rank = await leaderboardService.getUserRank(user.id, 'overall_champions')
                     setUserRank(rank)
                 } catch (error) {
-                    console.error('Error loading data:', error)
+                    if (import.meta.env.MODE !== 'production') {
+
+                        console.error('Error loading data:', error);
+
+                    }
                 }
             }
             setLoading(false)

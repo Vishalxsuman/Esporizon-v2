@@ -37,7 +37,11 @@ class LeaderboardService {
             const doc = snapshot.docs[0]
             return { id: doc.id, ...doc.data() } as Leaderboard
         } catch (error) {
-            console.error('Error getting leaderboard:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting leaderboard:', error);
+
+            }
             return null
         }
     }
@@ -51,7 +55,11 @@ class LeaderboardService {
             const userEntry = leaderboard.entries.find(e => e.userId === userId)
             return userEntry ? userEntry.rank : null
         } catch (error) {
-            console.error('Error getting user rank:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error getting user rank:', error);
+
+            }
             return null
         }
     }
@@ -137,7 +145,11 @@ class LeaderboardService {
                 })
             }
         } catch (error) {
-            console.error('Error updating leaderboard entry:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error updating leaderboard entry:', error);
+
+            }
             throw new Error('Failed to update leaderboard')
         }
     }
@@ -206,7 +218,11 @@ class LeaderboardService {
                 }
             }
         } catch (error) {
-            console.error('Error checking leaderboards:', error)
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('Error checking leaderboards:', error);
+
+            }
         }
     }
 }

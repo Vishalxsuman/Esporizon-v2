@@ -1,4 +1,4 @@
-import { endpoints } from '@/config/api';
+import { api } from '@/services/api';
 
 export interface SupportTicketData {
     subject: string;
@@ -42,25 +42,22 @@ class SupportService {
                 throw new Error('Message must be 2000 characters or less');
             }
 
-            const response = await fetch(`${endpoints.baseURL}/api/support/ticket`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    firebaseUid,
-                    userId,
-                    ...ticketData
-                })
+            const response = await api.post('/api/support/ticket', {
+                firebaseUid,
+                userId,
+                ...ticketData
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to create support ticket');
-            }
+            return response.data;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            return await response.json();
-        } catch (error) {
-            console.error('SupportService.createTicket error:', error);
-            throw error;
+                console.error('SupportService.createTicket error:', error);
+
+            }
+            // Re-throw if it's our validation error, otherwise standard handling
+            const message = error.response?.data?.message || error.message || 'Failed to create support ticket';
+            throw new Error(message);
         }
     }
 
@@ -71,22 +68,19 @@ class SupportService {
      */
     async getMyTickets(firebaseUid: string, userId?: string) {
         try {
-            const params = new URLSearchParams();
-            if (firebaseUid) params.append('firebaseUid', firebaseUid);
-            if (userId) params.append('userId', userId);
+            const params: any = {};
+            if (firebaseUid) params.firebaseUid = firebaseUid;
+            if (userId) params.userId = userId;
 
-            const response = await fetch(
-                `${endpoints.baseURL}/api/support/tickets?${params.toString()}`
-            );
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch support tickets');
-            }
-
-            return await response.json();
+            const response = await api.get('/api/support/tickets', { params });
+            return response.data;
         } catch (error) {
-            console.error('SupportService.getMyTickets error:', error);
-            throw error;
+            if (import.meta.env.MODE !== 'production') {
+
+                console.error('SupportService.getMyTickets error:', error);
+
+            }
+            throw new Error('Failed to fetch support tickets');
         }
     }
 

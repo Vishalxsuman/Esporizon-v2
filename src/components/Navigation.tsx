@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '@/contexts/AuthContext'
 import { motion } from 'framer-motion'
-import { Home, Gamepad2, Wallet, Swords } from 'lucide-react'
+import { Home, Trophy, Rss, User } from 'lucide-react'
 
 const Navigation = () => {
   const { user } = useAuth()
@@ -9,9 +9,9 @@ const Navigation = () => {
 
   const navItems = [
     { path: '/dashboard', label: 'Home', icon: Home },
-    { path: '/play', label: 'Play', icon: Gamepad2 },
-    { path: '/war-room', label: 'War Room', icon: Swords },
-    { path: '/wallet', label: 'Wallet', icon: Wallet },
+    { path: '/tournaments', label: 'Tournaments', icon: Trophy },
+    { path: '/feed', label: 'Feed', icon: Rss },
+    { path: '/profile', label: 'You', icon: User },
   ]
 
   // Only show for authenticated users

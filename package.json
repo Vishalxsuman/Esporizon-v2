@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "server": "cd server && node index.js",
-    "server:dev": "cd server && nodemon index.js",
+    "server": "cd backend && node src/server.js",
+    "server:dev": "cd backend && nodemon src/server.js",
     "deploy": "npm run build"
   },
   "dependencies": {

@@ -4,6 +4,7 @@ export interface User {
   email: string | null
   displayName: string | null
   photoURL: string | null
+  isHost?: boolean
 }
 
 export interface UserProfile {
@@ -13,7 +14,10 @@ export interface UserProfile {
   referralCode: string
   referralEarnings: number
   username?: string
+  displayName?: string
   bio?: string
+  location?: string
+  themeColor?: string
   avatarUrl?: string
   gameAccounts: {
     bgmi?: string
@@ -64,9 +68,15 @@ export interface UserProfile {
     clutchFactor: number
     lastCalculated: string
   }
+  bannerUrl?: string
+  country?: string
+  languages?: string[]
   socialLinks?: {
     youtube?: string
     twitch?: string
+    discord?: string
+    instagram?: string
+    twitter?: string
   }
   isVerifiedHost?: boolean
   hostMetrics?: {

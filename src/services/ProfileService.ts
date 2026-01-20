@@ -1,11 +1,17 @@
-import { endpoints } from '@/config/api';
+import { api } from '@/services/api';
+
 
 export interface ProfileUpdateData {
     username?: string;
+    displayName?: string;
     bio?: string;
+    location?: string;
     avatarId?: string;
     avatarType?: 'initials' | 'geometric' | 'gradient' | 'default';
     frameId?: string;
+    country?: string;
+    languages?: string[];
+    bannerUrl?: string;
     socialLinks?: {
         discord?: string;
         twitter?: string;
@@ -13,6 +19,7 @@ export interface ProfileUpdateData {
         youtube?: string;
     };
     themeColor?: string;
+    gameAccounts?: Record<string, string>;
 }
 
 export interface UsernameCheckResponse {
@@ -28,20 +35,16 @@ class ProfileService {
      */
     async getMyProfile(firebaseUid: string, userId?: string) {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/profile/me`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ firebaseUid, userId })
-            });
+            const response = await api.post('/api/profile/me', { firebaseUid, userId });
+            return response?.data ?? { id: userId, username: 'User', role: 'player' };
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch profile');
+                console.error('ProfileService.getMyProfile error:', error);
+
             }
-
-            return await response.json();
-        } catch (error) {
-            console.error('ProfileService.getMyProfile error:', error);
-            throw error;
+            // Return minimal profile instead of throwing
+            return { id: userId, username: 'User', role: 'player' };
         }
     }
 
@@ -51,16 +54,15 @@ class ProfileService {
      */
     async getProfileByUserId(userId: string) {
         try {
-            const response = await fetch(endpoints.profile(userId));
+            const response = await api.get(`/api/profile/${userId}`);
+            return response?.data ?? null;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch profile');
+                console.error('ProfileService.getProfileByUserId error:', error);
+
             }
-
-            return await response.json();
-        } catch (error) {
-            console.error('ProfileService.getProfileByUserId error:', error);
-            throw error;
+            return null;
         }
     }
 
@@ -76,25 +78,20 @@ class ProfileService {
         userId?: string
     ) {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/profile/me`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    firebaseUid,
-                    userId,
-                    ...data
-                })
+            const response = await api.put('/api/profile/me', {
+                firebaseUid,
+                userId,
+                ...data
             });
+            return response.data;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Failed to update profile');
+                console.error('ProfileService.updateProfile error:', error);
+
             }
-
-            return await response.json();
-        } catch (error) {
-            console.error('ProfileService.updateProfile error:', error);
-            throw error;
+            const message = error.response?.data?.message || 'Failed to update profile';
+            throw new Error(message);
         }
     }
 
@@ -114,23 +111,20 @@ class ProfileService {
 
         try {
             // Simple check: try to get profile by username
-            // This is a workaround since we don't have a dedicated endpoint
-            // In production, you'd want a specific /api/profile/check-username endpoint
-            const response = await fetch(`${endpoints.baseURL}/api/user/check-username`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username })
-            });
+            const response = await api.post('/api/user/check-username', { username });
 
-            if (response.ok) {
-                const data = await response.json();
-                return data;
+            // If we get here, meaningful response was received
+            if (response.data) {
+                return response.data;
             }
 
-            // Fallback: assume available if endpoint doesn't exist
             return { available: true };
-        } catch (error) {
-            console.warn('Username check failed, assuming available:', error);
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
+
+                console.warn('Username check failed, assuming available:', error);
+
+            }
             return { available: true };
         }
     }
@@ -141,20 +135,15 @@ class ProfileService {
      */
     async initializeStats(userId: string) {
         try {
-            const response = await fetch(`${endpoints.baseURL}/api/profile/init`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId })
-            });
+            const response = await api.post('/api/profile/init', { userId });
+            return response.data;
+        } catch (error: any) {
+            if (import.meta.env.MODE !== 'production') {
 
-            if (!response.ok) {
-                throw new Error('Failed to initialize stats');
+                console.error('ProfileService.initializeStats error:', error);
+
             }
-
-            return await response.json();
-        } catch (error) {
-            console.error('ProfileService.initializeStats error:', error);
-            throw error;
+            throw new Error('Failed to initialize stats');
         }
     }
 }

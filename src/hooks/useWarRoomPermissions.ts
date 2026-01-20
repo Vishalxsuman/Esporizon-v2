@@ -43,7 +43,11 @@ export function useWarRoomPermissions(): WarRoomPermissions {
                 const level = await warRoomService.getUserTrustLevel(user.uid)
                 setTrustLevel(level)
             } catch (error) {
-                console.error('Error fetching trust level:', error)
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.error('Error fetching trust level:', error);
+
+                }
                 setTrustLevel(0)
             } finally {
                 setIsLoading(false)

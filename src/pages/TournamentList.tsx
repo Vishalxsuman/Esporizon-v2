@@ -10,7 +10,7 @@ const TournamentList = () => {
     const { gameId } = useParams<{ gameId: string }>()
     const navigate = useNavigate()
     const [tournaments, setTournaments] = useState<Tournament[]>([])
-    const [filter, setFilter] = useState<'upcoming' | 'live' | 'completed'>('upcoming')
+    const [filter, setFilter] = useState<'live' | 'completed'>('live')
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
@@ -53,8 +53,13 @@ const TournamentList = () => {
                 const data = await tournamentService.getTournaments(gameId, filter)
                 setTournaments(data)
             } catch (err) {
-                console.error("Error fetching tournaments:", err)
-                setError("Failed to load tournaments. Please check your connection.")
+                if (import.meta.env.MODE !== 'production') {
+
+                    console.warn("Tournament fetch issue:", err);
+
+                }
+                // Empty state is valid - show "No tournaments available"
+                setTournaments([])
             } finally {
                 setLoading(false)
             }
@@ -137,7 +142,7 @@ const TournamentList = () => {
             <div className="max-w-7xl mx-auto px-4 -mt-10 relative z-20">
                 {/* Filter Tabs */}
                 <div className="flex gap-2 mb-8 bg-[#18181b]/80 backdrop-blur-xl p-1.5 rounded-2xl border border-white/5 w-fit">
-                    {(['upcoming', 'live', 'completed'] as const).map((status) => (
+                    {(['live', 'completed'] as const).map((status) => (
                         <button
                             key={status}
                             onClick={() => setFilter(status)}

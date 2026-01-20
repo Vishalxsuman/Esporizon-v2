@@ -20,6 +20,7 @@ const CommentSection = ({ postId, onClose }: CommentSectionProps) => {
 
     useEffect(() => {
         setIsLoading(true)
+        // Now polls the API
         const unsubscribe = postService.subscribeToComments(postId, (items) => {
             setComments(items)
             setIsLoading(false)
@@ -45,6 +46,9 @@ const CommentSection = ({ postId, onClose }: CommentSectionProps) => {
                 user.photoURL || ''
             )
             setNewComment('')
+            // Optimistic update or wait for poll? Poll is fast (3s).
+            // Let's rely on poll for simplicity or trigger manual fetch if we exposed it.
+            // For better UX, we could append locally but let's trust the poll/service.
         } catch (error) {
             toast.error('Signal Error: Failed to drop intel')
         } finally {
@@ -75,8 +79,8 @@ const CommentSection = ({ postId, onClose }: CommentSectionProps) => {
                         <p className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">Silence on the network...</p>
                     </div>
                 ) : (
-                    comments.map((comment) => (
-                        <div key={comment.id} className="flex gap-3 group">
+                    comments.map((comment, index) => (
+                        <div key={comment.id || index} className="flex gap-3 group">
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#00ffc2]/20 to-[#7c3aed]/20 p-[1px] shrink-0">
                                 <div className="w-full h-full rounded-full bg-[#18181b] flex items-center justify-center overflow-hidden">
                                     {comment.userAvatar ? (
