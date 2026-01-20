@@ -1,5 +1,4 @@
 
-
 /**
  * Executes an async function safely, returning a default value on error.
  * Used for non-critical data fetching.
@@ -12,14 +11,9 @@ export async function safeFetch<T>(
     try {
         return await fetcher();
     } catch (error) {
-        // Log only if it's not an abort/timeout which are handled globally usually
-        // But here we just want to suppress crash
-        if (process.env.NODE_ENV === 'development') {
-            if (import.meta.env.MODE !== 'production') {
-
-                console.warn(`SafeFetch Warning [${errorMessage}]:`, error);
-
-            }
+        // Log only in development mode to suppress crashes in production
+        if (import.meta.env.MODE !== 'production') {
+            console.warn(`SafeFetch Warning [${errorMessage}]:`, error);
         }
         return defaultValue;
     }
