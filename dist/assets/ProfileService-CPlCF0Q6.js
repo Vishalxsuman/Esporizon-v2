@@ -1,0 +1,6 @@
+import{c as o,k as t}from"./index-BI1Zh8jC.js";/**
+ * @license lucide-react v0.562.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const n=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}],["line",{x1:"12",x2:"12",y1:"8",y2:"12",key:"1pkeuh"}],["line",{x1:"12",x2:"12.01",y1:"16",y2:"16",key:"4dfq90"}]],y=o("circle-alert",n);class c{async getMyProfile(r,e){try{return(await t.post("/api/profile/me",{firebaseUid:r,userId:e}))?.data??{id:e,username:"User",role:"player"}}catch{return{id:e,username:"User",role:"player"}}}async getProfileByUserId(r){try{return(await t.get(`/api/profile/${r}`))?.data??null}catch{return null}}async updateProfile(r,e,a){try{return(await t.put("/api/profile/me",{firebaseUid:r,userId:a,...e})).data}catch(s){const i=s.response?.data?.message||"Failed to update profile";throw new Error(i)}}async checkUsernameAvailability(r,e){if(r===e)return{available:!0};try{const a=await t.post("/api/user/check-username",{username:r});return a.data?a.data:{available:!0}}catch{return{available:!0}}}async initializeStats(r){try{return(await t.post("/api/profile/init",{userId:r})).data}catch{throw new Error("Failed to initialize stats")}}}const u=new c;export{y as C,u as P};
